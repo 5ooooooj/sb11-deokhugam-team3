@@ -7,16 +7,16 @@ import lombok.Getter;
 
 @Getter
 @MappedSuperclass
-public class SoftDeletableEntity extends BaseEntity{
+public abstract class SoftDeletableEntity extends BaseEntity {
 
   @Column(name = "deleted_at")
   private Instant deletedAt;
 
-  public void softDelete(){
+  public void softDelete() {
     this.deletedAt = Instant.now();
   }
 
-  public void restore(){
+  public void restore() {
     this.deletedAt = null;
   }
 
