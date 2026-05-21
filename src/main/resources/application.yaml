@@ -1,0 +1,59 @@
+spring:
+  application:
+    name: deokhugam
+
+  jpa:
+    open-in-view: false
+    properties:
+      hibernate:
+        format_sql: true
+        default_batch_fetch_size: 100
+
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 10MB
+
+  batch:
+    job:
+      enabled: false  # 자동 실행 방지, 스케줄러에서 수동 실행
+
+batch:
+  scheduler:
+    cron: "-" # 기본값 비활성화
+
+server:
+  port: 8080
+
+springdoc:
+  api-docs:
+    path: /api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+  default-consumes-media-type: application/json
+  default-produces-media-type: application/json
+
+external:
+  naver:
+    client-id: ${NAVER_CLIENT_ID:}
+    client-secret: ${NAVER_CLIENT_SECRET:}
+    book-api-url: https://openapi.naver.com/v1/search/book.json
+    timeout: 3000
+    retry: 1
+  ocr:
+    api-key: ${OCR_SPACE_API_KEY:}
+    api-url: https://api.ocr.space/parse/image
+    timeout: 3000
+    retry: 1
+
+cloud:
+  aws:
+    credentials:
+      access-key: ${AWS_ACCESS_KEY_ID:}
+      secret-key: ${AWS_SECRET_ACCESS_KEY:}
+    region:
+      static: ${AWS_REGION:ap-northeast-2}
+    s3:
+      bucket: ${AWS_S3_BUCKET:}
+    stack:
+      auto: false
