@@ -1,5 +1,15 @@
+language: ko
+
 reviews:
   profile: chill
+  high_level_summary: true
+  poem: false
+  collapse_walkthrough: false
+  auto_review:
+    enabled: true
+    drafts: false
+    base_branches:
+      - develop
 
 chat:
   auto_reply: true
