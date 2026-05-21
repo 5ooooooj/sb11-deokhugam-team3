@@ -13,7 +13,9 @@ public abstract class SoftDeletableEntity extends BaseEntity {
   private Instant deletedAt;
 
   public void softDelete() {
-    this.deletedAt = Instant.now();
+    if (this.deletedAt == null) {
+      this.deletedAt = Instant.now();
+    }
   }
 
   public void restore() {
