@@ -163,11 +163,16 @@ cp .env.example .env
 ```bash
 docker-compose up -d
 ```
-
-### 4. 애플리케이션 실행
+### 4. 스키마 적용
 
 ```bash
-./gradlew bootRun
+docker exec -i deokhugam-db psql -U deokhugam -d deokhugam < src/main/resources/schema.sql
+```
+
+### 5. 애플리케이션 실행
+
+```bash
+./gradlew bootRun --args='--spring.profiles.active=local'
 ```
 
 ### 5. 테스트 실행
