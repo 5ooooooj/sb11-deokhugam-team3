@@ -1,0 +1,27 @@
+spring:
+  config:
+    activate:
+      on-profile: local
+
+  datasource:
+    url: jdbc:postgresql://localhost:5432/deokhugam
+    username: deokhugam
+    password: deokhugam1234
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: create  # 로컬에서는 자동 생성
+    show-sql: true
+
+  batch:
+    jdbc:
+      initialize-schema: always  # 배치 메타 테이블 자동 생성
+
+batch:
+  scheduler:
+    cron: "-" # 비활성화, 수동으로만 실행
+
+storage:
+  local:
+    path: ${LOCAL_STORAGE_PATH:./uploads/}
