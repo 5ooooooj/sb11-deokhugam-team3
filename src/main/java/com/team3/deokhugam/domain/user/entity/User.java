@@ -21,12 +21,12 @@ public class User extends SoftDeletableEntity {
   private String nickname;
 
   @Column(name = "password", nullable = false)
-  private String password;
+  private String encodedPassword;
 
-  public User(String email, String nickname, String Password){
+  public User(String email, String nickname, String encodedPassword){
     this.email = email;
     this.nickname=nickname;
-    this.password=Password;
+    this.encodedPassword=encodedPassword;
   }
 
   public void updateNickname(String nickname){
