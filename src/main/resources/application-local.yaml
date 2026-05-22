@@ -11,8 +11,13 @@ spring:
 
   jpa:
     hibernate:
-      ddl-auto: create  # 로컬에서는 자동 생성
+      ddl-auto: none
+    defer-datasource-initialization: true
     show-sql: true
+  sql:
+    init:
+      mode: always
+      schema-locations: classpath:schema.sql
 
   batch:
     jdbc:

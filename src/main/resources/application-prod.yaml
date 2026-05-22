@@ -18,7 +18,11 @@ spring:
   jpa:
     hibernate:
       ddl-auto: validate
+    defer-datasource-initialization: true
     show-sql: false
+  sql:
+    init:
+      mode: never
 
   batch:
     jdbc:
