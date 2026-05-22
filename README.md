@@ -175,7 +175,7 @@ docker exec -i deokhugam-db psql -U deokhugam -d deokhugam < src/main/resources/
 ./gradlew bootRun --args='--spring.profiles.active=local'
 ```
 
-### 5. 테스트 실행
+### 6. 테스트 실행
 
 ```bash
 # 전체 테스트

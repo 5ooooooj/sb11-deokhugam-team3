@@ -17,13 +17,12 @@ spring:
 
   jpa:
     hibernate:
-      ddl-auto: none
+      ddl-auto: validate
     defer-datasource-initialization: true
     show-sql: false
   sql:
     init:
-      mode: always
-      schema-locations: classpath:schema.sql
+      mode: never
 
   batch:
     jdbc:
