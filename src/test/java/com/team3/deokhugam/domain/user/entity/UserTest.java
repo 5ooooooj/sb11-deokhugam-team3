@@ -2,11 +2,13 @@ package com.team3.deokhugam.domain.user.entity;
 
 import java.time.Instant;
 import org.junit.jupiter.api.Test;
+
 import static org.assertj.core.api.Assertions.assertThat;
 
-public class UserTest {
+class UserTest {
+
   @Test
-  void createUser(){
+  void createUser() {
     // given
     String email = "aa@naver.com";
     String nickname = "tester";
@@ -23,7 +25,7 @@ public class UserTest {
   }
 
   @Test
-  void updateNickname(){
+  void updateNickname() {
     // given
     User user = new User("test@test.test", "기존닉네임", "encoded");
 
@@ -35,7 +37,7 @@ public class UserTest {
   }
 
   @Test
-  void softDelete(){
+  void softDelete() {
     // given
     User user = new User("test@test.test", "기존닉네임", "encoded");
 
@@ -47,7 +49,7 @@ public class UserTest {
   }
 
   @Test
-  void softDelete_doesNotOverwriteDeletedAt(){
+  void softDelete_doesNotOverwriteDeletedAt() {
     // given
     User user = new User("test@test.test", "기존닉네임", "encoded");
     user.softDelete();

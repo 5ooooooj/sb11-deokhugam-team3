@@ -23,13 +23,13 @@ public class User extends SoftDeletableEntity {
   @Column(name = "password", nullable = false)
   private String encodedPassword;
 
-  public User(String email, String nickname, String encodedPassword){
+  public User(String email, String nickname, String encodedPassword) {
     this.email = email;
-    this.nickname=nickname;
-    this.encodedPassword=encodedPassword;
+    this.nickname = nickname;
+    this.encodedPassword = encodedPassword;
   }
 
-  public void updateNickname(String nickname){
-    this.nickname=nickname;
+  public void updateNickname(String nickname) {
+    this.nickname = nickname;
   }
 }

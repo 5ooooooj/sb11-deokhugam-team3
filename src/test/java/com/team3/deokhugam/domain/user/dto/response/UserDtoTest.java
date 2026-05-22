@@ -2,9 +2,10 @@ package com.team3.deokhugam.domain.user.dto.response;
 
 import com.team3.deokhugam.domain.user.entity.User;
 import org.junit.jupiter.api.Test;
+
 import static org.assertj.core.api.Assertions.assertThat;
 
-public class UserDtoTest {
+class UserDtoTest {
 
   @Test
   void from() {

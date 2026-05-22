@@ -1,16 +1,17 @@
 package com.team3.deokhugam.domain.user.dto.request;
 
 import static org.assertj.core.api.Assertions.assertThat;
+
 import jakarta.validation.Validation;
 import jakarta.validation.Validator;
 import org.junit.jupiter.api.Test;
 
-public class UserRegisterRequestTest {
+class UserRegisterRequestTest {
 
   private final Validator validator = Validation.buildDefaultValidatorFactory().getValidator();
 
   @Test
-  void validateEmail(){
+  void validateEmail() {
     // given
     UserRegisterRequest request = new UserRegisterRequest(
         "test@test.test",
@@ -27,7 +28,7 @@ public class UserRegisterRequestTest {
   }
 
   @Test
-  void invalidEmail(){
+  void invalidEmail() {
     // given
     UserRegisterRequest request = new UserRegisterRequest(
         "test-test",
