@@ -18,10 +18,6 @@ public abstract class SoftDeletableEntity extends BaseEntity {
     }
   }
 
-  public void restore() {
-    this.deletedAt = null;
-  }
-
   public boolean isDeleted() {
     return deletedAt != null;
   }
