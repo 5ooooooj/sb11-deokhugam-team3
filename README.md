@@ -91,7 +91,7 @@
 
 ## 아키텍처
 
-```
+```text
 GitHub Actions (CI/CD)
         │
         ▼
@@ -119,7 +119,7 @@ GitHub Actions (CI/CD)
 
 로컬 실행 후 Swagger UI에서 확인할 수 있습니다.
 
-```
+```text
 http://localhost:8080/swagger-ui/index.html
 ```
 
@@ -175,9 +175,6 @@ docker-compose up -d
 ```bash
 # 전체 테스트
 ./gradlew test
-
-# 커버리지 리포트 생성 (build/reports/jacoco/test/html/index.html)
-./gradlew jacocoTestReport
 ```
 
 <br>
@@ -186,7 +183,7 @@ docker-compose up -d
 
 ### 브랜치 전략
 
-```
+```text
 main        — 릴리즈 브랜치 (직접 push 금지)
 develop     — 통합 브랜치
 feature/{이슈번호}-{기능요약}   — 기능 개발
@@ -195,7 +192,7 @@ bugfix/{이슈번호}      — 버그 수정
 
 ### 커밋 메시지
 
-```
+```text
 feat: 새로운 기능 추가 및 변경
 fix: 버그 수정
 refactor: 실제 기능 변경은 없지만 코드를 수정하는 경우
