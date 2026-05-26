@@ -1,6 +1,7 @@
 package com.team3.deokhugam.service.book;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
@@ -8,6 +9,7 @@ import com.team3.deokhugam.domain.book.Book;
 import com.team3.deokhugam.dto.book.BookCreateRequest;
 import com.team3.deokhugam.dto.book.BookDto;
 import com.team3.deokhugam.repository.book.BookRepository;
+import com.team3.deokhugam.exception.book.BookAlreadyExistsException;
 import java.time.LocalDate;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -30,7 +32,7 @@ class BookServiceTest {
   void createBook() {
     // given
     BookCreateRequest request =
-        new  BookCreateRequest(
+        new BookCreateRequest(
             "그리고 아무도 없었다",
             "애거서 크리스티",
             "외딴 섬에서 벌어지는 연쇄 살인 사건",
@@ -60,5 +62,27 @@ class BookServiceTest {
     assertThat(result.title()).isEqualTo(request.title());
     assertThat(result.author()).isEqualTo(request.author());
     assertThat(result.isbn()).isEqualTo(request.isbn());
+  }
+
+  @Test
+  @DisplayName("ISBN 중복되면 도서 생성 불가")
+  void createBookWithDuplicateISbn() {
+    // given
+    BookCreateRequest request =
+        new BookCreateRequest(
+            "그리고 아무도 없었다",
+            "애거서 크리스티",
+            "외딴 섬에서 벌어지는 연쇄 살인 사건",
+            "황금가지",
+            LocalDate.of(2013, 12, 31),
+            "9788960177758",
+            "https://example.com/book.jpg"
+        );
+
+    when(bookRepository.existsByIsbn(request.isbn())).thenReturn(true);
+
+    // when, then
+    assertThatThrownBy(() -> bookService.create(request))
+        .isInstanceOf(BookAlreadyExistsException.class);
   }
 }
