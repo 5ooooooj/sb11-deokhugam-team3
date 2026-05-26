@@ -30,14 +30,10 @@ public class ReviewController {
   @ApiResponses({
       @ApiResponse(responseCode = "201", description = "리뷰 등록 성공",
           content = @Content(schema = @Schema(implementation = ReviewDto.class))),
-      @ApiResponse(responseCode = "400", description = "잘못된 요청 (입력값 검증 실패)",
-          content = @Content(schema = @Schema(implementation = ReviewDto.class))),
-      @ApiResponse(responseCode = "404", description = "도서 정보 없음",
-          content = @Content(schema = @Schema(implementation = ReviewDto.class))),
-      @ApiResponse(responseCode = "409", description = "이미 작성된 리뷰 존재",
-          content = @Content(schema = @Schema(implementation = ReviewDto.class))),
-      @ApiResponse(responseCode = "500", description = "서버 내부 오류",
-          content = @Content(schema = @Schema(implementation = ReviewDto.class)))
+      @ApiResponse(responseCode = "400", description = "잘못된 요청 (입력값 검증 실패)"),
+      @ApiResponse(responseCode = "404", description = "도서 정보 없음"),
+      @ApiResponse(responseCode = "409", description = "이미 작성된 리뷰 존재"),
+      @ApiResponse(responseCode = "500", description = "서버 내부 오류")
   })
   @PostMapping
   public ResponseEntity<ReviewDto> createReview(
