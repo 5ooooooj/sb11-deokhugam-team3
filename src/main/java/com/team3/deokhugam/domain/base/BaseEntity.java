@@ -1,4 +1,4 @@
-package com.team3.deokhugam.global.entity;
+package com.team3.deokhugam.domain.base;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.EntityListeners;

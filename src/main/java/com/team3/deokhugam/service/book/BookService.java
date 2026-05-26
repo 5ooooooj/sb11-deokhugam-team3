@@ -16,7 +16,7 @@ public class BookService {
 
   public BookDto create(BookCreateRequest request) {
     if (request.isbn() != null && bookRepository.existsByIsbn(request.isbn())) {
-      throw new BookAlreadyExistsException(request.isbn());
+      throw new BookAlreadyExistsException();
     }
 
     Book book =
