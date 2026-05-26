@@ -1,15 +1,13 @@
 package com.team3.deokhugam.service.comment;
 
 import com.team3.deokhugam.domain.comment.Comment;
-import com.team3.deokhugam.domain.review.Review;
-import com.team3.deokhugam.domain.user.User;
 import com.team3.deokhugam.dto.comment.CommentCreateRequest;
-import com.team3.deokhugam.dto.comment.CommentUpdateRequest;
 import com.team3.deokhugam.dto.comment.CommentDto;
+import com.team3.deokhugam.dto.comment.CommentUpdateRequest;
+import com.team3.deokhugam.exception.comment.CommentForbiddenException;
+import com.team3.deokhugam.exception.comment.CommentNotFoundException;
 import com.team3.deokhugam.global.dto.CursorPageResponse;
 import com.team3.deokhugam.repository.comment.CommentRepository;
-import com.team3.deokhugam.repository.review.ReviewRepository;
-import com.team3.deokhugam.repository.user.UserRepository;
 import com.team3.deokhugam.service.notification.NotificationService;
 
 import org.junit.jupiter.api.DisplayName;
@@ -26,7 +24,6 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.BDDMockito.*;
-import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 public class CommentServiceTest {
@@ -34,17 +31,13 @@ public class CommentServiceTest {
   @Mock
   private CommentRepository commentRepository;
   @Mock
-  private ReviewRepository reviewRepository;
-  @Mock
-  private UserRepository userRepository;
-  @Mock
   private NotificationService notificationService;
   @InjectMocks
   private CommentServiceImpl commentService;
 
-  // ------------------------------------------
+  // ───────────────────────────────────────────
   // create()
-  //-------------------------------------------
+  // ───────────────────────────────────────────
 
   @Test
   @DisplayName("댓글 등록 성공")
@@ -54,31 +47,21 @@ public class CommentServiceTest {
     UUID userId = UUID.randomUUID();
     CommentCreateRequest request = new CommentCreateRequest(reviewId, userId, "좋은 리뷰네요");
 
-    Review review = mock(Review.class);
-    User user = mock(User.class);
-    Comment comment = mock(Comment.class);
-
-    given(reviewRepository.findById(reviewId)).willReturn(Optional.of(review));
-    given(userRepository.findById(userId)).willReturn(Optional.of(user));
+    Comment comment = Comment.create(reviewId, userId, "좋은 리뷰네요");
     given(commentRepository.save(any())).willReturn(comment);
-    given(comment.getContent()).willReturn("좋은 리뷰네요");
 
-    //when
+    // when
     CommentDto result = commentService.create(request);
 
-    //then
+    // then
     assertThat(result).isNotNull();
     assertThat(result.content()).isEqualTo("좋은 리뷰네요");
     verify(notificationService).createCommentNotification(reviewId, userId);
   }
 
-  // TODO: Exception class 올라오면 추가예
-  // void create_reviewNotFound()
-  // void create_userNotFound()
-
-  //------------------------------------------
+  // ───────────────────────────────────────────
   // update()
-  //------------------------------------------
+  // ───────────────────────────────────────────
 
   @Test
   @DisplayName("본인 댓글 수정 성공")
@@ -88,13 +71,7 @@ public class CommentServiceTest {
     UUID userId = UUID.randomUUID();
     CommentUpdateRequest request = new CommentUpdateRequest("수정된 내용");
 
-    User user = mock(User.class);
-    given(user.getId()).willReturn(userId);
-
-    Comment comment = mock(Comment.class);
-    given(comment.getUser()).willReturn(user);
-    given(comment.isDeleted()).willReturn(false);
-    given(comment.getContent()).willReturn("수정된 내용");
+    Comment comment = Comment.create(UUID.randomUUID(), userId, "원본 내용");
     given(commentRepository.findById(commentId)).willReturn(Optional.of(comment));
 
     // when
@@ -102,11 +79,42 @@ public class CommentServiceTest {
 
     // then
     assertThat(result).isNotNull();
-    verify(comment).updateContent("수정된 내용");
+    assertThat(result.content()).isEqualTo("수정된 내용");
   }
-  // TODO: Exception class 올라오면 추가
-  // void update_forbidden()
-  // void update_alreadyDeleted()
+
+  @Test
+  @DisplayName("타인 댓글 수정 시 예외")
+  void update_forbidden() {
+    // given
+    UUID commentId = UUID.randomUUID();
+    UUID ownerId = UUID.randomUUID();
+    UUID otherId = UUID.randomUUID();
+    CommentUpdateRequest request = new CommentUpdateRequest("수정 시도");
+
+    Comment comment = Comment.create(UUID.randomUUID(), ownerId, "원본");
+    given(commentRepository.findById(commentId)).willReturn(Optional.of(comment));
+
+    // when & then
+    assertThatThrownBy(() -> commentService.update(commentId, otherId, request))
+        .isInstanceOf(CommentForbiddenException.class);
+  }
+
+  @Test
+  @DisplayName("논리 삭제된 댓글 수정 시 예외")
+  void update_alreadyDeleted() {
+    // given
+    UUID commentId = UUID.randomUUID();
+    UUID userId = UUID.randomUUID();
+    CommentUpdateRequest request = new CommentUpdateRequest("수정 시도");
+
+    Comment comment = Comment.create(UUID.randomUUID(), userId, "원본");
+    comment.softDelete();
+    given(commentRepository.findById(commentId)).willReturn(Optional.of(comment));
+
+    // when & then
+    assertThatThrownBy(() -> commentService.update(commentId, userId, request))
+        .isInstanceOf(CommentNotFoundException.class);
+  }
 
   // ───────────────────────────────────────────
   // delete()
@@ -119,23 +127,32 @@ public class CommentServiceTest {
     UUID commentId = UUID.randomUUID();
     UUID userId = UUID.randomUUID();
 
-    User user = mock(User.class);
-    given(user.getId()).willReturn(userId);
-
-    Comment comment = mock(Comment.class);
-    given(comment.getUser()).willReturn(user);
-    given(comment.isDeleted()).willReturn(false);
+    Comment comment = Comment.create(UUID.randomUUID(), userId, "내용");
     given(commentRepository.findById(commentId)).willReturn(Optional.of(comment));
 
     // when
     commentService.delete(commentId, userId);
 
     // then
-    verify(comment).softDelete();
+    assertThat(comment.isDeleted()).isTrue();
+    assertThat(comment.getDeletedAt()).isNotNull();
   }
 
-  // TODO: Exception 클래스 올라오면 추가
-  // void delete_forbidden()
+  @Test
+  @DisplayName("타인 댓글 삭제 시 예외")
+  void delete_forbidden() {
+    // given
+    UUID commentId = UUID.randomUUID();
+    UUID ownerId = UUID.randomUUID();
+    UUID otherId = UUID.randomUUID();
+
+    Comment comment = Comment.create(UUID.randomUUID(), ownerId, "내용");
+    given(commentRepository.findById(commentId)).willReturn(Optional.of(comment));
+
+    // when & then
+    assertThatThrownBy(() -> commentService.delete(commentId, otherId))
+        .isInstanceOf(CommentForbiddenException.class);
+  }
 
   // ───────────────────────────────────────────
   // findAll()
@@ -148,8 +165,8 @@ public class CommentServiceTest {
     UUID reviewId = UUID.randomUUID();
 
     List<Comment> comments = List.of(
-        mock(Comment.class),
-        mock(Comment.class)
+        Comment.create(reviewId, UUID.randomUUID(), "내용1"),
+        Comment.create(reviewId, UUID.randomUUID(), "내용2")
     );
     given(commentRepository.findByReviewIdWithCursor(
         eq(reviewId), isNull(), any())
@@ -172,9 +189,9 @@ public class CommentServiceTest {
     int size = 2;
 
     List<Comment> comments = List.of(
-        mock(Comment.class),
-        mock(Comment.class),
-        mock(Comment.class)
+        Comment.create(reviewId, UUID.randomUUID(), "내용1"),
+        Comment.create(reviewId, UUID.randomUUID(), "내용2"),
+        Comment.create(reviewId, UUID.randomUUID(), "내용3")
     );
     given(commentRepository.findByReviewIdWithCursor(
         eq(reviewId), isNull(), any())
@@ -188,6 +205,4 @@ public class CommentServiceTest {
     assertThat(result.hasNext()).isTrue();
     assertThat(result.content()).hasSize(size);
   }
-
-
 }
