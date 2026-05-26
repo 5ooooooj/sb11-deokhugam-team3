@@ -1,4 +1,6 @@
 package com.team3.deokhugam.domain.notification;
 
-public class Notification {
+import com.team3.deokhugam.global.entity.BaseEntity;
+
+public class Notification extends BaseEntity {
 }
