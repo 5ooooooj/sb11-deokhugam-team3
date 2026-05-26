@@ -1,5 +1,6 @@
 package com.team3.deokhugam.global.config;
 
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
@@ -11,7 +12,7 @@ public class S3Config {
 
   private final AwsProperties props;
 
-  public S3Config(AwsProperties props) {
+  public S3Config(@Qualifier("awsProperties") AwsProperties props) {
     this.props = props;
   }
 

@@ -1,11 +1,12 @@
-package com.team3.deokhugam.integration;
+package com.team3.deokhugam.integration.s3;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.team3.deokhugam.exception.s3.S3UploadException;
 import com.team3.deokhugam.global.config.AwsProperties;
-import com.team3.deokhugam.service.S3Service;
+import com.team3.deokhugam.service.s3.S3Service;
 import java.util.UUID;
 import lombok.extern.slf4j.Slf4j;
 import org.junit.jupiter.api.Disabled;
@@ -78,7 +79,7 @@ public class S3IntegrationTest {
         .doesNotThrowAnyException();
   }
 
-  @@Test
+  @Test
   @Order(4)
   @DisplayName("실패: 빈 파일 업로드 시도")
   void 빈_파일_업로드_실패() {

@@ -1,5 +1,7 @@
-package com.team3.deokhugam.service;
+package com.team3.deokhugam.service.s3;
 
+import com.team3.deokhugam.exception.s3.S3DeleteException;
+import com.team3.deokhugam.exception.s3.S3UploadException;
 import com.team3.deokhugam.global.config.AwsProperties;
 import java.io.IOException;
 import lombok.RequiredArgsConstructor;
