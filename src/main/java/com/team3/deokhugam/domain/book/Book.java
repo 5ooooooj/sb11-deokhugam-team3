@@ -24,13 +24,13 @@ public class Book extends SoftDeletableEntity {
     @Column(nullable = false)
     private String author;
 
-    @Column(columnDefinition = "TEXT")
+    @Column(nullable = false, columnDefinition = "TEXT")
     private String description;
 
     @Column(nullable = false)
     private String publisher;
 
-    @Column(name = "published_date")
+    @Column(name = "published_date", nullable = false)
     private LocalDate publishedDate;
 
     @Column(unique = true)
@@ -42,7 +42,7 @@ public class Book extends SoftDeletableEntity {
     @Column(name = "review_count", nullable = false)
     private int reviewCount = 0;
 
-    @Column(nullable = false, precision = 2, scale = 1)
+    @Column(nullable = false, precision = 3, scale = 2)
     private BigDecimal rating = BigDecimal.ZERO;
 
     public Book(
