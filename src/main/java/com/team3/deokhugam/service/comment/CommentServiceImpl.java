@@ -94,6 +94,9 @@ public class CommentServiceImpl implements CommentService {
   @Transactional(readOnly = true)
   public CursorPageResponse<CommentDto> findAll(UUID reviewId,
       Instant after, int size) {
+    if (size < 1) {
+      throw new IllegalArgumentException("size는 1 이상이어야 합니다.");
+    }
     List<Comment> result = commentRepository.findByReviewIdWithCursor(
         reviewId, after, PageRequest.of(0, size + 1)
     );
