@@ -5,6 +5,7 @@ import com.team3.deokhugam.domain.user.dto.response.UserDto;
 import com.team3.deokhugam.domain.user.entity.User;
 import com.team3.deokhugam.domain.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -25,8 +26,12 @@ public class UserService {
     String encodedPassword = passwordEncoder.encode(request.password());
 
     User user = new User(request.email(), request.nickname(), encodedPassword);
-    User savedUser = userRepository.save(user);
-
-    return UserDto.from(savedUser);
+    User savedUser;
+    try {
+      savedUser = userRepository.saveAndFlush(user);
+      return UserDto.from(savedUser);
+    } catch (DataIntegrityViolationException e) {
+      throw new IllegalStateException("이미 사용중인 이메일입니다.", e);
+    }
   }
 }

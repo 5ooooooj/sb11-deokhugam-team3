@@ -1,6 +1,7 @@
 package com.team3.deokhugam.global.exception;
 
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -37,6 +38,21 @@ public class GlobalExceptionHandler {
         .status(HttpStatus.CONFLICT.value())
         .message("요청을 처리할 수 없습니다.")
         .details(e.getMessage())
+        .build();
+
+    return ResponseEntity.status(HttpStatus.CONFLICT).body(response);
+  }
+
+  @ExceptionHandler(DataIntegrityViolationException.class)
+  public ResponseEntity<ErrorResponse> handleDataIntegrityViolationException(
+      DataIntegrityViolationException e
+  ) {
+    log.warn("Data intergrity violation occurred: ", e);
+
+    ErrorResponse response = ErrorResponse.builder()
+        .status(HttpStatus.CONFLICT.value())
+        .message("요청을 처리할 수 없습니다.")
+        .details("데이터 제약 조건을 위반했습니다.")
         .build();
 
     return ResponseEntity.status(HttpStatus.CONFLICT).body(response);
