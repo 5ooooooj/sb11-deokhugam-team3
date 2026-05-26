@@ -1,13 +1,13 @@
 package com.team3.deokhugam.global.exception;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import lombok.Builder;
 import lombok.Getter;
 
 @Getter
 public class ErrorResponse {
 
-  private final LocalDateTime timestamp;
+  private final Instant timestamp;
 
   private final int status;
 
@@ -17,7 +17,7 @@ public class ErrorResponse {
 
   @Builder
   public ErrorResponse(int status, String message, String details) {
-    this.timestamp = LocalDateTime.now();
+    this.timestamp = Instant.now();
     this.status = status;
     this.message = message;
     this.details = details;
