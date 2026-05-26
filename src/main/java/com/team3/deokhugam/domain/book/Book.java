@@ -1,6 +1,6 @@
 package com.team3.deokhugam.domain.book;
 
-import com.team3.deokhugam.global.entity.SoftDeletableEntity;
+import com.team3.deokhugam.domain.base.SoftDeletableEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Table;
