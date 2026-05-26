@@ -1,9 +1,9 @@
-package com.team3.deokhugam.domain.user.service;
+package com.team3.deokhugam.service.user;
 
-import com.team3.deokhugam.domain.user.dto.request.UserRegisterRequest;
-import com.team3.deokhugam.domain.user.dto.response.UserDto;
-import com.team3.deokhugam.domain.user.entity.User;
-import com.team3.deokhugam.domain.user.repository.UserRepository;
+import com.team3.deokhugam.dto.user.UserRegisterRequest;
+import com.team3.deokhugam.dto.user.UserDto;
+import com.team3.deokhugam.domain.user.User;
+import com.team3.deokhugam.repository.user.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.crypto.password.PasswordEncoder;

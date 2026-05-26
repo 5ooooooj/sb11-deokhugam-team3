@@ -1,6 +1,6 @@
-package com.team3.deokhugam.domain.user.dto.response;
+package com.team3.deokhugam.dto.user;
 
-import com.team3.deokhugam.domain.user.entity.User;
+import com.team3.deokhugam.domain.user.User;
 import java.time.Instant;
 import java.util.UUID;
 

@@ -1,9 +1,9 @@
-package com.team3.deokhugam.domain.user.controller;
+package com.team3.deokhugam.controller.user;
 
-import com.team3.deokhugam.domain.user.controller.docs.UserRegisterApi;
-import com.team3.deokhugam.domain.user.dto.request.UserRegisterRequest;
-import com.team3.deokhugam.domain.user.dto.response.UserDto;
-import com.team3.deokhugam.domain.user.service.UserService;
+import com.team3.deokhugam.controller.user.docs.UserRegisterApi;
+import com.team3.deokhugam.dto.user.UserRegisterRequest;
+import com.team3.deokhugam.dto.user.UserDto;
+import com.team3.deokhugam.service.user.UserService;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;

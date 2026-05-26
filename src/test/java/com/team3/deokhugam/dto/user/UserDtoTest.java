@@ -1,6 +1,6 @@
-package com.team3.deokhugam.domain.user.dto.response;
+package com.team3.deokhugam.dto.user;
 
-import com.team3.deokhugam.domain.user.entity.User;
+import com.team3.deokhugam.domain.user.User;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;

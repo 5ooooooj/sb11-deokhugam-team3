@@ -1,4 +1,4 @@
-package com.team3.deokhugam.domain.user.dto.request;
+package com.team3.deokhugam.dto.user;
 
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;

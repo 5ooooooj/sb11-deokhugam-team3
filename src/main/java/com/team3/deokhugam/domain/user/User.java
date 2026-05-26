@@ -1,4 +1,4 @@
-package com.team3.deokhugam.domain.user.entity;
+package com.team3.deokhugam.domain.user;
 
 import com.team3.deokhugam.global.entity.SoftDeletableEntity;
 import jakarta.persistence.Column;

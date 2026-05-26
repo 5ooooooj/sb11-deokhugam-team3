@@ -1,4 +1,4 @@
-package com.team3.deokhugam.domain.user.controller;
+package com.team3.deokhugam.controller.user;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
@@ -8,9 +8,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.team3.deokhugam.domain.user.dto.request.UserRegisterRequest;
-import com.team3.deokhugam.domain.user.dto.response.UserDto;
-import com.team3.deokhugam.domain.user.service.UserService;
+import com.team3.deokhugam.dto.user.UserRegisterRequest;
+import com.team3.deokhugam.dto.user.UserDto;
+import com.team3.deokhugam.service.user.UserService;
 import java.time.Instant;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;

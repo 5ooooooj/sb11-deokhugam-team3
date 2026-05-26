@@ -1,4 +1,4 @@
-package com.team3.deokhugam.domain.user.service;
+package com.team3.deokhugam.service.user;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
@@ -7,10 +7,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.never;
 
-import com.team3.deokhugam.domain.user.dto.request.UserRegisterRequest;
-import com.team3.deokhugam.domain.user.dto.response.UserDto;
-import com.team3.deokhugam.domain.user.entity.User;
-import com.team3.deokhugam.domain.user.repository.UserRepository;
+import com.team3.deokhugam.dto.user.UserRegisterRequest;
+import com.team3.deokhugam.dto.user.UserDto;
+import com.team3.deokhugam.domain.user.User;
+import com.team3.deokhugam.repository.user.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;

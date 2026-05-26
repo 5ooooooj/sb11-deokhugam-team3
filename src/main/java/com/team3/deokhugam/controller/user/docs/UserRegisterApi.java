@@ -1,6 +1,6 @@
-package com.team3.deokhugam.domain.user.controller.docs;
+package com.team3.deokhugam.controller.user.docs;
 
-import com.team3.deokhugam.domain.user.dto.response.UserDto;
+import com.team3.deokhugam.dto.user.UserDto;
 import com.team3.deokhugam.global.exception.ErrorResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;

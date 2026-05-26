@@ -1,4 +1,4 @@
-package com.team3.deokhugam.domain.user.entity;
+package com.team3.deokhugam.domain.user;
 
 import java.time.Instant;
 import org.junit.jupiter.api.Test;

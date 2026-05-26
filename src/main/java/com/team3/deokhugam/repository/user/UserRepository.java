@@ -1,6 +1,6 @@
-package com.team3.deokhugam.domain.user.repository;
+package com.team3.deokhugam.repository.user;
 
-import com.team3.deokhugam.domain.user.entity.User;
+import com.team3.deokhugam.domain.user.User;
 import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
 

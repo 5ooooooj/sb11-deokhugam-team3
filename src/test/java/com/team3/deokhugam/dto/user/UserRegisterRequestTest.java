@@ -1,4 +1,4 @@
-package com.team3.deokhugam.domain.user.dto.request;
+package com.team3.deokhugam.dto.user;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
