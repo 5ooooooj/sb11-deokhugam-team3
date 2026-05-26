@@ -10,7 +10,11 @@ import static org.mockito.Mockito.never;
 import com.team3.deokhugam.dto.user.UserRegisterRequest;
 import com.team3.deokhugam.dto.user.UserDto;
 import com.team3.deokhugam.domain.user.User;
+import com.team3.deokhugam.exception.user.EmailAlreadyExistsException;
 import com.team3.deokhugam.repository.user.UserRepository;
+import com.team3.deokhugam.dto.user.UserLoginRequest;
+import com.team3.deokhugam.exception.user.LoginFailedException;
+import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -39,10 +43,10 @@ class UserServiceTest {
         "tester",
         "Password1!"
     );
-    // 이메일 중복 false 반환
+
     given(userRepository.existsByEmail(request.email())).willReturn(false);
-    // User 객체 그대로 반환
-    given(userRepository.save(any(User.class)))
+
+    given(userRepository.saveAndFlush(any(User.class)))
         .willAnswer(invocation -> invocation.getArgument(0));
 
     // when
@@ -52,9 +56,8 @@ class UserServiceTest {
     assertThat(result.email()).isEqualTo(request.email());
     assertThat(result.nickname()).isEqualTo(request.nickname());
 
-    // save 호출 확인
     ArgumentCaptor<User> userCaptor = ArgumentCaptor.forClass(User.class);
-    then(userRepository).should().save(userCaptor.capture());
+    then(userRepository).should().saveAndFlush(userCaptor.capture());
 
     User savedUser = userCaptor.getValue();
 
@@ -79,9 +82,84 @@ class UserServiceTest {
 
     // when, then
     assertThatThrownBy(() -> userService.register(request))
-        .isInstanceOf(IllegalStateException.class);
+        .isInstanceOf(EmailAlreadyExistsException.class);
 
     then(userRepository).should().existsByEmail(request.email());
-    then(userRepository).should(never()).save(any(User.class));
+    then(userRepository).should(never()).saveAndFlush(any(User.class));
   }
+
+  @Test
+  void login_success(){
+    // given
+    String rawPassword = "Password1!";
+    String encodedPassword = passwordEncoder.encode(rawPassword);
+
+    User user = new User(
+        "test@test.com",
+        "tester",
+        encodedPassword
+    );
+
+    UserLoginRequest request = new UserLoginRequest(
+        "test@test.com",
+        rawPassword
+    );
+
+    given(userRepository.findActiveByEmail(request.email()))
+        .willReturn(Optional.of(user));
+
+    // when
+    UserDto result = userService.login(request);
+
+    // then
+    assertThat(result.email()).isEqualTo(user.getEmail());
+    assertThat(result.nickname()).isEqualTo(user.getNickname());
+
+    then(userRepository).should().findActiveByEmail(request.email());
+  }
+
+  @Test
+  void login_fail_email(){
+    // given
+    UserLoginRequest request = new UserLoginRequest(
+        "notfound@test.com",
+        "Password1!"
+    );
+
+    given(userRepository.findActiveByEmail(request.email()))
+        .willReturn(Optional.empty());
+
+    // when, then
+    assertThatThrownBy(() -> userService.login(request))
+        .isInstanceOf(LoginFailedException.class)
+        .hasMessage("로그인에 실패했습니다.");
+
+    then(userRepository).should().findActiveByEmail(request.email());
+  }
+
+  @Test
+  void login_fail_password(){
+    // given
+    User user = new User(
+        "test@test.com",
+        "tester",
+        passwordEncoder.encode("Password1!")
+    );
+
+    UserLoginRequest request = new UserLoginRequest(
+        "test@test.com",
+        "Password2!"
+    );
+
+    given(userRepository.findActiveByEmail(request.email()))
+        .willReturn(Optional.of(user));
+
+    // when, then
+    assertThatThrownBy(() -> userService.login(request))
+        .isInstanceOf(LoginFailedException.class)
+        .hasMessage("로그인에 실패했습니다.");
+
+    then(userRepository).should().findActiveByEmail(request.email());
+  }
+
 }
