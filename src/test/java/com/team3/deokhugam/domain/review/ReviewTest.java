@@ -5,6 +5,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 
 class ReviewTest {
@@ -29,16 +31,15 @@ class ReviewTest {
         assertThat(review.getLikeCount()).isZero();
         assertThat(review.getCommentCount()).isZero();
     }
-    @Test
+    @ParameterizedTest
+    @ValueSource(ints = {0, -1, 6, 100})
     @DisplayName("평점이 1~5 범위를 벗어나면 예외가 발생한다")
-    void createReview_invalidRating() {
-        // given
+    void create_invalidRating(int invalidRating) {
         UUID userId = UUID.randomUUID();
         UUID bookId = UUID.randomUUID();
 
-
-        assertThatThrownBy(() -> Review.create(userId, bookId, 6, "내용"))
-                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> Review.create(userId, bookId, invalidRating, "내용"))
+            .isInstanceOf(IllegalArgumentException.class);
     }
     @Test
     @DisplayName("좋아요 수를 증가시키면 1 늘어난다")

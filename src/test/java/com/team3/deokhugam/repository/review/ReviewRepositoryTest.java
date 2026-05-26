@@ -11,6 +11,7 @@ import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.test.context.ActiveProfiles;
 import com.team3.deokhugam.global.config.JpaAuditingConfig;
 import org.springframework.context.annotation.Import;
+import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager;
 
 import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
 
@@ -22,6 +23,8 @@ class ReviewRepositoryTest {
 
   @Autowired
   private ReviewRepository reviewRepository;
+  @Autowired
+  private TestEntityManager entityManager;
 
   @Test
   @DisplayName("리뷰를 저장하고 ID로 다시 조회할 수 있다")
@@ -31,6 +34,8 @@ class ReviewRepositoryTest {
 
     // when - 저장하고 ID로 다시 조회
     Review saved = reviewRepository.save(review);
+    entityManager.flush();
+    entityManager.clear();
     Review found = reviewRepository.findById(saved.getId()).orElseThrow();
 
     // then - 저장된 값이 그대로인지 확인
