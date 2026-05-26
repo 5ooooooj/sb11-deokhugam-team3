@@ -16,5 +16,18 @@ services:
       timeout: 5s
       retries: 5
 
+  app:
+    build: .
+    container_name: deokhugam-app
+    environment:
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE}
+      DATASOURCE_URL: jdbc:postgresql://postgres:5432/${DB_NAME}
+      DATASOURCE_USERNAME: ${DB_USERNAME}
+      DATASOURCE_PASSWORD: ${DB_PASSWORD}
+      AWS_CREDENTIALS_ACCESS_KEY: ${AWS_ACCESS_KEY_ID}
+      AWS_CREDENTIALS_SECRET_KEY: ${AWS_SECRET_ACCESS_KEY}
+      AWS_REGION: ${AWS_REGION}
+      AWS_S3_BUCKET: ${S3_BUCKET_NAME}
+
 volumes:
   postgres_data:
