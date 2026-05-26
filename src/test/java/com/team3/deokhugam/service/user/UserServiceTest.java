@@ -131,7 +131,7 @@ class UserServiceTest {
     // when, then
     assertThatThrownBy(() -> userService.login(request))
         .isInstanceOf(LoginFailedException.class)
-        .hasMessage("이메일 또는 비밀번호가 불일치합니다.");
+        .hasMessage("로그인에 실패했습니다.");
 
     then(userRepository).should().findActiveByEmail(request.email());
   }
@@ -156,7 +156,7 @@ class UserServiceTest {
     // when, then
     assertThatThrownBy(() -> userService.login(request))
         .isInstanceOf(LoginFailedException.class)
-        .hasMessage("이메일 또는 비밀번호가 불일치합니다.");
+        .hasMessage("로그인에 실패했습니다.");
 
     then(userRepository).should().findActiveByEmail(request.email());
   }
