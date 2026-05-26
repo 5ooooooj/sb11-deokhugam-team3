@@ -15,7 +15,7 @@ public interface CommentRepository extends JpaRepository<Comment, UUID> {
 
   @Query("""
         SELECT c FROM Comment c
-        WHERE c.review.id = :reviewId
+        WHERE c.reviewId = :reviewId
         AND c.deletedAt IS NULL
         AND (:after IS NULL OR c.createdAt < :after)
         ORDER BY c.createdAt DESC
