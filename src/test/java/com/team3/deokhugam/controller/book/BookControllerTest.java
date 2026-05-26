@@ -133,7 +133,7 @@ class BookControllerTest {
             objectMapper.writeValueAsBytes(request));
 
     when(bookService.create(any(BookCreateRequest.class)))
-        .thenThrow(new BookAlreadyExistsException(request.isbn()));
+        .thenThrow(new BookAlreadyExistsException());
 
     // when, then
     mockMvc
