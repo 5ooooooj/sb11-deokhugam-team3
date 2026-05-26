@@ -10,6 +10,7 @@ import static org.mockito.Mockito.never;
 import com.team3.deokhugam.dto.user.UserRegisterRequest;
 import com.team3.deokhugam.dto.user.UserDto;
 import com.team3.deokhugam.domain.user.User;
+import com.team3.deokhugam.exception.user.EmailAlreadyExistsException;
 import com.team3.deokhugam.repository.user.UserRepository;
 import com.team3.deokhugam.dto.user.UserLoginRequest;
 import com.team3.deokhugam.exception.user.LoginFailedException;
@@ -81,10 +82,10 @@ class UserServiceTest {
 
     // when, then
     assertThatThrownBy(() -> userService.register(request))
-        .isInstanceOf(IllegalStateException.class);
+        .isInstanceOf(EmailAlreadyExistsException.class);
 
     then(userRepository).should().existsByEmail(request.email());
-    then(userRepository).should(never()).save(any(User.class));
+    then(userRepository).should(never()).saveAndFlush(any(User.class));
   }
 
   @Test
