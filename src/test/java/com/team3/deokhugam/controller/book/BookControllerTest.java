@@ -11,6 +11,7 @@ import com.team3.deokhugam.dto.book.BookCreateRequest;
 import com.team3.deokhugam.dto.book.BookDto;
 import com.team3.deokhugam.service.book.BookService;
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
@@ -49,6 +50,8 @@ class BookControllerTest {
             "https://example.com/book.jpg"
         );
 
+    Instant now = Instant.parse("2026-05-26T02:03:32.227Z");
+
     BookDto response =
         new BookDto(
             UUID.randomUUID(),
@@ -60,7 +63,9 @@ class BookControllerTest {
             request.isbn(),
             request.thumbnailUrl(),
             0,
-            BigDecimal.ZERO
+            BigDecimal.ZERO,
+            now,
+            now
         );
 
     when(bookService.create(any(BookCreateRequest.class))).thenReturn(response);

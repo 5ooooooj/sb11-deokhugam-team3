@@ -2,6 +2,7 @@ package com.team3.deokhugam.dto.book;
 
 import com.team3.deokhugam.domain.book.Book;
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.UUID;
 
@@ -15,7 +16,9 @@ public record BookDto(
     String isbn,
     String thumbnailUrl,
     int reviewCount,
-    BigDecimal rating
+    BigDecimal rating,
+    Instant createdAt,
+    Instant updatedAt
 ) {
 
   public static BookDto from(Book book) {
@@ -29,7 +32,9 @@ public record BookDto(
         book.getIsbn(),
         book.getThumbnailUrl(),
         book.getReviewCount(),
-        book.getRating()
+        book.getRating(),
+        book.getCreatedAt(),
+        book.getUpdatedAt()
     );
   }
 }
