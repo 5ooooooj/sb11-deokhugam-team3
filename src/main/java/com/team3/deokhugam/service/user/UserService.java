@@ -3,6 +3,7 @@ package com.team3.deokhugam.service.user;
 import com.team3.deokhugam.dto.user.UserRegisterRequest;
 import com.team3.deokhugam.dto.user.UserDto;
 import com.team3.deokhugam.domain.user.User;
+import com.team3.deokhugam.exception.user.EmailAlreadyExistsException;
 import com.team3.deokhugam.repository.user.UserRepository;
 import com.team3.deokhugam.dto.user.UserLoginRequest;
 import com.team3.deokhugam.exception.user.LoginFailedException;
@@ -23,7 +24,7 @@ public class UserService {
   @Transactional
   public UserDto register(UserRegisterRequest request) {
     if (userRepository.existsByEmail(request.email())) {
-      throw new IllegalStateException("이미 사용중인 이메일입니다.");
+      throw new EmailAlreadyExistsException();
     }
     String encodedPassword = passwordEncoder.encode(request.password());
 
@@ -33,7 +34,7 @@ public class UserService {
       savedUser = userRepository.saveAndFlush(user);
       return UserDto.from(savedUser);
     } catch (DataIntegrityViolationException e) {
-      throw new IllegalStateException("이미 사용중인 이메일입니다.", e);
+      throw new EmailAlreadyExistsException();
     }
   }
 

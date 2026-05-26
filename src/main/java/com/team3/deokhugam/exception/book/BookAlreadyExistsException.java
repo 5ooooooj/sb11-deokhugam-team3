@@ -1,8 +1,11 @@
 package com.team3.deokhugam.exception.book;
 
-public class BookAlreadyExistsException extends IllegalStateException {
+import com.team3.deokhugam.exception.global.DeokhugamException;
+import com.team3.deokhugam.exception.global.ErrorCode;
 
-  public BookAlreadyExistsException(String isbn) {
-    super("이미 등록된 ISBN입니다. isbn=" + isbn);
+public class BookAlreadyExistsException extends DeokhugamException {
+
+  public BookAlreadyExistsException() {
+    super(ErrorCode.BOOK_ALREADY_EXISTS);
   }
 }

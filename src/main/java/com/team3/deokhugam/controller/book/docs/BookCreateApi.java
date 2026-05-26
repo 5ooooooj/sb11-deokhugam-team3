@@ -1,7 +1,7 @@
 package com.team3.deokhugam.controller.book.docs;
 
 import com.team3.deokhugam.dto.book.BookDto;
-import com.team3.deokhugam.global.exception.ErrorResponse;
+import com.team3.deokhugam.exception.global.ErrorResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Encoding;
