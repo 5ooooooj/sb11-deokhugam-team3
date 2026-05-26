@@ -30,6 +30,17 @@ public class GlobalExceptionHandler {
     return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
   }
 
+  @ExceptionHandler
+  public ResponseEntity<ErrorResponse> handleLoginFailedException(LoginFailedException e) {
+    ErrorResponse response = ErrorResponse.builder()
+        .status(HttpStatus.UNAUTHORIZED.value())
+        .message("로그인에 실패했습니다.")
+        .details(e.getMessage())
+        .build();
+
+    return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(response);
+  }
+
   @ExceptionHandler(IllegalStateException.class)
   public ResponseEntity<ErrorResponse> handleIllegalStateException(
       IllegalStateException e
