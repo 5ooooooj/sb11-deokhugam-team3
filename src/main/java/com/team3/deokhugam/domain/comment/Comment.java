@@ -2,12 +2,13 @@ package com.team3.deokhugam.domain.comment;
 
 import com.team3.deokhugam.domain.base.SoftDeletableEntity;
 import com.team3.deokhugam.exception.comment.CommentForbiddenException;
-import jakarta.persistence.*;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Table;
+import java.util.UUID;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-
-import java.util.UUID;
 
 @Entity
 @Table(name = "comments")
