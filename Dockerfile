@@ -14,7 +14,7 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends tzdata && \
     ln -sf /usr/share/zoneinfo/Asia/Seoul /etc/localtime && \
     echo "Asia/Seoul" > /etc/timezone && \
-    rm -rf /var/lib/apt/lists/* \
+    rm -rf /var/lib/apt/lists/*
 
 RUN groupadd -r app && useradd -r -g app app
 RUN mkdir -p /app/logs && chown -R app:app /app
