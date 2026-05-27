@@ -1,7 +1,11 @@
 package com.team3.deokhugam.controller.review;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.verify;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -9,6 +13,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.team3.deokhugam.dto.review.ReviewCreateRequest;
 import com.team3.deokhugam.dto.review.ReviewDto;
+import com.team3.deokhugam.dto.review.ReviewUpdateRequest;
 import com.team3.deokhugam.service.review.ReviewService;
 import java.time.Instant;
 import java.util.UUID;
@@ -63,5 +68,54 @@ class ReviewControllerTest {
             .contentType(MediaType.APPLICATION_JSON)
             .content(invalidJson))
         .andExpect(status().isBadRequest());
+  }
+
+  @Test
+  @DisplayName("PATCH /api/reviews/{id} - 리뷰 수정 성공 시 200과 ReviewDto를 반환한다")
+  void updateReview_returns200() throws Exception {
+    UUID reviewId = UUID.randomUUID();
+    UUID userId = UUID.randomUUID();
+    ReviewUpdateRequest request = new ReviewUpdateRequest("수정된 내용", 4);
+
+    ReviewDto response = new ReviewDto(
+        reviewId, UUID.randomUUID(), null, null, userId, null,
+        "수정된 내용", 4, 0, 0, false, Instant.now(), Instant.now());
+
+    given(reviewService.updateReview(eq(reviewId), eq(userId), any(ReviewUpdateRequest.class)))
+        .willReturn(response);
+
+    mockMvc.perform(patch("/api/reviews/{reviewId}", reviewId)
+            .header("Deokhugam-Request-User-ID", userId.toString())
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(objectMapper.writeValueAsString(request)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.content").value("수정된 내용"))
+        .andExpect(jsonPath("$.rating").value(4));
+  }
+
+  @Test
+  @DisplayName("DELETE /api/reviews/{id} - 리뷰 논리 삭제 성공 시 204를 반환한다")
+  void deleteReview_returns204() throws Exception {
+    UUID reviewId = UUID.randomUUID();
+    UUID userId = UUID.randomUUID();
+
+    mockMvc.perform(delete("/api/reviews/{reviewId}", reviewId)
+            .header("Deokhugam-Request-User-ID", userId.toString()))
+        .andExpect(status().isNoContent());
+
+    verify(reviewService).deleteReview(reviewId, userId);
+  }
+
+  @Test
+  @DisplayName("DELETE /api/reviews/{id}/hard - 리뷰 물리 삭제 성공 시 204를 반환한다")
+  void hardDeleteReview_returns204() throws Exception {
+    UUID reviewId = UUID.randomUUID();
+    UUID userId = UUID.randomUUID();
+
+    mockMvc.perform(delete("/api/reviews/{reviewId}/hard", reviewId)
+            .header("Deokhugam-Request-User-ID", userId.toString()))
+        .andExpect(status().isNoContent());
+
+    verify(reviewService).hardDeleteReview(reviewId, userId);
   }
 }

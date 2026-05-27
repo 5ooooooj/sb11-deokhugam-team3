@@ -1,5 +1,6 @@
 package com.team3.deokhugam.controller.user;
 
+import com.team3.deokhugam.controller.user.docs.UserFindByIdApi;
 import com.team3.deokhugam.controller.user.docs.UserRegisterApi;
 import com.team3.deokhugam.dto.user.UserRegisterRequest;
 import com.team3.deokhugam.dto.user.UserDto;
@@ -8,9 +9,12 @@ import com.team3.deokhugam.controller.user.docs.UserLoginApi;
 import com.team3.deokhugam.dto.user.UserLoginRequest;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -39,6 +43,13 @@ public class UserController {
       @Valid @RequestBody UserLoginRequest request
   ) {
     UserDto response = userService.login(request);
+    return ResponseEntity.status(HttpStatus.OK).body(response);
+  }
+
+  @UserFindByIdApi
+  @GetMapping("/{userId}")
+  public ResponseEntity<UserDto> findUserById(@PathVariable UUID userId){
+    UserDto response = userService.findUserById(userId);
     return ResponseEntity.status(HttpStatus.OK).body(response);
   }
 }
