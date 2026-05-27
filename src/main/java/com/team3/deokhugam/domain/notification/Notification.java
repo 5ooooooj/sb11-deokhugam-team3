@@ -1,6 +1,13 @@
 package com.team3.deokhugam.domain.notification;
 
-import com.team3.deokhugam.global.entity.BaseEntity;
+import com.team3.deokhugam.domain.base.BaseEntity;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Table;
+import lombok.AccessLevel;
+import lombok.NoArgsConstructor;
 
+@Entity
+@Table(name = "notifications")
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class Notification extends BaseEntity {
 }
