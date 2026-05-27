@@ -17,6 +17,7 @@ public enum ErrorCode {
   EMAIL_ALREADY_EXISTS("이미 사용중인 이메일입니다.", HttpStatus.CONFLICT),
   LOGIN_FAILED("로그인에 실패했습니다.", HttpStatus.UNAUTHORIZED),
   USER_NOT_FOUND("사용자를 찾을 수 없습니다.", HttpStatus.NOT_FOUND),
+  USER_FORBIDDEN("사용자 정보에 접근할 권한이 없습니다.", HttpStatus.FORBIDDEN),
 
   // Book
   BOOK_NOTFOUND("도서를 찾을 수 없습니다.", HttpStatus.NOT_FOUND),
