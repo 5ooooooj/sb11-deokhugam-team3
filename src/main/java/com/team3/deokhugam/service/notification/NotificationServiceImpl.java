@@ -122,8 +122,9 @@ public class NotificationServiceImpl implements NotificationService {
         notification.getId(),
         notification.getUserId(),
         notification.getReviewId(),
-        null,
+        null,                          // reviewContent → 나중에 Review 조회 연동
         notification.getMessage(),
+        notification.getType(),
         notification.isConfirmed(),
         notification.getCreatedAt(),
         notification.getUpdatedAt()
