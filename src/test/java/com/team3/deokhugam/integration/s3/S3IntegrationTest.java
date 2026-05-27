@@ -17,17 +17,45 @@ import org.junit.jupiter.api.TestMethodOrder;
 import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.context.TestConfiguration;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Import;
+import org.springframework.context.annotation.Primary;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.context.ActiveProfiles;
+import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
+import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
+import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3Client;
 
 @SpringBootTest
 @ActiveProfiles("test")
 @EnabledIfEnvironmentVariable(named = "AWS_ACCESS_KEY_ID", matches = ".+")
 @EnabledIfEnvironmentVariable(named = "AWS_SECRET_ACCESS_KEY", matches = ".+")
+@Import(S3IntegrationTest.RealS3Config.class)
 @Slf4j
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 public class S3IntegrationTest {
+
+  // 실제 S3 연결이 필요할 때만 빈 등록
+  @TestConfiguration
+  static class RealS3Config {
+    @Bean
+    @Primary
+    public S3Client realS3Client(AwsProperties props) {
+      return S3Client.builder()
+          .region(Region.of(props.getRegion()))
+          .credentialsProvider(
+              StaticCredentialsProvider.create(
+                  AwsBasicCredentials.create(
+                      System.getenv("AWS_ACCESS_KEY_ID"),
+                      System.getenv("AWS_SECRET_ACCESS_KEY")
+                  )
+              )
+          )
+          .build();
+    }
+  }
 
   @Autowired
   private S3Client s3Client;

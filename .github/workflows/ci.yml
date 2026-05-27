@@ -36,10 +36,6 @@ jobs:
       NAVER_CLIENT_SECRET: dummy-naver-client-secret
       OCR_API_KEY: dummy-ocr-api-key
       # AWS S3 - CI에서는 모킹하므로 더미값 사용
-      AWS_ACCESS_KEY_ID: dummy-aws-access-key
-      AWS_SECRET_ACCESS_KEY: dummy-aws-secret-key
-      AWS_S3_BUCKET: dummy-bucket
-      AWS_REGION: ap-northeast-2
 
     steps:
       - name: Checkout

@@ -27,9 +27,11 @@ spring:
 cloud:
   aws:
     credentials:
-      access-key: test-access-key
-      secret-key: test-secret-key
+      access-key: ${AWS_ACCESS_KEY_ID:test-access-key}
+      secret-key: ${AWS_SECRET_ACCESS_KEY:test-secret-key}
     region:
       static: ap-northeast-2
     s3:
       bucket: test-deokhugam-bucket
+    stack:
+      auto: false
