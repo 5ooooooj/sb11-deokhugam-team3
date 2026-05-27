@@ -8,6 +8,7 @@ import com.team3.deokhugam.global.config.JpaAuditingConfig;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.math.BigDecimal;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -16,6 +17,7 @@ import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabas
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.util.ReflectionTestUtils;
 
 @DataJpaTest
 @ActiveProfiles("test")
@@ -338,6 +340,147 @@ class BookRepositoryTest {
     // then
     assertThat(result).hasSize(1);
     assertThat(result.get(0).getTitle()).isEqualTo("자차카타");
+  }
+
+  @Test
+  @DisplayName("출간일 기준 내림차순으로 도서 목록을 조회")
+  void searchOrderByPublishedDateDesc() {
+    // given
+    Book oldBook = book(
+        "오래된 책",
+        "작가1",
+        "설명1",
+        "출판사1",
+        LocalDate.of(2001, 1, 1),
+        "1111111111",
+        "thumbnail1"
+    );
+
+    Book newBook = book(
+        "최신 책",
+        "작가2",
+        "설명2",
+        "출판사2",
+        LocalDate.of(2011, 1, 1),
+        "2222222222",
+        "thumbnail2"
+    );
+
+    bookRepository.saveAll(List.of(oldBook, newBook));
+    bookRepository.flush();
+
+    BookSearchRequest request = BookSearchRequest.of(
+        null,
+        "publishedDate",
+        "DESC",
+        null,
+        null,
+        10
+    );
+
+    // when
+    List<Book> result = bookRepository.search(request);
+
+    // then
+    assertThat(result).hasSize(2);
+    assertThat(result.get(0).getTitle()).isEqualTo("최신 책");
+    assertThat(result.get(1).getTitle()).isEqualTo("오래된 책");
+  }
+
+  @Test
+  @DisplayName("평점 기준 내림차순으로 도서 목록을 조회")
+  void searchOrderByRatingDesc() {
+    // given
+    Book lowRatingBook = book(
+        "평점 낮은 책",
+        "작가1",
+        "설명1",
+        "출판사1",
+        LocalDate.of(2026, 1, 1),
+        "1111111111",
+        "thumbnail1"
+    );
+
+    Book highRatingBook = book(
+        "평점 높은 책",
+        "작가2",
+        "설명2",
+        "출판사2",
+        LocalDate.of(2026, 1, 2),
+        "2222222222",
+        "thumbnail2"
+    );
+
+    ReflectionTestUtils.setField(lowRatingBook, "rating", new BigDecimal("2.5"));
+    ReflectionTestUtils.setField(highRatingBook, "rating", new BigDecimal("4.8"));
+
+    bookRepository.saveAll(List.of(lowRatingBook, highRatingBook));
+    bookRepository.flush();
+
+    BookSearchRequest request = BookSearchRequest.of(
+        null,
+        "rating",
+        "DESC",
+        null,
+        null,
+        10
+    );
+
+    // when
+    List<Book> result = bookRepository.search(request);
+
+    // then
+    assertThat(result).hasSize(2);
+    assertThat(result.get(0).getTitle()).isEqualTo("평점 높은 책");
+    assertThat(result.get(1).getTitle()).isEqualTo("평점 낮은 책");
+  }
+
+  @Test
+  @DisplayName("리뷰 수 기준 내림차순으로 도서 목록을 조회한다")
+  void searchOrderByReviewCountDesc() {
+    // given
+    Book lowReviewCountBook = book(
+        "리뷰 적은 책",
+        "작가1",
+        "설명1",
+        "출판사1",
+        LocalDate.of(2026, 1, 1),
+        "1111111111",
+        "thumbnail1"
+    );
+
+    Book highReviewCountBook = book(
+        "리뷰 많은 책",
+        "작가2",
+        "설명2",
+        "출판사2",
+        LocalDate.of(2026, 1, 2),
+        "2222222222",
+        "thumbnail2"
+    );
+
+    ReflectionTestUtils.setField(lowReviewCountBook, "reviewCount", 1);
+    ReflectionTestUtils.setField(highReviewCountBook, "reviewCount", 10);
+
+    bookRepository.saveAll(List.of(lowReviewCountBook, highReviewCountBook));
+    bookRepository.flush();
+
+    BookSearchRequest request = BookSearchRequest.of(
+        null,
+        "reviewCount",
+        "DESC",
+        null,
+        null,
+        10
+    );
+
+    // when
+    List<Book> result = bookRepository.search(request);
+
+    // then
+    assertThat(result).hasSize(2);
+    assertThat(result.get(0).getTitle()).isEqualTo("리뷰 많은 책");
+    assertThat(result.get(1).getTitle()).isEqualTo("리뷰 적은 책");
   }
 
   private Book book(
