@@ -20,7 +20,7 @@ public enum ErrorCode {
   USER_FORBIDDEN("사용자 정보에 접근할 권한이 없습니다.", HttpStatus.FORBIDDEN),
 
   // Book
-  BOOK_NOTFOUND("도서를 찾을 수 없습니다.", HttpStatus.NOT_FOUND),
+  BOOK_NOT_FOUND("도서를 찾을 수 없습니다.", HttpStatus.NOT_FOUND),
   BOOK_ALREADY_EXISTS("이미 등록된 ISBN입니다.", HttpStatus.CONFLICT),
 
   // Comment

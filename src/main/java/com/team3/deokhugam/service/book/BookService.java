@@ -4,7 +4,9 @@ import com.team3.deokhugam.domain.book.Book;
 import com.team3.deokhugam.dto.book.BookCreateRequest;
 import com.team3.deokhugam.dto.book.BookDto;
 import com.team3.deokhugam.exception.book.BookAlreadyExistsException;
+import com.team3.deokhugam.exception.book.BookNotFoundException;
 import com.team3.deokhugam.repository.book.BookRepository;
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -32,5 +34,12 @@ public class BookService {
     Book savedBook = bookRepository.save(book);
 
     return BookDto.from(savedBook);
+  }
+
+  public BookDto findById(UUID bookId) {
+    Book book = bookRepository.findById(bookId)
+        .orElseThrow(BookNotFoundException::new);
+
+    return  BookDto.from(book);
   }
 }
