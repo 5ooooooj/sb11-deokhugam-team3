@@ -3,9 +3,13 @@ package com.team3.deokhugam.repository.book;
 import com.team3.deokhugam.domain.book.Book;
 import com.team3.deokhugam.dto.book.BookOrderBy;
 import com.team3.deokhugam.dto.book.BookSearchRequest;
+import com.team3.deokhugam.exception.book.InvalidBookSearchConditionException;
 import io.swagger.v3.oas.annotations.media.Encoding;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.TypedQuery;
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.format.DateTimeParseException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -26,6 +30,7 @@ public class BookRepositoryCustomImpl implements BookRepositoryCustom {
     Map<String, Object> parameters = new HashMap<>();
 
     appendKeywordCondition(jpql, parameters, request);
+    appendCursorCondition(jpql, parameters, request);
 
     jpql.append(" order by ")
         .append(resolveOrderProperty(request.orderBy()))
@@ -76,16 +81,58 @@ public class BookRepositoryCustomImpl implements BookRepositoryCustom {
     parameters.put("keyword", "%" + request.keyword() + "%");
   }
 
-  private String resolveOrderProperty(BookOrderBy orderBy) {
-    return switch (orderBy) {
-      case TITLE -> "b.title";
-      case PUBLISHED_DATE -> "b.publishedDate";
-      case RATING -> "b.rating";
-      case REVIEW_COUNT -> "b.reviewCount";
-    };
+  private void appendCursorCondition(
+      StringBuilder jpql,
+      Map<String, Object> parameters,
+      BookSearchRequest request
+  ) {
+    if (!request.hasCursor()) {
+      return;
+    }
+
+    String orderProperty = resolveOrderProperty(request.orderBy());
+    String operator = request.direction().isAscending() ? ">" : "<";
+
+    jpql.append(" and (")
+        .append(orderProperty)
+        .append(" ")
+        .append(operator)
+        .append(" :cursor")
+        .append(" or (")
+        .append(orderProperty)
+        .append(" = :cursor")
+        .append(" and b.createdAt ")
+        .append(operator)
+        .append(" :after")
+        .append("))");
+
+    parameters.put("cursor", parseCursor(request));
+    parameters.put("after", request.after());
   }
 
-  private String resolveDirection(Sort.Direction direction) {
-    return direction.isAscending() ? "ASC" : "DESC";
+  private Object parseCursor(BookSearchRequest request) {
+    try {
+      return switch (request.orderBy()) {
+        case TITLE -> request.cursor();
+        case PUBLISHED_DATE -> LocalDate.parse(request.cursor());
+        case RATING -> new BigDecimal(request.cursor());
+        case REVIEW_COUNT -> Integer.parseInt(request.cursor());
+      };
+    } catch (NumberFormatException | DateTimeParseException e) {
+      throw new InvalidBookSearchConditionException("잘못된 커서 값입니다.");
+    }
   }
-}
+
+    private String resolveOrderProperty (BookOrderBy orderBy){
+      return switch (orderBy) {
+        case TITLE -> "b.title";
+        case PUBLISHED_DATE -> "b.publishedDate";
+        case RATING -> "b.rating";
+        case REVIEW_COUNT -> "b.reviewCount";
+      };
+    }
+
+    private String resolveDirection (Sort.Direction direction){
+      return direction.isAscending() ? "ASC" : "DESC";
+    }
+  }

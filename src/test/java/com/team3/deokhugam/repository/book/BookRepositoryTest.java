@@ -274,6 +274,72 @@ class BookRepositoryTest {
     assertThat(result).isEqualTo(2);
   }
 
+  @Test
+  @DisplayName("cursor와 after 이후의 도서 목록을 조회한다")
+  void searchWithCursorAndAfter() {
+    // given
+    Book book1 = book(
+        "가나다라",
+        "작가1",
+        "설명1",
+        "출판사1",
+        LocalDate.of(2024, 1, 1),
+        "1111111111",
+        "thumbnail1"
+    );
+
+    Book book2 = book(
+        "마바사아",
+        "작가2",
+        "설명2",
+        "출판사2",
+        LocalDate.of(2024, 1, 2),
+        "2222222222",
+        "thumbnail2"
+    );
+
+    Book book3 = book(
+        "자차카타",
+        "작가3",
+        "설명3",
+        "출판사3",
+        LocalDate.of(2024, 1, 3),
+        "3333333333",
+        "thumbnail3"
+    );
+
+    bookRepository.saveAll(List.of(book1, book2, book3));
+    bookRepository.flush();
+
+    BookSearchRequest firstRequest = BookSearchRequest.of(
+        null,
+        "title",
+        "ASC",
+        null,
+        null,
+        2
+    );
+
+    List<Book> firstPage = bookRepository.search(firstRequest);
+    Book lastBookOfFirstPage = firstPage.get(firstPage.size() - 1);
+
+    BookSearchRequest secondRequest = BookSearchRequest.of(
+        null,
+        "title",
+        "ASC",
+        lastBookOfFirstPage.getTitle(),
+        lastBookOfFirstPage.getCreatedAt(),
+        2
+    );
+
+    // when
+    List<Book> result = bookRepository.search(secondRequest);
+
+    // then
+    assertThat(result).hasSize(1);
+    assertThat(result.get(0).getTitle()).isEqualTo("자차카타");
+  }
+
   private Book book(
       String title,
       String author,
