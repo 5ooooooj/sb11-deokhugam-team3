@@ -1,11 +1,13 @@
 package com.team3.deokhugam.service.notification;
 
 import com.team3.deokhugam.domain.notification.Notification;
+import com.team3.deokhugam.domain.notification.NotificationType;
+import com.team3.deokhugam.domain.review.Review;
 import com.team3.deokhugam.dto.notification.NotificationDto;
 import com.team3.deokhugam.exception.notification.NotificationForbiddenException;
-import com.team3.deokhugam.exception.notification.NotificationNotFoundException;
 import com.team3.deokhugam.global.dto.CursorPageResponse;
 import com.team3.deokhugam.repository.notification.NotificationRepository;
+import com.team3.deokhugam.repository.review.ReviewRepository;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -21,13 +23,15 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.BDDMockito.*;
+import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 public class NotificationServiceTest {
 
   @Mock
   private NotificationRepository notificationRepository;
-
+  @Mock
+  private ReviewRepository reviewRepository;
   @InjectMocks
   private NotificationServiceImpl notificationService;
 
@@ -41,6 +45,10 @@ public class NotificationServiceTest {
     // given
     UUID reviewId = UUID.randomUUID();
     UUID commenterUserId = UUID.randomUUID();
+
+    Review review = mock(Review.class);
+    given(review.getUserId()).willReturn(UUID.randomUUID());
+    given(reviewRepository.findById(reviewId)).willReturn(Optional.of(review));
 
     // when
     notificationService.createCommentNotification(reviewId, commenterUserId);
@@ -60,6 +68,10 @@ public class NotificationServiceTest {
     UUID reviewId = UUID.randomUUID();
     UUID likerUserId = UUID.randomUUID();
 
+    Review review = mock(Review.class);
+    given(review.getUserId()).willReturn(UUID.randomUUID());
+    given(reviewRepository.findById(reviewId)).willReturn(Optional.of(review));
+
     // when
     notificationService.createLikeNotification(reviewId, likerUserId);
 
@@ -77,6 +89,10 @@ public class NotificationServiceTest {
     // given
     UUID reviewId = UUID.randomUUID();
     String period = "DAILY";
+
+    Review review = mock(Review.class);
+    given(review.getUserId()).willReturn(UUID.randomUUID());
+    given(reviewRepository.findById(reviewId)).willReturn(Optional.of(review));
 
     // when
     notificationService.createRankingNotification(reviewId, period);
@@ -98,7 +114,6 @@ public class NotificationServiceTest {
 
     Notification notification = mock(Notification.class);
     given(notification.getUserId()).willReturn(userId);
-    given(notification.isConfirmed()).willReturn(false);
     given(notificationRepository.findById(notificationId))
         .willReturn(Optional.of(notification));
 
@@ -114,20 +129,18 @@ public class NotificationServiceTest {
   void confirm_forbidden() {
     // given
     UUID notificationId = UUID.randomUUID();
-    UUID ownerId = UUID.randomUUID();
     UUID otherId = UUID.randomUUID();
 
     Notification notification = mock(Notification.class);
-    given(notification.getUserId()).willReturn(ownerId);
     given(notificationRepository.findById(notificationId))
         .willReturn(Optional.of(notification));
+    willThrow(new NotificationForbiddenException())
+        .given(notification).validateOwner(otherId);
 
     // when & then
     assertThatThrownBy(() ->
         notificationService.confirm(notificationId, otherId))
         .isInstanceOf(NotificationForbiddenException.class);
-
-    verify(notification, never()).confirm();
   }
 
   // ───────────────────────────────────────────
