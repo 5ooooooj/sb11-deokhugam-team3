@@ -134,9 +134,10 @@ class UserControllerTest {
             .contentType(MediaType.APPLICATION_JSON)
             .content(objectMapper.writeValueAsString(request)))
         .andExpect(status().isUnauthorized())
+        .andExpect(jsonPath("$.code").value("LOGIN_FAILED"))
         .andExpect(jsonPath("$.status").value(401))
         .andExpect(jsonPath("$.message").value("로그인에 실패했습니다."))
-        .andExpect(jsonPath("$.details").value("이메일 또는 비밀번호가 불일치합니다."));
+        .andExpect(jsonPath("$.details").value("로그인에 실패했습니다."));
 
     then(userService).should().login(any(UserLoginRequest.class));
   }
