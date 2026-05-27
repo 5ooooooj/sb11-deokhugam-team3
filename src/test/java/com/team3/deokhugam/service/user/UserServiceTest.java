@@ -12,6 +12,7 @@ import com.team3.deokhugam.dto.user.UserRegisterRequest;
 import com.team3.deokhugam.dto.user.UserDto;
 import com.team3.deokhugam.domain.user.User;
 import com.team3.deokhugam.exception.user.EmailAlreadyExistsException;
+import com.team3.deokhugam.exception.user.UserNotFoundException;
 import com.team3.deokhugam.repository.user.UserRepository;
 import com.team3.deokhugam.dto.user.UserLoginRequest;
 import com.team3.deokhugam.exception.user.LoginFailedException;

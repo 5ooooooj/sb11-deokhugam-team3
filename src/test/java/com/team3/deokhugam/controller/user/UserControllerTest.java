@@ -13,6 +13,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.team3.deokhugam.dto.user.UserRegisterRequest;
 import com.team3.deokhugam.dto.user.UserDto;
+import com.team3.deokhugam.exception.user.UserNotFoundException;
 import com.team3.deokhugam.service.user.UserService;
 import com.team3.deokhugam.dto.user.UserLoginRequest;
 import com.team3.deokhugam.exception.user.LoginFailedException;
