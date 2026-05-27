@@ -248,12 +248,12 @@ class BookControllerTest {
 
     // when, then
     mockMvc.perform(
-        get("/api/books")
-            .param("keyword", "스프링")
-            .param("orderBy", "title")
-            .param("direction", "ASC")
-            .param("limit", "2")
-    )
+            get("/api/books")
+                .param("keyword", "스프링")
+                .param("orderBy", "title")
+                .param("direction", "ASC")
+                .param("limit", "2")
+        )
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.content").isArray())
         .andExpect(jsonPath("$.content.length()").value(2))
@@ -264,5 +264,18 @@ class BookControllerTest {
         .andExpect(jsonPath("$.size").value(2))
         .andExpect(jsonPath("$.totalElements").value(3))
         .andExpect(jsonPath("$.hasNext").value(true));
+  }
+
+  @Test
+  @DisplayName("잘못된 orderBy로 도서 목록 조회하면 400 응답 반환")
+  void searchBooksWithInvalidOrderBy() throws Exception {
+    // when, then
+    mockMvc.perform(
+            get("/api/books")
+                .param("orderBy", "wrong")
+        )
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.code").value("INVALID_INPUT"))
+        .andExpect(jsonPath("$.status").value(400));
   }
 }

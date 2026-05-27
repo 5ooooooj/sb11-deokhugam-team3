@@ -1,5 +1,6 @@
 package com.team3.deokhugam.dto.book;
 
+import com.team3.deokhugam.exception.book.InvalidBookSearchConditionException;
 import java.time.Instant;
 import org.springframework.data.domain.Sort;
 
@@ -37,7 +38,11 @@ public record BookSearchRequest(
       return Sort.Direction.DESC;
     }
 
-    return Sort.Direction.fromString(direction);
+    try {
+      return Sort.Direction.fromString(direction);
+    } catch (IllegalArgumentException e) {
+      throw new InvalidBookSearchConditionException("지원하지 않는 정렬 방향입니다.");
+    }
   }
 
   private static int parseLimit(Integer limit) {
@@ -46,13 +51,13 @@ public record BookSearchRequest(
     }
 
     if (limit <= 0) {
-      throw new IllegalArgumentException("페이지의 크기는 1이상이어야 합니다.");
+      throw new InvalidBookSearchConditionException("페이지 크기는 1 이상이어야 합니다.");
     }
 
     return limit;
   }
 
-  private  static String normalizeBlank(String value) {
+  private static String normalizeBlank(String value) {
     if (value == null || value.isBlank()) {
       return null;
     }
