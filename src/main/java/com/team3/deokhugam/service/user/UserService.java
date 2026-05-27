@@ -24,6 +24,7 @@ public class UserService {
 
   private final UserRepository userRepository;
   private final PasswordEncoder passwordEncoder;
+  private final UserPermissionValidator userPermissionValidator;
 
   @Transactional
   public UserDto register(UserRegisterRequest request) {
@@ -62,12 +63,10 @@ public class UserService {
 
   @Transactional
   public UserDto updateUser(UUID userId, UUID loginUserId, UserUpdateRequest request){
+    userPermissionValidator.validateSelf(userId, loginUserId);
+
     User user = userRepository.findActiveById(userId)
         .orElseThrow(UserNotFoundException::new);
-
-    if(!user.getId().equals(loginUserId)){
-      throw new UserForbiddenException();
-    }
 
     user.updateNickname(request.nickname());
 

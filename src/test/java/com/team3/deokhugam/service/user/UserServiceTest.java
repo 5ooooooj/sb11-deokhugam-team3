@@ -4,6 +4,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
@@ -35,6 +36,9 @@ class UserServiceTest {
 
   @Mock
   private PasswordEncoder passwordEncoder;
+
+  @Mock
+  private UserPermissionValidator userPermissionValidator;
 
   @InjectMocks
   private UserService userService;
@@ -264,21 +268,15 @@ class UserServiceTest {
 
     UserUpdateRequest request = new UserUpdateRequest("newNickname");
 
-    User user = new User(
-        "test@test.com",
-        "oldNickname",
-        "encodedPassword"
-    );
-
-    given(userRepository.findActiveById(userId))
-        .willReturn(Optional.of(user));
+    willThrow(new UserForbiddenException())
+        .given(userPermissionValidator)
+        .validateSelf(userId, loginUserId);
 
     // when, then
     assertThatThrownBy(() -> userService.updateUser(userId, loginUserId, request))
         .isInstanceOf(UserForbiddenException.class);
 
-    assertThat(user.getNickname()).isEqualTo("oldNickname");
-
-    verify(userRepository).findActiveById(userId);
+    verify(userPermissionValidator).validateSelf(userId, loginUserId);
+    verify(userRepository, never()).findActiveById(any(UUID.class));
   }
 }
