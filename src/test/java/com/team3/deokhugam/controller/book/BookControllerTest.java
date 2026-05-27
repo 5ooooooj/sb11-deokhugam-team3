@@ -1,7 +1,9 @@
 package com.team3.deokhugam.controller.book;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.verify;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -10,6 +12,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.team3.deokhugam.dto.book.BookCreateRequest;
 import com.team3.deokhugam.dto.book.BookDto;
+import com.team3.deokhugam.dto.book.BookOrderBy;
 import com.team3.deokhugam.dto.book.BookSearchRequest;
 import com.team3.deokhugam.exception.book.BookAlreadyExistsException;
 import com.team3.deokhugam.exception.book.BookNotFoundException;
@@ -28,6 +31,8 @@ import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.data.domain.Sort;
+import org.mockito.ArgumentCaptor;
 
 @WebMvcTest(BookController.class)
 class BookControllerTest {
@@ -277,5 +282,47 @@ class BookControllerTest {
         .andExpect(status().isBadRequest())
         .andExpect(jsonPath("$.code").value("INVALID_INPUT"))
         .andExpect(jsonPath("$.status").value(400));
+  }
+
+  @Test
+  @DisplayName("cursor와 after 파라미터로 도서 목록을 조회한다")
+  void searchBooksWithCursorAndAfter() throws Exception {
+    // given
+    Instant after = Instant.parse("2024-01-01T00:00:00Z");
+
+    CursorPageResponse<BookDto> response = new CursorPageResponse<>(
+        List.of(),
+        null,
+        null,
+        0,
+        0L,
+        false
+    );
+
+    when(bookService.search(any())).thenReturn(response);
+
+    // when, then
+    mockMvc.perform(
+            get("/api/books")
+                .param("cursor", "자바")
+                .param("after", "2024-01-01T00:00:00Z")
+                .param("orderBy", "title")
+                .param("direction", "ASC")
+                .param("limit", "2")
+        )
+        .andExpect(status().isOk());
+
+    ArgumentCaptor<BookSearchRequest> captor =
+        ArgumentCaptor.forClass(BookSearchRequest.class);
+
+    verify(bookService).search(captor.capture());
+
+    BookSearchRequest request = captor.getValue();
+
+    assertThat(request.cursor()).isEqualTo("자바");
+    assertThat(request.after()).isEqualTo(after);
+    assertThat(request.limit()).isEqualTo(2);
+    assertThat(request.orderBy()).isEqualTo(BookOrderBy.TITLE);
+    assertThat(request.direction()).isEqualTo(Sort.Direction.ASC);
   }
 }
