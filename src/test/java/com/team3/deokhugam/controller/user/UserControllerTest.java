@@ -2,14 +2,17 @@ package com.team3.deokhugam.controller.user;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
-import static org.mockito.BDDMockito.then;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.team3.deokhugam.dto.user.UserRegisterRequest;
 import com.team3.deokhugam.dto.user.UserDto;
+import com.team3.deokhugam.exception.user.UserNotFoundException;
 import com.team3.deokhugam.service.user.UserService;
 import com.team3.deokhugam.dto.user.UserLoginRequest;
 import com.team3.deokhugam.exception.user.LoginFailedException;
@@ -62,7 +65,7 @@ class UserControllerTest {
         .andExpect(jsonPath("$.email").value(response.email()))
         .andExpect(jsonPath("$.nickname").value(response.nickname()));
 
-    then(userService).should().register(any(UserRegisterRequest.class));
+    verify(userService).register(any(UserRegisterRequest.class));
   }
 
   @Test
@@ -92,7 +95,7 @@ class UserControllerTest {
         .andExpect(jsonPath("$.email").value(response.email()))
         .andExpect(jsonPath("$.nickname").value(response.nickname()));
 
-    then(userService).should().login(any(UserLoginRequest.class));
+    verify(userService).login(any(UserLoginRequest.class));
   }
 
   @Test
@@ -111,7 +114,7 @@ class UserControllerTest {
         .andExpect(jsonPath("$.status").value(400))
         .andExpect(jsonPath("$.message").value("잘못된 요청입니다."));
 
-    then(userService).shouldHaveNoInteractions();
+    verifyNoInteractions(userService);
   }
 
   @Test
@@ -130,10 +133,55 @@ class UserControllerTest {
             .contentType(MediaType.APPLICATION_JSON)
             .content(objectMapper.writeValueAsString(request)))
         .andExpect(status().isUnauthorized())
+        .andExpect(jsonPath("$.code").value("LOGIN_FAILED"))
         .andExpect(jsonPath("$.status").value(401))
         .andExpect(jsonPath("$.message").value("로그인에 실패했습니다."))
-        .andExpect(jsonPath("$.details").value("이메일 또는 비밀번호가 불일치합니다."));
+        .andExpect(jsonPath("$.details").value("로그인에 실패했습니다."));
 
-    then(userService).should().login(any(UserLoginRequest.class));
+    verify(userService).login(any(UserLoginRequest.class));
+  }
+
+  @Test
+  void findUserById_success() throws Exception {
+    // given
+    UUID userId = UUID.randomUUID();
+
+    UserDto response = new UserDto(
+        userId,
+        "test@test.com",
+        "tester",
+        Instant.now()
+    );
+    given(userService.findUserById(userId))
+        .willReturn(response);
+
+    // when, then
+    mockMvc.perform(get("/api/users/{userId}", userId)
+            .accept(MediaType.APPLICATION_JSON))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.id").value(response.id().toString()))
+        .andExpect(jsonPath("$.email").value(response.email()))
+        .andExpect(jsonPath("$.nickname").value(response.nickname()));
+
+    verify(userService).findUserById(userId);
+  }
+
+  @Test
+  void findUserById_fail_notFound() throws Exception {
+    // given
+    UUID userId = UUID.randomUUID();
+
+    given(userService.findUserById(userId))
+        .willThrow(new UserNotFoundException());
+
+    // when, then
+    mockMvc.perform(get("/api/users/{userId}", userId)
+            .accept(MediaType.APPLICATION_JSON))
+        .andExpect(status().isNotFound())
+        .andExpect(jsonPath("$.code").value("USER_NOT_FOUND"))
+        .andExpect(jsonPath("$.status").value(404))
+        .andExpect(jsonPath("$.message").value("사용자를 찾을 수 없습니다."));
+
+    verify(userService).findUserById(userId);
   }
 }
