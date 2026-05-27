@@ -28,8 +28,12 @@ public class S3Service {
   public String upload(MultipartFile file, String key) {
     log.info("파일 업로드 시작 - 요청 KEY: {}", key);
     if (file == null || file.isEmpty()) {
-      log.debug("빈 파일 업로드 시도 발생");
+      log.info("빈 파일 업로드 시도 발생");
       throw new EmptyFileUploadException();
+    }
+    if (key == null || key.isBlank()) {
+      log.info("유효하지 않은 S3 업로드 키 전달됨");
+      throw new InvalidRequestException();
     }
 
     try {

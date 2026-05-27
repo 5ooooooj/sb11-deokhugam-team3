@@ -37,6 +37,6 @@ out/
 .vscode/
 
 ### env ###
-prod.env
+.env.prod
 .env
 /logs/
