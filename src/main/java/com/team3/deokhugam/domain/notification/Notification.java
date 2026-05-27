@@ -31,9 +31,11 @@ public class Notification extends BaseEntity {
   @Column(nullable = false)
   private boolean confirmed = false;
 
-  // 정적 팩토리 메서드
   public static Notification create(UUID userId, UUID reviewId,
       NotificationType type, String message) {
+    if (userId == null || reviewId == null || message == null) {
+      throw new IllegalArgumentException("userId, reviewId, message must not be null");
+    }
     Notification notification = new Notification();
     notification.userId = userId;
     notification.reviewId = reviewId;
