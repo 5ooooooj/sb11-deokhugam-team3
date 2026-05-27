@@ -3,15 +3,20 @@ package com.team3.deokhugam.service.book;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.team3.deokhugam.domain.book.Book;
 import com.team3.deokhugam.dto.book.BookCreateRequest;
 import com.team3.deokhugam.dto.book.BookDto;
+import com.team3.deokhugam.dto.book.BookSearchRequest;
 import com.team3.deokhugam.exception.book.BookAlreadyExistsException;
 import com.team3.deokhugam.exception.book.BookNotFoundException;
+import com.team3.deokhugam.global.dto.CursorPageResponse;
 import com.team3.deokhugam.repository.book.BookRepository;
+import java.time.Instant;
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
@@ -132,5 +137,130 @@ class BookServiceTest {
     // when, then
     assertThatThrownBy(() -> bookService.findById(bookId))
         .isInstanceOf(BookNotFoundException.class);
+  }
+
+  @Test
+  @DisplayName("도서 목록을 조회하면 커서 페이지 응답을 반환")
+  void searchBooks() {
+    // given
+    BookSearchRequest request =
+        BookSearchRequest.of(
+            "자바",
+            "title",
+            "ASC",
+            null,
+            null,
+            2
+        );
+
+    Instant firstCreatedAt = Instant.parse("2026-05-27T00:00:00Z");
+    Instant secondCreatedAt = Instant.parse("2026-05-27T00:01:00Z");
+
+    Book firstBook =
+        book(
+            UUID.randomUUID(),
+            "코드잇 스프링",
+            "강우진",
+            "스프링백엔드",
+            "테스트출판사",
+            LocalDate.of(2026, 1, 1),
+            "9780000002101",
+            "https://example.com/codeit-spring.jpg",
+            firstCreatedAt
+        );
+
+    Book secondBook =
+        book(
+            UUID.randomUUID(),
+            "코드잇 스프링2",
+            "강우진2",
+            "스프링백엔드2",
+            "테스트출판사",
+            LocalDate.of(2026, 1, 2),
+            "9780000002102",
+            "https://example.com/codeit-spring.jpg",
+            secondCreatedAt
+        );
+
+    when(bookRepository.search(request)).thenReturn(List.of(firstBook, secondBook));
+    when(bookRepository.count(request)).thenReturn(3L);
+
+    // when
+    CursorPageResponse<BookDto> result = bookService.search(request);
+
+    // then
+    assertThat(result.content()).hasSize(2);
+    assertThat(result.content())
+        .extracting(BookDto::title)
+        .containsExactly("코드잇 스프링", "코드잇 스프링2");
+    assertThat(result.nextCursor()).isEqualTo("코드잇 스프링2");
+    assertThat(result.nextAfter()).isEqualTo(secondCreatedAt);
+    assertThat(result.size()).isEqualTo(2);
+    assertThat(result.totalElements()).isEqualTo(3L);
+    assertThat(result.hasNext()).isTrue();
+
+    verify(bookRepository).search(request);
+    verify(bookRepository).count(request);
+  }
+
+  @Test
+  @DisplayName("도서 목록 조회 결과가 비어있으면 빈 커서 페이지 응답을 반환")
+  void searchBooksWithEmptyResult() {
+    // given
+    BookSearchRequest request =
+        BookSearchRequest.of(
+            "없는 책",
+            "title",
+            "ASC",
+            null,
+            null,
+            10
+        );
+
+    when(bookRepository.search(request)).thenReturn(List.of());
+    when(bookRepository.count(request)).thenReturn(0L);
+
+    // when
+    CursorPageResponse<BookDto> result = bookService.search(request);
+
+    // then
+    assertThat(result.content()).isEmpty();
+    assertThat(result.nextCursor()).isNull();
+    assertThat(result.nextAfter()).isNull();
+    assertThat(result.size()).isZero();
+    assertThat(result.totalElements()).isZero();
+    assertThat(result.hasNext()).isFalse();
+
+    verify(bookRepository).search(request);
+    verify(bookRepository).count(request);
+  }
+
+  private Book book(
+      UUID id,
+      String title,
+      String author,
+      String description,
+      String publisher,
+      LocalDate publicationDate,
+      String isbn,
+      String thumbnailUrl,
+      Instant createdAt
+  ) {
+    Book book =
+        new Book(
+            title,
+            author,
+            description,
+            publisher,
+            publicationDate,
+            isbn,
+            thumbnailUrl
+        );
+
+    ReflectionTestUtils.setField(book, "id", id);
+    ReflectionTestUtils.setField(book, "createdAt", createdAt);
+    ReflectionTestUtils.setField(book, "updatedAt", createdAt);
+
+    return book;
   }
 }
