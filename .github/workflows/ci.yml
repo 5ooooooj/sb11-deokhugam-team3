@@ -1,0 +1,78 @@
+name: CI
+
+on:
+  push:
+    branches: [ "main", "develop", "feature/36-cicd" ]
+  pull_request:
+    branches: [ "main", "develop", "feature/36-cicd" ]
+
+jobs:
+  build-and-test:
+    name: Build & Test
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: deokhugam_test
+          POSTGRES_USER: deokhugam
+          POSTGRES_PASSWORD: deokhugam1234
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      # DB
+      SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/deokhugam_test
+      SPRING_DATASOURCE_USERNAME: deokhugam
+      SPRING_DATASOURCE_PASSWORD: deokhugam1234
+      # 외부 API - CI에서는 모킹하므로 더미값 사용
+      NAVER_CLIENT_ID: dummy-naver-client-id
+      NAVER_CLIENT_SECRET: dummy-naver-client-secret
+      OCR_API_KEY: dummy-ocr-api-key
+      # AWS S3 - CI에서는 모킹하므로 더미값 사용
+      AWS_ACCESS_KEY_ID: dummy-aws-access-key
+      AWS_SECRET_ACCESS_KEY: dummy-aws-secret-key
+      AWS_S3_BUCKET: dummy-bucket
+      AWS_REGION: ap-northeast-2
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: gradle
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
+      - name: Build with Gradle (skip tests)
+        run: ./gradlew build -x test --parallel
+
+      - name: Run Tests with Coverage
+        # @Disabled 및 @Tag("wip") 태그가 붙은 테스트는 자동으로 제외됨
+        run: ./gradlew test jacocoTestReport jacocoTestCoverageVerification --continue
+
+      - name: Upload Coverage Report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: jacoco-report
+          path: build/reports/jacoco/test/html/
+          retention-days: 7
+
+      - name: Upload Coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: build/reports/jacoco/test/jacocoTestReport.xml
+
