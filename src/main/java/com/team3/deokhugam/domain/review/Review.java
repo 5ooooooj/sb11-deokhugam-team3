@@ -46,6 +46,15 @@ public class Review extends SoftDeletableEntity {
         }
         return new Review(userId, bookId, rating, content);
     }
+
+    public void update(int rating, String content) {
+        if (rating < 1 || rating > 5) {
+            throw new IllegalArgumentException("평점은 1~5 사이여야 합니다. 입력값: " + rating);
+        }
+        this.rating = rating;
+        this.content = content;
+    }
+
     public void increaseLikeCount() {
         this.likeCount++;
     }
