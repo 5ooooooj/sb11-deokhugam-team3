@@ -10,7 +10,10 @@ import static org.mockito.Mockito.verify;
 import com.team3.deokhugam.domain.review.Review;
 import com.team3.deokhugam.dto.review.ReviewCreateRequest;
 import com.team3.deokhugam.dto.review.ReviewDto;
+import com.team3.deokhugam.dto.review.ReviewUpdateRequest;
+import com.team3.deokhugam.exception.global.DeokhugamException;
 import com.team3.deokhugam.repository.review.ReviewRepository;
+import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -59,8 +62,78 @@ class ReviewServiceTest {
     given(reviewRepository.existsByUserIdAndBookId(userId, bookId)).willReturn(true);
 
     assertThatThrownBy(() -> reviewService.createReview(request))
-        .isInstanceOf(IllegalStateException.class);
+        .isInstanceOf(DeokhugamException.class);
 
     verify(reviewRepository, never()).save(any(Review.class));
+  }
+
+  @Test
+  @DisplayName("리뷰 수정 성공 - 본인 리뷰면 rating·content가 반영된다")
+  void updateReview_success() {
+    UUID reviewId = UUID.randomUUID();
+    UUID userId = UUID.randomUUID();
+    Review review = Review.create(userId, UUID.randomUUID(), 3, "예전 내용");
+
+    given(reviewRepository.findById(reviewId)).willReturn(Optional.of(review));
+
+    ReviewDto result = reviewService.updateReview(
+        reviewId, userId, new ReviewUpdateRequest("새 내용", 5));
+
+    assertThat(result.rating()).isEqualTo(5);
+    assertThat(result.content()).isEqualTo("새 내용");
+  }
+
+  @Test
+  @DisplayName("리뷰 수정 실패 - 본인이 아니면 예외가 발생한다")
+  void updateReview_notOwner_throws() {
+    UUID reviewId = UUID.randomUUID();
+    UUID ownerId = UUID.randomUUID();
+    UUID otherUserId = UUID.randomUUID();
+    Review review = Review.create(ownerId, UUID.randomUUID(), 3, "내용");
+
+    given(reviewRepository.findById(reviewId)).willReturn(Optional.of(review));
+
+    assertThatThrownBy(() -> reviewService.updateReview(
+        reviewId, otherUserId, new ReviewUpdateRequest("수정", 4)))
+        .isInstanceOf(DeokhugamException.class);
+  }
+
+  @Test
+  @DisplayName("리뷰 수정 실패 - 리뷰가 없으면 예외가 발생한다")
+  void updateReview_notFound_throws() {
+    UUID reviewId = UUID.randomUUID();
+    given(reviewRepository.findById(reviewId)).willReturn(Optional.empty());
+
+    assertThatThrownBy(() -> reviewService.updateReview(
+        reviewId, UUID.randomUUID(), new ReviewUpdateRequest("수정", 4)))
+        .isInstanceOf(DeokhugamException.class);
+  }
+
+  @Test
+  @DisplayName("리뷰 논리 삭제 성공 - 본인 리뷰면 삭제 처리된다")
+  void deleteReview_success() {
+    UUID reviewId = UUID.randomUUID();
+    UUID userId = UUID.randomUUID();
+    Review review = Review.create(userId, UUID.randomUUID(), 3, "내용");
+
+    given(reviewRepository.findById(reviewId)).willReturn(Optional.of(review));
+
+    reviewService.deleteReview(reviewId, userId);
+
+    assertThat(review.isDeleted()).isTrue();
+  }
+
+  @Test
+  @DisplayName("리뷰 물리 삭제 성공 - 본인 리뷰면 delete가 호출된다")
+  void hardDeleteReview_success() {
+    UUID reviewId = UUID.randomUUID();
+    UUID userId = UUID.randomUUID();
+    Review review = Review.create(userId, UUID.randomUUID(), 3, "내용");
+
+    given(reviewRepository.findById(reviewId)).willReturn(Optional.of(review));
+
+    reviewService.hardDeleteReview(reviewId, userId);
+
+    verify(reviewRepository).delete(review);
   }
 }

@@ -29,6 +29,11 @@ public enum ErrorCode {
   NOTIFICATION_NOT_FOUND("알림을 찾을 수 없습니다.", HttpStatus.NOT_FOUND),
   NOTIFICATION_FORBIDDEN("본인 알림만 읽음 처리할 수 있습니다.", HttpStatus.FORBIDDEN),
 
+  // Review
+  REVIEW_NOT_FOUND("리뷰를 찾을 수 없습니다.", HttpStatus.NOT_FOUND),
+  REVIEW_FORBIDDEN("본인 리뷰만 수정/삭제할 수 있습니다.", HttpStatus.FORBIDDEN),
+  REVIEW_ALREADY_EXISTS("이미 작성된 리뷰가 있습니다.", HttpStatus.CONFLICT),
+
   // S3
   S3_UPLOAD_FAILED("S3 업로드에 실패했습니다.", HttpStatus.INTERNAL_SERVER_ERROR),
   S3_DELETE_FAILED("S3 삭제에 실패했습니다.", HttpStatus.INTERNAL_SERVER_ERROR),
