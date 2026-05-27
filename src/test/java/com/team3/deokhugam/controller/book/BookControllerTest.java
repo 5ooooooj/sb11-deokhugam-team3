@@ -10,12 +10,15 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.team3.deokhugam.dto.book.BookCreateRequest;
 import com.team3.deokhugam.dto.book.BookDto;
+import com.team3.deokhugam.dto.book.BookSearchRequest;
 import com.team3.deokhugam.exception.book.BookAlreadyExistsException;
 import com.team3.deokhugam.exception.book.BookNotFoundException;
+import com.team3.deokhugam.global.dto.CursorPageResponse;
 import com.team3.deokhugam.service.book.BookService;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -190,5 +193,76 @@ class BookControllerTest {
         .andExpect(status().isNotFound())
         .andExpect(jsonPath("$.code").value("BOOK_NOT_FOUND"))
         .andExpect(jsonPath("$.status").value(404));
+  }
+
+  @Test
+  @DisplayName("도서 목록 조회하면 200 응답과 커서 페이지 응답을 반환")
+  void searchBooks() throws Exception {
+    // given
+    Instant firstCreatedAt = Instant.parse("2026-05-27T00:00:00Z");
+    Instant secondCreatedAt = Instant.parse("2026-05-27T00:01:00Z");
+
+    BookDto firstBook =
+        new BookDto(
+            UUID.randomUUID(),
+            "스프링 백엔드",
+            "강우진",
+            "스프링 백엔드",
+            "테스트출판사",
+            LocalDate.of(2026, 1, 1),
+            "9780000002101",
+            "https://example.com/spring-backend.jpg",
+            0,
+            BigDecimal.ZERO,
+            firstCreatedAt,
+            secondCreatedAt
+        );
+
+    BookDto secondBook =
+        new BookDto(
+            UUID.randomUUID(),
+            "스프링 백엔드2",
+            "강우진2",
+            "스프링 백엔드2",
+            "테스트출판사",
+            LocalDate.of(2026, 1, 2),
+            "9780000002102",
+            "https://example.com/spring-backend2.jpg",
+            0,
+            BigDecimal.ZERO,
+            firstCreatedAt,
+            secondCreatedAt
+        );
+
+    CursorPageResponse<BookDto> response =
+        new CursorPageResponse<>(
+            List.of(firstBook, secondBook),
+            "스프링 백엔드2",
+            secondCreatedAt,
+            2,
+            3L,
+            true
+        );
+
+    when(bookService.search(any())).thenReturn(response);
+
+    // when, then
+    mockMvc.perform(
+        get("/api/books")
+            .param("keyword", "스프링")
+            .param("orderBy", "title")
+            .param("direction", "ASC")
+            .param("limit", "2")
+    )
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.content").isArray())
+        .andExpect(jsonPath("$.content.length()").value(2))
+        .andExpect(jsonPath("$.content[0].title").value("스프링 백엔드"))
+        .andExpect(jsonPath("$.content[1].title").value("스프링 백엔드2"))
+        .andExpect(jsonPath("$.nextCursor").value("스프링 백엔드2"))
+        .andExpect(jsonPath("$.nextAfter").exists())
+        .andExpect(jsonPath("$.size").value(2))
+        .andExpect(jsonPath("$.totalElements").value(3))
+        .andExpect(jsonPath("$.hasNext").value(true));
   }
 }
