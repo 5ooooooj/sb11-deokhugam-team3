@@ -6,6 +6,7 @@ import static org.mockito.BDDMockito.then;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 
 import com.team3.deokhugam.dto.user.UserRegisterRequest;
 import com.team3.deokhugam.dto.user.UserDto;
@@ -15,25 +16,26 @@ import com.team3.deokhugam.repository.user.UserRepository;
 import com.team3.deokhugam.dto.user.UserLoginRequest;
 import com.team3.deokhugam.exception.user.LoginFailedException;
 import java.util.Optional;
-import org.junit.jupiter.api.BeforeEach;
+import java.util.UUID;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
-import org.mockito.Mockito;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
+@ExtendWith(MockitoExtension.class)
 class UserServiceTest {
 
+  @Mock
   private UserRepository userRepository;
-  private PasswordEncoder passwordEncoder;
-  private UserService userService;
 
-  @BeforeEach
-  void setUp() {
-    userRepository = Mockito.mock(UserRepository.class);
-    passwordEncoder = new BCryptPasswordEncoder();
-    userService = new UserService(userRepository, passwordEncoder);
-  }
+  @Mock
+  private PasswordEncoder passwordEncoder;
+
+  @InjectMocks
+  private UserService userService;
 
   @Test
   void register_success() {
@@ -45,7 +47,7 @@ class UserServiceTest {
     );
 
     given(userRepository.existsByEmail(request.email())).willReturn(false);
-
+    given(passwordEncoder.encode(request.password())).willReturn("encodedPassword");
     given(userRepository.saveAndFlush(any(User.class)))
         .willAnswer(invocation -> invocation.getArgument(0));
 
@@ -63,9 +65,10 @@ class UserServiceTest {
 
     assertThat(savedUser.getEmail()).isEqualTo(request.email());
     assertThat(savedUser.getNickname()).isEqualTo(request.nickname());
-    assertThat(savedUser.getEncodedPassword()).isNotEqualTo(request.password());
-    assertThat(passwordEncoder.matches(request.password(), savedUser.getEncodedPassword()))
-        .isTrue();
+    assertThat(savedUser.getEncodedPassword()).isEqualTo("encodedPassword");
+
+    verify(userRepository).existsByEmail(request.email());
+    verify(passwordEncoder).encode(request.password());
   }
 
   @Test
@@ -76,37 +79,35 @@ class UserServiceTest {
         "tester",
         "Password1!"
     );
-
-    // 이메일 중복 true 반환
     given(userRepository.existsByEmail(request.email())).willReturn(true);
 
     // when, then
     assertThatThrownBy(() -> userService.register(request))
         .isInstanceOf(EmailAlreadyExistsException.class);
 
-    then(userRepository).should().existsByEmail(request.email());
-    then(userRepository).should(never()).saveAndFlush(any(User.class));
+    verify(userRepository).existsByEmail(request.email());
+    verify(userRepository, never()).saveAndFlush(any(User.class));
+    verify(passwordEncoder, never()).encode(any());
   }
 
   @Test
   void login_success(){
     // given
-    String rawPassword = "Password1!";
-    String encodedPassword = passwordEncoder.encode(rawPassword);
-
     User user = new User(
         "test@test.com",
         "tester",
-        encodedPassword
+        "encodedPassword"
     );
 
     UserLoginRequest request = new UserLoginRequest(
         "test@test.com",
-        rawPassword
+        "Password1!"
     );
 
     given(userRepository.findActiveByEmail(request.email()))
         .willReturn(Optional.of(user));
+    given(passwordEncoder.matches(request.password(), user.getEncodedPassword()))
+        .willReturn(true);
 
     // when
     UserDto result = userService.login(request);
@@ -115,11 +116,12 @@ class UserServiceTest {
     assertThat(result.email()).isEqualTo(user.getEmail());
     assertThat(result.nickname()).isEqualTo(user.getNickname());
 
-    then(userRepository).should().findActiveByEmail(request.email());
+    verify(userRepository).findActiveByEmail(request.email());
+    verify(passwordEncoder).matches(request.password(), user.getEncodedPassword());
   }
 
   @Test
-  void login_fail_email(){
+  void login_fail_email() {
     // given
     UserLoginRequest request = new UserLoginRequest(
         "notfound@test.com",
@@ -134,16 +136,17 @@ class UserServiceTest {
         .isInstanceOf(LoginFailedException.class)
         .hasMessage("로그인에 실패했습니다.");
 
-    then(userRepository).should().findActiveByEmail(request.email());
+    verify(userRepository).findActiveByEmail(request.email());
+    verify(passwordEncoder, never()).matches(any(), any());
   }
 
   @Test
-  void login_fail_password(){
+  void login_fail_password() {
     // given
     User user = new User(
         "test@test.com",
         "tester",
-        passwordEncoder.encode("Password1!")
+        "encodedPassword"
     );
 
     UserLoginRequest request = new UserLoginRequest(
@@ -153,13 +156,53 @@ class UserServiceTest {
 
     given(userRepository.findActiveByEmail(request.email()))
         .willReturn(Optional.of(user));
+    given(passwordEncoder.matches(request.password(), user.getEncodedPassword()))
+        .willReturn(false);
 
     // when, then
     assertThatThrownBy(() -> userService.login(request))
         .isInstanceOf(LoginFailedException.class)
         .hasMessage("로그인에 실패했습니다.");
 
-    then(userRepository).should().findActiveByEmail(request.email());
+    verify(userRepository).findActiveByEmail(request.email());
+    verify(passwordEncoder).matches(request.password(), user.getEncodedPassword());
   }
 
+  @Test
+  void findUserById_success(){
+    // given
+    UUID userId = UUID.randomUUID();
+
+    User user = new User(
+        "test@test.com",
+        "tester",
+        "Password1!"
+    );
+    given(userRepository.findActiveById(userId))
+        .willReturn(Optional.of(user));
+
+    // when
+    UserDto result = userService.findUserById(userId);
+
+    // then
+    assertThat(result.email()).isEqualTo(user.getEmail());
+    assertThat(result.nickname()).isEqualTo(user.getNickname());
+
+    verify(userRepository).findActiveById(userId);
+  }
+
+  @Test
+  void findUserById_fail_notFound(){
+    // given
+    UUID userId = UUID.randomUUID();
+
+    given(userRepository.findActiveById(userId))
+        .willReturn(Optional.empty());
+
+    // when, then
+    assertThatThrownBy(() -> userService.findUserById(userId))
+        .isInstanceOf(UserNotFoundException.class);
+
+    verify(userRepository).findActiveById(userId);
+  }
 }
