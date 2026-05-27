@@ -9,12 +9,12 @@ import com.team3.deokhugam.global.config.AwsProperties;
 import com.team3.deokhugam.service.s3.S3Service;
 import java.util.UUID;
 import lombok.extern.slf4j.Slf4j;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.MethodOrderer;
 import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestMethodOrder;
+import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.mock.web.MockMultipartFile;
@@ -23,7 +23,8 @@ import software.amazon.awssdk.services.s3.S3Client;
 
 @SpringBootTest
 @ActiveProfiles("test")
-@Disabled("CI/로컬 환경에서 AWS 자격증명 없으면 스킵")
+@EnabledIfEnvironmentVariable(named = "AWS_ACCESS_KEY_ID", matches = ".+")
+@EnabledIfEnvironmentVariable(named = "AWS_SECRET_ACCESS_KEY", matches = ".+")
 @Slf4j
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 public class S3IntegrationTest {
