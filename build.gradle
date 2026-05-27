@@ -40,7 +40,9 @@ dependencies {
 }
 
 tasks.named('test') {
-	useJUnitPlatform()
+	useJUnitPlatform {
+		excludeTags 'wip'
+	}
 	finalizedBy jacocoTestReport
 }
 
