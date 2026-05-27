@@ -1,6 +1,8 @@
 package com.team3.deokhugam.controller.book;
 
 import com.team3.deokhugam.controller.book.docs.BookCreateApi;
+import com.team3.deokhugam.controller.book.docs.BookSearchApi;
+import com.team3.deokhugam.controller.book.docs.BookFindByIdApi;
 import com.team3.deokhugam.dto.book.BookCreateRequest;
 import com.team3.deokhugam.dto.book.BookDto;
 import com.team3.deokhugam.dto.book.BookSearchRequest;
@@ -43,6 +45,7 @@ public class BookController {
     return bookService.create(request);
   }
 
+  @BookSearchApi
   @GetMapping
   public CursorPageResponse<BookDto> search(
       @RequestParam(required = false) String keyword,
@@ -66,6 +69,7 @@ public class BookController {
     return bookService.search(request);
   }
 
+  @BookFindByIdApi
   @GetMapping("/{bookId}")
   public BookDto findById(@PathVariable UUID bookId) {
     return bookService.findById(bookId);
