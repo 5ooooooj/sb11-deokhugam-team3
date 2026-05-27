@@ -2,7 +2,6 @@ package com.team3.deokhugam.controller.user;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
-import static org.mockito.BDDMockito.then;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -139,7 +138,7 @@ class UserControllerTest {
         .andExpect(jsonPath("$.message").value("로그인에 실패했습니다."))
         .andExpect(jsonPath("$.details").value("로그인에 실패했습니다."));
 
-    then(userService).should().login(any(UserLoginRequest.class));
+    verify(userService).login(any(UserLoginRequest.class));
   }
 
   @Test
