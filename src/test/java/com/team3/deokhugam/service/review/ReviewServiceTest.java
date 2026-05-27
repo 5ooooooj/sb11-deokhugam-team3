@@ -136,4 +136,19 @@ class ReviewServiceTest {
 
     verify(reviewRepository).delete(review);
   }
+
+  @Test
+  @DisplayName("리뷰 수정 실패 - 이미 삭제된 리뷰면 예외가 발생한다")
+  void updateReview_deleted_throws() {
+    UUID reviewId = UUID.randomUUID();
+    UUID userId = UUID.randomUUID();
+    Review review = Review.create(userId, UUID.randomUUID(), 3, "내용");
+    review.softDelete();  // 미리 삭제 처리
+
+    given(reviewRepository.findById(reviewId)).willReturn(Optional.of(review));
+
+    assertThatThrownBy(() -> reviewService.updateReview(
+        reviewId, userId, new ReviewUpdateRequest("수정", 4)))
+        .isInstanceOf(DeokhugamException.class);
+  }
 }

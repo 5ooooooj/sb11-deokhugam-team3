@@ -60,6 +60,10 @@ public class ReviewService {
     Review review = reviewRepository.findById(reviewId)
         .orElseThrow(() -> new DeokhugamException(ErrorCode.REVIEW_NOT_FOUND));
 
+    if (review.isDeleted()) {
+      throw new DeokhugamException(ErrorCode.REVIEW_NOT_FOUND);
+    }
+
     if (!review.getUserId().equals(requestUserId)) {
       throw new DeokhugamException(ErrorCode.REVIEW_FORBIDDEN);
     }
