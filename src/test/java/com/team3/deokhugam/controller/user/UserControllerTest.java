@@ -8,10 +8,12 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.team3.deokhugam.dto.user.UserRegisterRequest;
 import com.team3.deokhugam.dto.user.UserDto;
+import com.team3.deokhugam.dto.user.UserUpdateRequest;
 import com.team3.deokhugam.exception.user.UserNotFoundException;
 import com.team3.deokhugam.service.user.UserService;
 import com.team3.deokhugam.dto.user.UserLoginRequest;
@@ -24,6 +26,7 @@ import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+import com.team3.deokhugam.exception.user.UserForbiddenException;
 
 @WebMvcTest(UserController.class)
 class UserControllerTest {
@@ -183,5 +186,107 @@ class UserControllerTest {
         .andExpect(jsonPath("$.message").value("사용자를 찾을 수 없습니다."));
 
     verify(userService).findUserById(userId);
+  }
+
+  @Test
+  void updateUser_success() throws Exception {
+    // given
+    UUID userId = UUID.randomUUID();
+
+    UserUpdateRequest request = new UserUpdateRequest(
+        "newNickname"
+    );
+
+    UserDto response = new UserDto(
+        userId,
+        "test@test.com",
+        request.nickname(),
+        Instant.now()
+    );
+
+    // 무조건 response 반환
+    given(userService.updateUser(any(UUID.class), any(UUID.class), any(UserUpdateRequest.class)))
+        .willReturn(response);
+
+    // when, then
+    mockMvc.perform(patch("/api/users/{userId}", userId)
+            .header("Deokhugam-Request-User-ID", userId.toString())
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(objectMapper.writeValueAsString(request)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.id").value(response.id().toString()))
+        .andExpect(jsonPath("$.email").value(response.email()))
+        .andExpect(jsonPath("$.nickname").value("newNickname"));
+
+    verify(userService).updateUser(any(UUID.class), any(UUID.class), any(UserUpdateRequest.class));
+  }
+
+  @Test
+  void updateUser_fail_invalidRequest() throws Exception {
+    // given
+    UUID userId = UUID.randomUUID();
+
+    UserUpdateRequest request = new UserUpdateRequest("");
+
+    // when, then
+    mockMvc.perform(patch("/api/users/{userId}", userId)
+            .header("Deokhugam-Request-User-ID", userId.toString())
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(objectMapper.writeValueAsString(request)))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.status").value(400))
+        .andExpect(jsonPath("$.message").value("잘못된 요청입니다."));
+
+    verifyNoInteractions(userService);
+  }
+
+  @Test
+  void updateUser_fail_notFound() throws Exception {
+    // given
+    UUID userId = UUID.randomUUID();
+
+    UserUpdateRequest request = new UserUpdateRequest("newNickname");
+
+    // 예외 반환
+    given(userService.updateUser(any(UUID.class), any(UUID.class), any(UserUpdateRequest.class)))
+        .willThrow(new UserNotFoundException());
+
+    // when, then
+    mockMvc.perform(patch("/api/users/{userId}", userId)
+            .header("Deokhugam-Request-User-ID", userId.toString())
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(objectMapper.writeValueAsString(request)))
+        .andExpect(status().isNotFound())
+        .andExpect(jsonPath("$.code").value("USER_NOT_FOUND"))
+        .andExpect(jsonPath("$.status").value(404))
+        .andExpect(jsonPath("$.message").value("사용자를 찾을 수 없습니다."));
+
+    verify(userService).updateUser(any(UUID.class), any(UUID.class), any(UserUpdateRequest.class));
+  }
+
+  @Test
+  void updateUser_fail_forbidden() throws Exception {
+    // given
+    UUID userId = UUID.randomUUID();
+    UUID loginUserId = UUID.randomUUID();
+
+    UserUpdateRequest request = new UserUpdateRequest(
+        "newNickname"
+    );
+
+    given(userService.updateUser(any(UUID.class), any(UUID.class), any(UserUpdateRequest.class)))
+        .willThrow(new UserForbiddenException());
+
+    // when, then
+    mockMvc.perform(patch("/api/users/{userId}", userId)
+            .header("Deokhugam-Request-User-ID", loginUserId.toString())
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(objectMapper.writeValueAsString(request)))
+        .andExpect(status().isForbidden())
+        .andExpect(jsonPath("$.code").value("USER_FORBIDDEN"))
+        .andExpect(jsonPath("$.status").value(403))
+        .andExpect(jsonPath("$.message").value("사용자 정보에 접근할 권한이 없습니다."));
+
+    verify(userService).updateUser(any(UUID.class), any(UUID.class), any(UserUpdateRequest.class));
   }
 }
