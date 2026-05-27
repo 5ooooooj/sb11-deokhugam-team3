@@ -2,6 +2,7 @@ package com.team3.deokhugam.controller.book;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -10,6 +11,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.team3.deokhugam.dto.book.BookCreateRequest;
 import com.team3.deokhugam.dto.book.BookDto;
 import com.team3.deokhugam.exception.book.BookAlreadyExistsException;
+import com.team3.deokhugam.exception.book.BookNotFoundException;
 import com.team3.deokhugam.service.book.BookService;
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -77,7 +79,7 @@ class BookControllerTest {
             MediaType.APPLICATION_JSON_VALUE, objectMapper.writeValueAsBytes(request));
 
     mockMvc.perform(
-        multipart("/api/books").file(bookData))
+            multipart("/api/books").file(bookData))
         .andExpect(status().isCreated())
         .andExpect(jsonPath("$.title").value(request.title()))
         .andExpect(jsonPath("$.author").value(request.author()))
@@ -139,5 +141,54 @@ class BookControllerTest {
     mockMvc
         .perform(multipart("/api/books").file(bookData))
         .andExpect(status().isConflict());
+  }
+
+  @Test
+  @DisplayName("도서 ID로 상세 조회하면 200 응답과 BookDto를 반환")
+  void findBookById() throws Exception {
+    // given
+    UUID bookId = UUID.randomUUID();
+    Instant now = Instant.parse("2026-05-26T02:03:32.227Z");
+
+    BookDto response =
+        new BookDto(
+            bookId,
+            "그리고 아무도 없었다",
+            "애거서 크리스티",
+            "외딴 섬에서 벌어지는 연쇄 살인 사건",
+            "황금가지",
+            LocalDate.of(2013, 12, 31),
+            "9788960177758",
+            "https://example.com/book.jpg",
+            0,
+            BigDecimal.ZERO,
+            now,
+            now
+        );
+
+    when(bookService.findById(bookId)).thenReturn(response);
+
+    // when, then
+    mockMvc.perform(get("/api/books/{bookId}", bookId))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.id").value(bookId.toString()))
+        .andExpect(jsonPath("$.title").value(response.title()))
+        .andExpect(jsonPath("$.author").value(response.author()))
+        .andExpect(jsonPath("$.isbn").value(response.isbn()));
+  }
+
+  @Test
+  @DisplayName("존재하지 않는 도서 ID로 상세 조회하면 404를 반환")
+  void findBookByIdWithNotFoundBook() throws Exception {
+    // given
+    UUID bookId = UUID.randomUUID();
+
+    when(bookService.findById(bookId)).thenThrow(new BookNotFoundException());
+
+    // when, then
+    mockMvc.perform(get("/api/books/{bookId}", bookId))
+        .andExpect(status().isNotFound())
+        .andExpect(jsonPath("$.code").value("BOOK_NOT_FOUND"))
+        .andExpect(jsonPath("$.status").value(404));
   }
 }
