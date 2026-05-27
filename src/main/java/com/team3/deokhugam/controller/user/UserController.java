@@ -1,5 +1,6 @@
 package com.team3.deokhugam.controller.user;
 
+import com.team3.deokhugam.controller.user.docs.UserFindByIdApi;
 import com.team3.deokhugam.controller.user.docs.UserRegisterApi;
 import com.team3.deokhugam.dto.user.UserRegisterRequest;
 import com.team3.deokhugam.dto.user.UserDto;
@@ -45,7 +46,7 @@ public class UserController {
     return ResponseEntity.status(HttpStatus.OK).body(response);
   }
 
-  @UserLoginApi
+  @UserFindByIdApi
   @GetMapping("/{userId}")
   public ResponseEntity<UserDto> findUserById(@PathVariable UUID userId){
     UserDto response = userService.findUserById(userId);
