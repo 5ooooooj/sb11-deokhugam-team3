@@ -25,6 +25,12 @@ batch:
 server:
   port: 8080
 
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+
 springdoc:
   api-docs:
     path: /api-docs
