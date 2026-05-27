@@ -2,7 +2,7 @@ name: CD
 
 on:
   push:
-    branches: [ "main", "feature/36-cicd" ]
+    branches: [ "main" ]
 
 env:
   ECR_REPOSITORY_URI: ${{ vars.ECR_REPOSITORY_URI }}
