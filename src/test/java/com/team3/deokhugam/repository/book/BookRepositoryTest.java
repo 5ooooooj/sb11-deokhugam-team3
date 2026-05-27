@@ -18,7 +18,7 @@ import org.springframework.context.annotation.Import;
 import org.springframework.test.context.ActiveProfiles;
 
 @DataJpaTest
-@ActiveProfiles("local")
+@ActiveProfiles("test")
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @Import(JpaAuditingConfig.class)
 class BookRepositoryTest {
@@ -216,6 +216,62 @@ class BookRepositoryTest {
             "repo-limit-20 A",
             "repo-limit-20 B"
         );
+  }
+
+  @Test
+  @DisplayName("검색 조건에 맞는 도서 전체 개수를 조회")
+  void countBySearchCondition() {
+    // given
+    Book javaBook =
+        book(
+            "repo-count-java-20 실전 자바",
+            "작가 A",
+            "count 테스트용 도서입니다.",
+            "테스트출판사",
+            LocalDate.of(2026, 1, 1),
+            "9780000002031",
+            "https://example.com/count-java.jpg"
+        );
+
+    Book javaBasicBook =
+        book(
+            "repo-count-java-20 자바 입문",
+            "작가 B",
+            "count 테스트용 도서입니다.",
+            "테스트출판사",
+            LocalDate.of(2026, 1, 2),
+            "9780000002032",
+            "https://example.com/count-java-basic.jpg"
+        );
+
+    Book springBook =
+        book(
+            "repo-count-spring-20 실전 스프링",
+            "작가 C",
+            "count 테스트용 도서입니다.",
+            "테스트출판사",
+            LocalDate.of(2026, 1, 3),
+            "9780000002033",
+            "https://example.com/count-spring.jpg"
+        );
+
+    bookRepository.saveAll(List.of(javaBook, javaBasicBook, springBook));
+
+    BookSearchRequest request =
+        BookSearchRequest.of(
+            "repo-count-java-20",
+            "title",
+            "ASC",
+            null,
+            null,
+            10
+        );
+
+    // when
+    long result = bookRepository.count(request);
+
+    // then
+    assertThat(result).isEqualTo(2);
   }
 
   private Book book(

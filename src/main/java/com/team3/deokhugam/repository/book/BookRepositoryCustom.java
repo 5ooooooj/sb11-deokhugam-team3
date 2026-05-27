@@ -7,4 +7,6 @@ import java.util.List;
 public interface BookRepositoryCustom {
 
   List<Book> search(BookSearchRequest request);
+
+  long count(BookSearchRequest request);
 }

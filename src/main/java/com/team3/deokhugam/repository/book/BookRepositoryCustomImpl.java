@@ -25,17 +25,7 @@ public class BookRepositoryCustomImpl implements BookRepositoryCustom {
         new StringBuilder("select b from Book b where b.deletedAt is null");
     Map<String, Object> parameters = new HashMap<>();
 
-    if (request.hasKeyword()) {
-      jpql.append("""
-           and (
-             lower(b.title) like lower(:keyword)
-             or lower(b.author) like lower(:keyword)
-             or lower(b.isbn) like lower(:keyword)
-           )
-          """
-      );
-      parameters.put("keyword", "%" + request.keyword() + "%");
-    }
+    appendKeywordCondition(jpql, parameters, request);
 
     jpql.append(" order by ")
         .append(resolveOrderProperty(request.orderBy()))
@@ -52,12 +42,46 @@ public class BookRepositoryCustomImpl implements BookRepositoryCustom {
         .getResultList();
   }
 
+  @Override
+  public long count(BookSearchRequest request) {
+    StringBuilder jpql =
+        new StringBuilder("select count(b) from Book b where b.deletedAt is null");
+    Map<String, Object> parameters = new HashMap<>();
+
+    appendKeywordCondition(jpql, parameters, request);
+
+    TypedQuery<Long> query = entityManager.createQuery(jpql.toString(), Long.class);
+    parameters.forEach(query::setParameter);
+
+    return query.getSingleResult();
+  }
+
+  private void appendKeywordCondition(
+      StringBuilder jpql,
+      Map<String, Object> parameters,
+      BookSearchRequest request
+  ) {
+    if (!request.hasKeyword()) {
+      return;
+    }
+
+    jpql.append("""
+          and (
+            lower(b.title) like lower(:keyword)
+            or lower(b.author) like lower(:keyword)
+            or lower(b.isbn) like lower(:keyword)
+          )
+        """
+    );
+    parameters.put("keyword", "%" + request.keyword() + "%");
+  }
+
   private String resolveOrderProperty(BookOrderBy orderBy) {
     return switch (orderBy) {
       case TITLE -> "b.title";
-      case PUBLISHED_DATE ->  "b.publishedDate";
+      case PUBLISHED_DATE -> "b.publishedDate";
       case RATING -> "b.rating";
-      case REVIEW_COUNT ->  "b.reviewCount";
+      case REVIEW_COUNT -> "b.reviewCount";
     };
   }
 
