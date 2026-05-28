@@ -21,7 +21,7 @@ public record BookSearchRequest(
       String direction,
       String cursor,
       Instant after,
-      int limit
+      Integer limit
   ) {
     return new BookSearchRequest(
         normalizeBlank(keyword),
