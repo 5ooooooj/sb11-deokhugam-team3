@@ -11,6 +11,7 @@ import com.team3.deokhugam.domain.book.Book;
 import com.team3.deokhugam.dto.book.BookCreateRequest;
 import com.team3.deokhugam.dto.book.BookDto;
 import com.team3.deokhugam.dto.book.BookSearchRequest;
+import com.team3.deokhugam.dto.book.BookUpdateRequest;
 import com.team3.deokhugam.exception.book.BookAlreadyExistsException;
 import com.team3.deokhugam.exception.book.BookNotFoundException;
 import com.team3.deokhugam.global.dto.CursorPageResponse;
@@ -112,7 +113,7 @@ class BookServiceTest {
         .thumbnailUrl("https://example.com/book.jpg")
         .build();
 
-    when(bookRepository.findById(bookId)).thenReturn(Optional.of(book));
+    when(bookRepository.findByIdAndDeletedAtIsNull(bookId)).thenReturn(Optional.of(book));
 
     // when
     BookDto result = bookService.findById(bookId);
@@ -122,6 +123,8 @@ class BookServiceTest {
     assertThat(result.title()).isEqualTo(book.getTitle());
     assertThat(result.author()).isEqualTo(book.getAuthor());
     assertThat(result.isbn()).isEqualTo(book.getIsbn());
+
+    verify(bookRepository).findByIdAndDeletedAtIsNull(bookId);
   }
 
   @Test
@@ -130,11 +133,13 @@ class BookServiceTest {
     // given
     UUID bookId = UUID.randomUUID();
 
-    when(bookRepository.findById(bookId)).thenReturn(Optional.empty());
+    when(bookRepository.findByIdAndDeletedAtIsNull(bookId)).thenReturn(Optional.empty());
 
     // when, then
     assertThatThrownBy(() -> bookService.findById(bookId))
         .isInstanceOf(BookNotFoundException.class);
+
+    verify(bookRepository).findByIdAndDeletedAtIsNull(bookId);
   }
 
   @Test
@@ -246,5 +251,75 @@ class BookServiceTest {
 
     verify(bookRepository).search(pageRequest);
     verify(bookRepository).count(request);
+  }
+
+  @Test
+  @DisplayName("도서 정보를 수정하면 수정된 BookDto 반환")
+  void update() {
+    // given
+    UUID bookId = UUID.randomUUID();
+
+    Book book = book()
+        .id(bookId)
+        .title("수정 전 제목")
+        .author("수정 전 작가")
+        .description("수정 전 설명")
+        .publisher("수정 전 출판사")
+        .publishedDate(LocalDate.of(2026, 1, 1))
+        .isbn("9788960177758")
+        .thumbnailUrl("https://example.com/before.jpg")
+        .build();
+
+    BookUpdateRequest request =
+        new BookUpdateRequest(
+            "수정 후 제목",
+            "수정 후 작가",
+            "수정 후 설명",
+            "수정 후 출판사",
+            LocalDate.of(2026, 5, 28),
+            "https://example.com/after.jpg"
+            );
+
+    when(bookRepository.findByIdAndDeletedAtIsNull(bookId)).thenReturn(Optional.of(book));
+
+    // when
+    BookDto result = bookService.update(bookId, request);
+
+    // then
+    assertThat(result.id()).isEqualTo(bookId);
+    assertThat(result.title()).isEqualTo(request.title());
+    assertThat(result.author()).isEqualTo(request.author());
+    assertThat(result.description()).isEqualTo(request.description());
+    assertThat(result.publisher()).isEqualTo(request.publisher());
+    assertThat(result.publishedDate()).isEqualTo(request.publishedDate());
+    assertThat(result.isbn()).isEqualTo("9788960177758");
+    assertThat(result.thumbnailUrl()).isEqualTo(request.thumbnailUrl());
+
+    verify(bookRepository).findByIdAndDeletedAtIsNull(bookId);
+  }
+
+  @Test
+  @DisplayName("존재하지 않는 도서를 수정하면 예외 발생")
+  void updateBookWithNotFound() {
+    // given
+    UUID bookId = UUID.randomUUID();
+
+    BookUpdateRequest request =
+        new BookUpdateRequest(
+            "수정 후 제목",
+            "수정 후 저자",
+            "수정 후 설명",
+            "수정 후 출판사",
+            LocalDate.of(2026, 5, 28),
+            "https://example.com/new.jpg"
+        );
+
+    when(bookRepository.findByIdAndDeletedAtIsNull(bookId)).thenReturn(Optional.empty());
+
+    // when, then
+    assertThatThrownBy(() -> bookService.update(bookId, request))
+        .isInstanceOf(BookNotFoundException.class);
+
+    verify(bookRepository).findByIdAndDeletedAtIsNull(bookId);
   }
 }

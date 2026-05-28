@@ -5,6 +5,7 @@ import com.team3.deokhugam.dto.book.BookCreateRequest;
 import com.team3.deokhugam.dto.book.BookDto;
 import com.team3.deokhugam.dto.book.BookOrderBy;
 import com.team3.deokhugam.dto.book.BookSearchRequest;
+import com.team3.deokhugam.dto.book.BookUpdateRequest;
 import com.team3.deokhugam.exception.book.BookAlreadyExistsException;
 import com.team3.deokhugam.exception.book.BookNotFoundException;
 import com.team3.deokhugam.global.dto.CursorPageResponse;
@@ -44,8 +45,7 @@ public class BookService {
   }
 
   public BookDto findById(UUID bookId) {
-    Book book = bookRepository.findById(bookId)
-        .orElseThrow(BookNotFoundException::new);
+    Book book = getActiveBook(bookId);
 
     return BookDto.from(book);
   }
@@ -74,6 +74,27 @@ public class BookService {
         totalElements,
         hasNext
     );
+  }
+
+  @Transactional
+  public BookDto update(UUID bookId, BookUpdateRequest request) {
+    Book book = getActiveBook(bookId);
+
+    book.update(
+        request.title(),
+        request.author(),
+        request.description(),
+        request.publisher(),
+        request.publishedDate(),
+        request.thumbnailUrl()
+    );
+
+    return BookDto.from(book);
+  }
+
+  private Book getActiveBook(UUID bookId) {
+    return bookRepository.findByIdAndDeletedAtIsNull(bookId)
+        .orElseThrow(BookNotFoundException::new);
   }
 
   private String resolveNextCursor(Book book, BookOrderBy orderBy) {
