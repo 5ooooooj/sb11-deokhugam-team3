@@ -16,6 +16,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -46,6 +47,22 @@ public class ReviewController {
       @Valid @RequestBody ReviewCreateRequest request) {
     ReviewDto response = reviewService.createReview(request);
     return ResponseEntity.status(HttpStatus.CREATED).body(response);
+  }
+
+  @Operation(summary = "리뷰 상세 정보 조회", description = "리뷰 ID로 상세 정보를 조회합니다.")
+  @ApiResponses({
+      @ApiResponse(responseCode = "200", description = "리뷰 정보 조회 성공",
+          content = @Content(schema = @Schema(implementation = ReviewDto.class))),
+      @ApiResponse(responseCode = "400", description = "잘못된 요청 (요청자 ID 누락)"),
+      @ApiResponse(responseCode = "404", description = "리뷰 정보 없음"),
+      @ApiResponse(responseCode = "500", description = "서버 내부 오류")
+  })
+  @GetMapping("/{reviewId}")
+  public ResponseEntity<ReviewDto> getReview(
+      @PathVariable UUID reviewId,
+      @RequestHeader("Deokhugam-Request-User-ID") UUID requestUserId) {
+    ReviewDto response = reviewService.getReview(reviewId, requestUserId);
+    return ResponseEntity.ok(response);
   }
 
   @Operation(summary = "리뷰 수정", description = "본인이 작성한 리뷰를 수정합니다.")
