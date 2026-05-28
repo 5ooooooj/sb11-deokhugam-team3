@@ -5,7 +5,6 @@ import com.team3.deokhugam.dto.user.UserDto;
 import com.team3.deokhugam.domain.user.User;
 import com.team3.deokhugam.dto.user.UserUpdateRequest;
 import com.team3.deokhugam.exception.user.EmailAlreadyExistsException;
-import com.team3.deokhugam.exception.user.UserForbiddenException;
 import com.team3.deokhugam.exception.user.UserNotFoundException;
 import com.team3.deokhugam.repository.user.UserRepository;
 import com.team3.deokhugam.dto.user.UserLoginRequest;
@@ -71,5 +70,15 @@ public class UserService {
     user.updateNickname(request.nickname());
 
     return UserDto.from(user);
+  }
+
+  @Transactional
+  public void deleteUser(UUID userId, UUID loginUserId){
+    userPermissionValidator.validateSelf(userId, loginUserId);
+
+    User user = userRepository.findActiveById(userId)
+        .orElseThrow(UserNotFoundException::new);
+
+    user.softDelete();
   }
 }
