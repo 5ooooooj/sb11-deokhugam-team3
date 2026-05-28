@@ -47,8 +47,7 @@ public class BookRepositoryCustomImpl implements BookRepositoryCustom {
         .from(book)
         .where(
             notDeleted(),
-            containsKeyword(request),
-            cursorCondition(request)
+            containsKeyword(request)
         )
         .fetchOne();
 
@@ -153,7 +152,6 @@ public class BookRepositoryCustomImpl implements BookRepositoryCustom {
     };
   }
 
-
   private Order resolveDirection(Sort.Direction direction) {
     return direction.isAscending() ? Order.ASC : Order.DESC;
   }
@@ -163,7 +161,7 @@ public class BookRepositoryCustomImpl implements BookRepositoryCustom {
     try {
       return LocalDate.parse(cursor);
     } catch (DateTimeParseException e) {
-      throw new InvalidBookSearchConditionException("잘못된 커서 값입니다.");
+      throw new InvalidBookSearchConditionException();
     }
   }
 
@@ -172,7 +170,7 @@ public class BookRepositoryCustomImpl implements BookRepositoryCustom {
     try {
       return new BigDecimal(cursor);
     } catch (NumberFormatException e) {
-      throw new InvalidBookSearchConditionException("잘못된 커서 값입니다.");
+      throw new InvalidBookSearchConditionException();
     }
   }
 
@@ -181,7 +179,7 @@ public class BookRepositoryCustomImpl implements BookRepositoryCustom {
     try {
       return Integer.parseInt(cursor);
     } catch (NumberFormatException e) {
-      throw new InvalidBookSearchConditionException("잘못된 커서 값입니다.");
+      throw new InvalidBookSearchConditionException();
     }
   }
 

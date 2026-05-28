@@ -260,6 +260,71 @@ class BookRepositoryTest {
   }
 
   @Test
+  @DisplayName("count는 cursor 이후 개수가 아니라 검색 조건에 맞는 전체 개수를 조회")
+  void countDoesNotApplyCursorCondition() {
+    // given
+    Book firstBook = book()
+        .title("repo-count-cursor-20 A")
+        .author("작가 A")
+        .description("count cursor 테스트용 도서입니다.")
+        .publisher("테스트출판사")
+        .publishedDate(LocalDate.of(2026, 1, 1))
+        .isbn("9780000002041")
+        .thumbnailUrl("https://example.com/count-cursor-a.jpg")
+        .build();
+
+    Book secondBook = book()
+        .title("repo-count-cursor-20 B")
+        .author("작가 B")
+        .description("count cursor 테스트용 도서입니다.")
+        .publisher("테스트출판사")
+        .publishedDate(LocalDate.of(2026, 1, 2))
+        .isbn("9780000002042")
+        .thumbnailUrl("https://example.com/count-cursor-b.jpg")
+        .build();
+
+    Book thirdBook = book()
+        .title("repo-count-cursor-20 C")
+        .author("작가 C")
+        .description("count cursor 테스트용 도서입니다.")
+        .publisher("테스트출판사")
+        .publishedDate(LocalDate.of(2026, 1, 3))
+        .isbn("9780000002043")
+        .thumbnailUrl("https://example.com/count-cursor-c.jpg")
+        .build();
+
+    bookRepository.saveAll(List.of(firstBook, secondBook, thirdBook));
+    bookRepository.flush();
+
+    BookSearchRequest firstPageRequest = BookSearchRequest.of(
+        "repo-count-cursor-20",
+        "title",
+        "ASC",
+        null,
+        null,
+        2
+    );
+
+    List<Book> firstPage = bookRepository.search(firstPageRequest);
+    Book lastBookOfFirstPage = firstPage.get(firstPage.size() - 1);
+
+    BookSearchRequest secondPageRequest = BookSearchRequest.of(
+        "repo-count-cursor-20",
+        "title",
+        "ASC",
+        lastBookOfFirstPage.getTitle(),
+        lastBookOfFirstPage.getCreatedAt(),
+        2
+    );
+
+    // when
+    long result = bookRepository.count(secondPageRequest);
+
+    // then
+    assertThat(result).isEqualTo(3);
+  }
+
+  @Test
   @DisplayName("cursor와 after 이후의 도서 목록을 조회한다")
   void searchWithCursorAndAfter() {
     // given

@@ -51,14 +51,20 @@ public class BookService {
   }
 
   public CursorPageResponse<BookDto> search(BookSearchRequest request) {
-    List<Book> books = bookRepository.search(request);
+    BookSearchRequest pageRequest = request.withLimit(request.limit() + 1);
+    List<Book> books = bookRepository.search(pageRequest);
+
+    boolean hasNext = books.size() > request.limit();
+
+    List <Book> pageBooks = hasNext ? books.subList(0, request.limit()) : books;
+
     long totalElements = bookRepository.count(request);
 
-    List<BookDto> content = books.stream()
+    List<BookDto> content = pageBooks.stream()
         .map(BookDto::from)
         .toList();
 
-    Book lastBook = books.isEmpty() ? null : books.get(books.size() - 1);
+    Book lastBook = pageBooks.isEmpty() ? null : pageBooks.get(pageBooks.size() - 1);
 
     return new CursorPageResponse<>(
         content,
@@ -66,7 +72,7 @@ public class BookService {
         lastBook == null ? null : lastBook.getCreatedAt(),
         content.size(),
         totalElements,
-        totalElements > content.size()
+        hasNext
     );
   }
 

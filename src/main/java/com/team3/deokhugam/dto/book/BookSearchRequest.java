@@ -13,6 +13,8 @@ public record BookSearchRequest(
     int limit
 ) {
 
+  private static final BookOrderBy DEFAULT_ORDER_BY = BookOrderBy.TITLE;
+  private static final Sort.Direction DEFAULT_DIRECTION = Sort.Direction.DESC;
   private static final int DEFAULT_LIMIT = 50;
 
   public static BookSearchRequest of(
@@ -25,7 +27,7 @@ public record BookSearchRequest(
   ) {
     return new BookSearchRequest(
         normalizeBlank(keyword),
-        BookOrderBy.from(orderBy),
+        parseOrderBy(orderBy),
         parseDirection(direction),
         normalizeBlank(cursor),
         after,
@@ -33,15 +35,51 @@ public record BookSearchRequest(
     );
   }
 
+
+  public BookSearchRequest withLimit(int limit) {
+    return new BookSearchRequest(
+        keyword,
+        orderBy,
+        direction,
+        cursor,
+        after,
+        parseLimit(limit)
+    );
+  }
+
+  public boolean hasKeyword() {
+    return keyword != null && !keyword.isBlank();
+  }
+
+  public boolean hasCursor() {
+    return cursor != null && after != null && !cursor.isBlank();
+  }
+
+  private static String normalizeKeyword(String keyword) {
+    if (keyword == null || keyword.isBlank()) {
+      return null;
+    }
+
+    return keyword.trim();
+  }
+
+  private static BookOrderBy parseOrderBy(String orderBy) {
+    if (orderBy == null || orderBy.isBlank()) {
+      return DEFAULT_ORDER_BY;
+    }
+
+    return BookOrderBy.from(orderBy);
+  }
+
   private static Sort.Direction parseDirection(String direction) {
     if (direction == null || direction.isBlank()) {
-      return Sort.Direction.DESC;
+      return DEFAULT_DIRECTION;
     }
 
     try {
       return Sort.Direction.fromString(direction);
     } catch (IllegalArgumentException e) {
-      throw new InvalidBookSearchConditionException("지원하지 않는 정렬 방향입니다.");
+      throw new InvalidBookSearchConditionException();
     }
   }
 
@@ -51,7 +89,7 @@ public record BookSearchRequest(
     }
 
     if (limit <= 0) {
-      throw new InvalidBookSearchConditionException("페이지 크기는 1 이상이어야 합니다.");
+      throw new InvalidBookSearchConditionException();
     }
 
     return limit;
@@ -63,13 +101,5 @@ public record BookSearchRequest(
     }
 
     return value.trim();
-  }
-
-  public boolean hasKeyword() {
-    return keyword != null;
-  }
-
-  public boolean hasCursor() {
-    return cursor != null && after != null;
   }
 }

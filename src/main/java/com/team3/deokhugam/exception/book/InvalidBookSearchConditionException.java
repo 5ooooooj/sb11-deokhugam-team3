@@ -5,7 +5,7 @@ import com.team3.deokhugam.exception.global.ErrorCode;
 
 public class InvalidBookSearchConditionException extends DeokhugamException {
 
-  public InvalidBookSearchConditionException(String message) {
+  public InvalidBookSearchConditionException() {
     super(ErrorCode.INVALID_INPUT);
   }
 }

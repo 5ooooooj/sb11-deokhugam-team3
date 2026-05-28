@@ -153,6 +153,7 @@ class BookServiceTest {
 
     Instant firstCreatedAt = Instant.parse("2026-05-27T00:00:00Z");
     Instant secondCreatedAt = Instant.parse("2026-05-27T00:01:00Z");
+    Instant thirdCreatedAt = Instant.parse("2026-05-27T00:02:00Z");
 
     Book firstBook = book()
         .id(UUID.randomUUID())
@@ -178,7 +179,21 @@ class BookServiceTest {
         .createdAt(secondCreatedAt)
         .build();
 
-    when(bookRepository.search(request)).thenReturn(List.of(firstBook, secondBook));
+    Book thirdBook = book()
+        .id(UUID.randomUUID())
+        .title("코드잇 스프링3")
+        .author("강우진3")
+        .description("스프링백엔드3")
+        .publisher("테스트출판사")
+        .publishedDate(LocalDate.of(2026, 1, 3))
+        .isbn("9780000002103")
+        .thumbnailUrl("https://example.com/codeit-spring3.jpg")
+        .createdAt(thirdCreatedAt)
+        .build();
+
+    BookSearchRequest pageRequest = request.withLimit(request.limit() + 1);
+
+    when(bookRepository.search(pageRequest)).thenReturn(List.of(firstBook, secondBook, thirdBook));
     when(bookRepository.count(request)).thenReturn(3L);
 
     // when
@@ -195,7 +210,7 @@ class BookServiceTest {
     assertThat(result.totalElements()).isEqualTo(3L);
     assertThat(result.hasNext()).isTrue();
 
-    verify(bookRepository).search(request);
+    verify(bookRepository).search(pageRequest);
     verify(bookRepository).count(request);
   }
 
@@ -213,7 +228,9 @@ class BookServiceTest {
             10
         );
 
-    when(bookRepository.search(request)).thenReturn(List.of());
+    BookSearchRequest pageRequest = request.withLimit(request.limit() + 1);
+
+    when(bookRepository.search(pageRequest)).thenReturn(List.of());
     when(bookRepository.count(request)).thenReturn(0L);
 
     // when
@@ -227,7 +244,7 @@ class BookServiceTest {
     assertThat(result.totalElements()).isZero();
     assertThat(result.hasNext()).isFalse();
 
-    verify(bookRepository).search(request);
+    verify(bookRepository).search(pageRequest);
     verify(bookRepository).count(request);
   }
 }
