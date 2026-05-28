@@ -1,5 +1,6 @@
 package com.team3.deokhugam.service.book;
 
+import static com.team3.deokhugam.domain.book.BookTestFactory.book;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
@@ -25,7 +26,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.test.util.ReflectionTestUtils;
 
 @ExtendWith(MockitoExtension.class)
 class BookServiceTest {
@@ -67,7 +67,7 @@ class BookServiceTest {
     // when
     BookDto result = bookService.create(request);
 
-    //then
+    // then
     assertThat(result.title()).isEqualTo(request.title());
     assertThat(result.author()).isEqualTo(request.author());
     assertThat(result.isbn()).isEqualTo(request.isbn());
@@ -101,18 +101,16 @@ class BookServiceTest {
     // given
     UUID bookId = UUID.randomUUID();
 
-    Book book =
-        new Book(
-            "그리고 아무도 없었다",
-            "애거서 크리스티",
-            "외딴 섬에서 벌어지는 연쇄 살인 사건",
-            "황금가지",
-            LocalDate.of(2013, 12, 31),
-            "9788960177758",
-            "https://example.com/book.jpg"
-        );
-
-    ReflectionTestUtils.setField(book, "id", bookId);
+    Book book = book()
+        .id(bookId)
+        .title("그리고 아무도 없었다")
+        .author("애거서 크리스티")
+        .description("외딴 섬에서 벌어지는 연쇄 살인 사건")
+        .publisher("황금가지")
+        .publishedDate(LocalDate.of(2013, 12, 31))
+        .isbn("9788960177758")
+        .thumbnailUrl("https://example.com/book.jpg")
+        .build();
 
     when(bookRepository.findById(bookId)).thenReturn(Optional.of(book));
 
@@ -156,31 +154,29 @@ class BookServiceTest {
     Instant firstCreatedAt = Instant.parse("2026-05-27T00:00:00Z");
     Instant secondCreatedAt = Instant.parse("2026-05-27T00:01:00Z");
 
-    Book firstBook =
-        book(
-            UUID.randomUUID(),
-            "코드잇 스프링",
-            "강우진",
-            "스프링백엔드",
-            "테스트출판사",
-            LocalDate.of(2026, 1, 1),
-            "9780000002101",
-            "https://example.com/codeit-spring.jpg",
-            firstCreatedAt
-        );
+    Book firstBook = book()
+        .id(UUID.randomUUID())
+        .title("코드잇 스프링")
+        .author("강우진")
+        .description("스프링백엔드")
+        .publisher("테스트출판사")
+        .publishedDate(LocalDate.of(2026, 1, 1))
+        .isbn("9780000002101")
+        .thumbnailUrl("https://example.com/codeit-spring.jpg")
+        .createdAt(firstCreatedAt)
+        .build();
 
-    Book secondBook =
-        book(
-            UUID.randomUUID(),
-            "코드잇 스프링2",
-            "강우진2",
-            "스프링백엔드2",
-            "테스트출판사",
-            LocalDate.of(2026, 1, 2),
-            "9780000002102",
-            "https://example.com/codeit-spring.jpg",
-            secondCreatedAt
-        );
+    Book secondBook = book()
+        .id(UUID.randomUUID())
+        .title("코드잇 스프링2")
+        .author("강우진2")
+        .description("스프링백엔드2")
+        .publisher("테스트출판사")
+        .publishedDate(LocalDate.of(2026, 1, 2))
+        .isbn("9780000002102")
+        .thumbnailUrl("https://example.com/codeit-spring.jpg")
+        .createdAt(secondCreatedAt)
+        .build();
 
     when(bookRepository.search(request)).thenReturn(List.of(firstBook, secondBook));
     when(bookRepository.count(request)).thenReturn(3L);
@@ -233,34 +229,5 @@ class BookServiceTest {
 
     verify(bookRepository).search(request);
     verify(bookRepository).count(request);
-  }
-
-  private Book book(
-      UUID id,
-      String title,
-      String author,
-      String description,
-      String publisher,
-      LocalDate publicationDate,
-      String isbn,
-      String thumbnailUrl,
-      Instant createdAt
-  ) {
-    Book book =
-        new Book(
-            title,
-            author,
-            description,
-            publisher,
-            publicationDate,
-            isbn,
-            thumbnailUrl
-        );
-
-    ReflectionTestUtils.setField(book, "id", id);
-    ReflectionTestUtils.setField(book, "createdAt", createdAt);
-    ReflectionTestUtils.setField(book, "updatedAt", createdAt);
-
-    return book;
   }
 }

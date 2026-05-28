@@ -1,138 +1,188 @@
 package com.team3.deokhugam.repository.book;
 
+import static com.team3.deokhugam.domain.book.QBook.book;
+
+import com.querydsl.core.types.Order;
+import com.querydsl.core.types.OrderSpecifier;
+import com.querydsl.core.types.dsl.BooleanExpression;
+import com.querydsl.jpa.impl.JPAQueryFactory;
 import com.team3.deokhugam.domain.book.Book;
-import com.team3.deokhugam.dto.book.BookOrderBy;
 import com.team3.deokhugam.dto.book.BookSearchRequest;
 import com.team3.deokhugam.exception.book.InvalidBookSearchConditionException;
-import io.swagger.v3.oas.annotations.media.Encoding;
 import jakarta.persistence.EntityManager;
-import jakarta.persistence.TypedQuery;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.format.DateTimeParseException;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
-import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Repository;
 
 @Repository
-@RequiredArgsConstructor
 public class BookRepositoryCustomImpl implements BookRepositoryCustom {
 
-  private final EntityManager entityManager;
+  private final JPAQueryFactory queryFactory;
+
+  public BookRepositoryCustomImpl(EntityManager entityManager) {
+    this.queryFactory = new JPAQueryFactory(entityManager);
+  }
 
   @Override
   public List<Book> search(BookSearchRequest request) {
-    StringBuilder jpql =
-        new StringBuilder("select b from Book b where b.deletedAt is null");
-    Map<String, Object> parameters = new HashMap<>();
-
-    appendKeywordCondition(jpql, parameters, request);
-    appendCursorCondition(jpql, parameters, request);
-
-    jpql.append(" order by ")
-        .append(resolveOrderProperty(request.orderBy()))
-        .append(" ")
-        .append(resolveDirection(request.direction()))
-        .append(", b.createdAt ")
-        .append(resolveDirection(request.direction()));
-
-    TypedQuery<Book> query = entityManager.createQuery(jpql.toString(), Book.class);
-    parameters.forEach(query::setParameter);
-
-    return query
-        .setMaxResults(request.limit())
-        .getResultList();
+    return queryFactory
+        .selectFrom(book)
+        .where(
+            notDeleted(),
+            containsKeyword(request),
+            cursorCondition(request)
+        )
+        .orderBy(orderSpecifiers(request))
+        .limit(request.limit())
+        .fetch();
   }
 
   @Override
   public long count(BookSearchRequest request) {
-    StringBuilder jpql =
-        new StringBuilder("select count(b) from Book b where b.deletedAt is null");
-    Map<String, Object> parameters = new HashMap<>();
+    Long count = queryFactory
+        .select(book.count())
+        .from(book)
+        .where(
+            notDeleted(),
+            containsKeyword(request),
+            cursorCondition(request)
+        )
+        .fetchOne();
 
-    appendKeywordCondition(jpql, parameters, request);
-
-    TypedQuery<Long> query = entityManager.createQuery(jpql.toString(), Long.class);
-    parameters.forEach(query::setParameter);
-
-    return query.getSingleResult();
+    return count == null ? 0 : count;
   }
 
-  private void appendKeywordCondition(
-      StringBuilder jpql,
-      Map<String, Object> parameters,
-      BookSearchRequest request
-  ) {
+  private BooleanExpression notDeleted() {
+    return book.deletedAt.isNull();
+  }
+
+  private BooleanExpression containsKeyword(BookSearchRequest request) {
     if (!request.hasKeyword()) {
-      return;
+      return null;
     }
 
-    jpql.append("""
-          and (
-            lower(b.title) like lower(:keyword)
-            or lower(b.author) like lower(:keyword)
-            or lower(b.isbn) like lower(:keyword)
-          )
-        """
-    );
-    parameters.put("keyword", "%" + request.keyword() + "%");
+    return book.title.containsIgnoreCase(request.keyword())
+        .or(book.author.containsIgnoreCase(request.keyword()))
+        .or(book.isbn.containsIgnoreCase(request.keyword()));
   }
 
-  private void appendCursorCondition(
-      StringBuilder jpql,
-      Map<String, Object> parameters,
-      BookSearchRequest request
-  ) {
+  private BooleanExpression cursorCondition(BookSearchRequest request) {
     if (!request.hasCursor()) {
-      return;
+      return null;
     }
 
-    String orderProperty = resolveOrderProperty(request.orderBy());
-    String operator = request.direction().isAscending() ? ">" : "<";
-
-    jpql.append(" and (")
-        .append(orderProperty)
-        .append(" ")
-        .append(operator)
-        .append(" :cursor")
-        .append(" or (")
-        .append(orderProperty)
-        .append(" = :cursor")
-        .append(" and b.createdAt ")
-        .append(operator)
-        .append(" :after")
-        .append("))");
-
-    parameters.put("cursor", parseCursor(request));
-    parameters.put("after", request.after());
+    return switch (request.orderBy()) {
+      case TITLE -> titleCursorCondition(request);
+      case PUBLISHED_DATE -> publishedDateCursorCondition(request);
+      case RATING -> ratingCursorCondition(request);
+      case REVIEW_COUNT -> reviewCountCursorCondition(request);
+    };
   }
 
-  private Object parseCursor(BookSearchRequest request) {
-    try {
-      return switch (request.orderBy()) {
-        case TITLE -> request.cursor();
-        case PUBLISHED_DATE -> LocalDate.parse(request.cursor());
-        case RATING -> new BigDecimal(request.cursor());
-        case REVIEW_COUNT -> Integer.parseInt(request.cursor());
+  private BooleanExpression titleCursorCondition(BookSearchRequest request) {
+    String cursor = request.cursor();
+
+    if (request.direction().isAscending()) {
+      return book.title.gt(cursor)
+          .or(book.title.eq(cursor).and(book.createdAt.gt(request.after())));
+    }
+
+    return book.title.lt(cursor)
+        .or(book.title.eq(cursor).and(book.createdAt.lt(request.after())));
+  }
+
+  private BooleanExpression publishedDateCursorCondition(BookSearchRequest request) {
+    LocalDate cursor = parsePublishedDateCursor(request.cursor());
+
+    if (request.direction().isAscending()) {
+      return book.publishedDate.gt(cursor)
+          .or(book.publishedDate.eq(cursor).and(book.createdAt.gt(request.after())));
+    }
+
+    return book.publishedDate.lt(cursor)
+        .or(book.publishedDate.eq(cursor).and(book.createdAt.lt(request.after())));
+  }
+
+  private BooleanExpression ratingCursorCondition(BookSearchRequest request) {
+    BigDecimal cursor = parseRatingCursor(request.cursor());
+
+    if (request.direction().isAscending()) {
+      return book.rating.gt(cursor)
+          .or(book.rating.eq(cursor).and(book.createdAt.gt(request.after())));
+    }
+    return book.rating.lt(cursor)
+        .or(book.rating.eq(cursor).and(book.createdAt.lt(request.after())));
+  }
+
+  private BooleanExpression reviewCountCursorCondition(BookSearchRequest request) {
+    int cursor = parseReviewCountCursor(request.cursor());
+
+    if (request.direction().isAscending()) {
+      return book.reviewCount.gt(cursor)
+          .or(book.reviewCount.eq(cursor).and(book.createdAt.gt(request.after())));
+    }
+
+    return book.reviewCount.lt(cursor)
+        .or(book.reviewCount.eq(cursor).and(book.createdAt.lt(request.after())));
+  }
+
+
+  private OrderSpecifier<?>[] orderSpecifiers(BookSearchRequest request) {
+    Order direction = resolveDirection(request.direction());
+
+    return switch (request.orderBy()) {
+      case TITLE -> new OrderSpecifier<?>[]{
+          new OrderSpecifier<>(direction, book.title),
+          new OrderSpecifier<>(direction, book.createdAt)
       };
-    } catch (NumberFormatException | DateTimeParseException e) {
+      case PUBLISHED_DATE -> new OrderSpecifier<?>[]{
+          new OrderSpecifier<>(direction, book.publishedDate),
+          new OrderSpecifier<>(direction, book.createdAt)
+      };
+      case RATING -> new OrderSpecifier<?>[]{
+          new OrderSpecifier<>(direction, book.rating),
+          new OrderSpecifier<>(direction, book.createdAt)
+      };
+      case REVIEW_COUNT -> new OrderSpecifier<?>[]{
+          new OrderSpecifier<>(direction, book.reviewCount),
+          new OrderSpecifier<>(direction, book.createdAt)
+      };
+    };
+  }
+
+
+  private Order resolveDirection(Sort.Direction direction) {
+    return direction.isAscending() ? Order.ASC : Order.DESC;
+  }
+
+
+  private LocalDate parsePublishedDateCursor(String cursor) {
+    try {
+      return LocalDate.parse(cursor);
+    } catch (DateTimeParseException e) {
       throw new InvalidBookSearchConditionException("잘못된 커서 값입니다.");
     }
   }
 
-    private String resolveOrderProperty (BookOrderBy orderBy){
-      return switch (orderBy) {
-        case TITLE -> "b.title";
-        case PUBLISHED_DATE -> "b.publishedDate";
-        case RATING -> "b.rating";
-        case REVIEW_COUNT -> "b.reviewCount";
-      };
-    }
 
-    private String resolveDirection (Sort.Direction direction){
-      return direction.isAscending() ? "ASC" : "DESC";
+  private BigDecimal parseRatingCursor(String cursor) {
+    try {
+      return new BigDecimal(cursor);
+    } catch (NumberFormatException e) {
+      throw new InvalidBookSearchConditionException("잘못된 커서 값입니다.");
     }
   }
+
+
+  private int parseReviewCountCursor(String cursor) {
+    try {
+      return Integer.parseInt(cursor);
+    } catch (NumberFormatException e) {
+      throw new InvalidBookSearchConditionException("잘못된 커서 값입니다.");
+    }
+  }
+
+}
