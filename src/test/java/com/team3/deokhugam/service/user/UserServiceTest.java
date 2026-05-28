@@ -291,7 +291,7 @@ class UserServiceTest {
     given(userRepository.findActiveById(userId)).willReturn(Optional.of(user));
 
     // when
-    userService.deleteUser(userId, userId); // header, path 값이 일치해야함
+    userService.deleteUser(userId, loginUserId); // header, path 값이 일치해야함
 
     // then
     assertThat(user.isDeleted()).isTrue();
@@ -303,7 +303,7 @@ class UserServiceTest {
   }
 
   @Test
-  void deleteUser_fail_forbidden(){
+  void deleteUser_fail_forbidden() {
     // given
     UUID userId = UUID.randomUUID();
     UUID loginUserId = UUID.randomUUID();
@@ -331,8 +331,8 @@ class UserServiceTest {
         .willReturn(Optional.empty());
 
     // when, then
-    assertThatThrownBy(()-> userService.deleteUser(userId, loginUserId)
-        .isInstanceOf(UserNotFoundException.class));
+    assertThatThrownBy(() -> userService.deleteUser(userId, loginUserId))
+        .isInstanceOf(UserNotFoundException.class);
 
     verify(userPermissionValidator).validateSelf(userId, loginUserId);
     verify(userRepository).findActiveById(userId);
