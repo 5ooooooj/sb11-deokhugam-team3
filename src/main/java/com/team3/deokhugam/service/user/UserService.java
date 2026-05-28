@@ -3,7 +3,9 @@ package com.team3.deokhugam.service.user;
 import com.team3.deokhugam.dto.user.UserRegisterRequest;
 import com.team3.deokhugam.dto.user.UserDto;
 import com.team3.deokhugam.domain.user.User;
+import com.team3.deokhugam.dto.user.UserUpdateRequest;
 import com.team3.deokhugam.exception.user.EmailAlreadyExistsException;
+import com.team3.deokhugam.exception.user.UserForbiddenException;
 import com.team3.deokhugam.exception.user.UserNotFoundException;
 import com.team3.deokhugam.repository.user.UserRepository;
 import com.team3.deokhugam.dto.user.UserLoginRequest;
@@ -22,6 +24,7 @@ public class UserService {
 
   private final UserRepository userRepository;
   private final PasswordEncoder passwordEncoder;
+  private final UserPermissionValidator userPermissionValidator;
 
   @Transactional
   public UserDto register(UserRegisterRequest request) {
@@ -54,6 +57,18 @@ public class UserService {
   public UserDto findUserById(UUID userId){
     User user = userRepository.findActiveById(userId)
         .orElseThrow(UserNotFoundException::new);
+
+    return UserDto.from(user);
+  }
+
+  @Transactional
+  public UserDto updateUser(UUID userId, UUID loginUserId, UserUpdateRequest request){
+    userPermissionValidator.validateSelf(userId, loginUserId);
+
+    User user = userRepository.findActiveById(userId)
+        .orElseThrow(UserNotFoundException::new);
+
+    user.updateNickname(request.nickname());
 
     return UserDto.from(user);
   }
