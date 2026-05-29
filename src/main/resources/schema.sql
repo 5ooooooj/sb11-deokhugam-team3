@@ -156,7 +156,7 @@ CREATE TABLE IF NOT EXISTS application_locks (
                                             expires_at TIMESTAMPTZ NOT NULL,
 
                                             CONSTRAINT ck_application_locks_target
-                                            CHECK (target IN ('USER', 'BOOK', 'REVIEW', 'BATCH', 'NOTIFICATION')),
+                                            CHECK (target IN ('USER', 'BOOK', 'REVIEW', 'COMMENT', 'NOTIFICATION', 'BATCH')),
 
                                             CONSTRAINT ck_application_locks_status
                                             CHECK (status IN ('LOCKED', 'RELEASED'))

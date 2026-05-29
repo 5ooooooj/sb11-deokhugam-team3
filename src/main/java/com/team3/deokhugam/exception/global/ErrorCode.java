@@ -41,6 +41,10 @@ public enum ErrorCode {
   EMPTY_FILE_UPLOAD("파일이 비어있습니다.", HttpStatus.BAD_REQUEST),
   INVALID_FILE_KEY("유효하지 않은 S3 키입니다.", HttpStatus.BAD_REQUEST),
   S3_DELETE_FAILED("S3 삭제에 실패했습니다.", HttpStatus.INTERNAL_SERVER_ERROR),
+
+  // Lock
+  APPLICATION_LOCK_ALREADY_ACQUIRED("이미 실행중인 LOCK작업입니다.", HttpStatus.CONFLICT),
+  APPLICATION_LOCK_NOT_FOUND("락 정보를 찾을 수 없습니다.", HttpStatus.NOT_FOUND),
   ;
 
   private final String message;
