@@ -12,6 +12,8 @@ import jakarta.persistence.Table;
 import java.time.Instant;
 import java.util.UUID;
 import lombok.AccessLevel;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
@@ -19,6 +21,8 @@ import lombok.NoArgsConstructor;
 @Table(name = "popular_books")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
+@AllArgsConstructor
+@Builder
 public class PopularBook {
 
   @Id
@@ -47,4 +51,8 @@ public class PopularBook {
 
   @Column(name = "calculated_at", nullable = false)
   private Instant calculatedAt;
+
+  public void assignRank(int rank) {
+    this.rank = rank;
+  }
 }
