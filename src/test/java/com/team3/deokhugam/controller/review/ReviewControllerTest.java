@@ -9,6 +9,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.team3.deokhugam.dto.review.ReviewCreateRequest;
@@ -27,6 +28,9 @@ import org.springframework.test.web.servlet.MockMvc;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import com.team3.deokhugam.exception.global.DeokhugamException;
 import com.team3.deokhugam.exception.global.ErrorCode;
+import com.team3.deokhugam.global.dto.CursorPageResponse;
+import java.time.Instant;
+import java.util.List;
 
 @WebMvcTest(ReviewController.class)
 class ReviewControllerTest {
@@ -157,4 +161,33 @@ class ReviewControllerTest {
             .header("Deokhugam-Request-User-ID", userId.toString()))
         .andExpect(status().isNotFound());
   }
+
+  @Test
+  @DisplayName("GET /api/reviews - 리뷰 목록 조회 성공 시 200과 CursorPageResponse를 반환한다")
+  void searchReviews_returns200() throws Exception {
+    UUID requestUserId = UUID.randomUUID();
+    UUID reviewId = UUID.randomUUID();
+    UUID bookId = UUID.randomUUID();
+
+    ReviewDto reviewDto = new ReviewDto(
+        reviewId, bookId, null, null, requestUserId, null,
+        "재밌어요", 5, 0, 0, false, Instant.now(), Instant.now()
+    );
+    CursorPageResponse<ReviewDto> response = new CursorPageResponse<>(
+        List.of(reviewDto), null, null, 1, 1L, false
+    );
+
+    given(reviewService.searchReviews(any())).willReturn(response);
+
+    mockMvc.perform(get("/api/reviews")
+            .param("requestUserId", requestUserId.toString())
+            .header("Deokhugam-Request-User-ID", requestUserId.toString()))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.content").isArray())
+        .andExpect(jsonPath("$.content[0].id").value(reviewId.toString()))
+        .andExpect(jsonPath("$.totalElements").value(1))
+        .andExpect(jsonPath("$.hasNext").value(false));
+  }
+
+
 }

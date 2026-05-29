@@ -21,6 +21,14 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import com.team3.deokhugam.dto.review.ReviewOrderBy;
+import com.team3.deokhugam.dto.review.ReviewSearchRequest;
+import com.team3.deokhugam.global.dto.CursorPageResponse;
+import java.time.Instant;
+import java.util.List;
+import org.springframework.data.domain.Sort;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.lenient;
 
 @ExtendWith(MockitoExtension.class)
 class ReviewServiceTest {
@@ -193,5 +201,67 @@ class ReviewServiceTest {
 
     assertThatThrownBy(() -> reviewService.getReview(reviewId, userId))
         .isInstanceOf(DeokhugamException.class);
+  }
+
+  @Test
+  @DisplayName("리뷰 목록 조회 성공 - 검색 결과를 CursorPageResponse로 반환한다")
+  void searchReviews_success() {
+    UUID requestUserId = UUID.randomUUID();
+    ReviewSearchRequest request = new ReviewSearchRequest(
+        null, null, null,
+        ReviewOrderBy.CREATED_AT, Sort.Direction.DESC,
+        null, null, 10, requestUserId
+    );
+
+    Review review1 = mock(Review.class);
+    given(review1.getCreatedAt()).willReturn(Instant.now());
+    given(review1.getId()).willReturn(UUID.randomUUID());
+    Review review2 = mock(Review.class);
+    given(review2.getCreatedAt()).willReturn(Instant.now());
+    given(review2.getId()).willReturn(UUID.randomUUID());
+
+    given(reviewRepository.search(any(ReviewSearchRequest.class)))
+        .willReturn(List.of(review1, review2));
+    given(reviewRepository.count(any(ReviewSearchRequest.class))).willReturn(2L);
+
+    CursorPageResponse<ReviewDto> result = reviewService.searchReviews(request);
+
+    assertThat(result).isNotNull();
+    assertThat(result.content()).hasSize(2);
+    assertThat(result.totalElements()).isEqualTo(2);
+    assertThat(result.hasNext()).isFalse();
+  }
+
+  @Test
+  @DisplayName("리뷰 목록 조회 성공 - limit보다 많이 조회되면 hasNext가 true가 된다")
+  void searchReviews_hasNext_true() {
+    UUID requestUserId = UUID.randomUUID();
+    int limit = 2;
+    ReviewSearchRequest request = new ReviewSearchRequest(
+        null, null, null,
+        ReviewOrderBy.CREATED_AT, Sort.Direction.DESC,
+        null, null, limit, requestUserId
+    );
+
+    List<Review> reviews = List.of(
+        mockReviewWithCreatedAt(),
+        mockReviewWithCreatedAt(),
+        mockReviewWithCreatedAt()
+    );
+
+    given(reviewRepository.search(any(ReviewSearchRequest.class))).willReturn(reviews);
+    given(reviewRepository.count(any(ReviewSearchRequest.class))).willReturn(3L);
+
+    CursorPageResponse<ReviewDto> result = reviewService.searchReviews(request);
+
+    assertThat(result.content()).hasSize(limit);
+    assertThat(result.hasNext()).isTrue();
+  }
+
+  private Review mockReviewWithCreatedAt() {
+    Review review = mock(Review.class);
+    lenient().when(review.getCreatedAt()).thenReturn(Instant.now());
+    lenient().when(review.getId()).thenReturn(UUID.randomUUID());
+    return review;
   }
 }
