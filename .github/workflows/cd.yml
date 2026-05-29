@@ -55,7 +55,7 @@ jobs:
           TASK_DEF=$(aws ecs describe-task-definition \
             --task-definition ${{ vars.ECS_TASK_DEFINITION }} \
             --query taskDefinition)
-          NEW_TASK_DEF=$(echo $TASK_DEF | jq \
+          NEW_TASK_DEF=$(echo "$TASK_DEF" | jq \
             --arg IMAGE "$ECR_REPOSITORY_URI:$IMAGE_TAG" \
             '.containerDefinitions[0].image = $IMAGE
             | del(.taskDefinitionArn, .revision, .status,
