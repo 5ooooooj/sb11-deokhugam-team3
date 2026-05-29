@@ -7,6 +7,9 @@ import com.team3.deokhugam.dto.user.UserUpdateRequest;
 import com.team3.deokhugam.exception.user.EmailAlreadyExistsException;
 import com.team3.deokhugam.exception.user.UserForbiddenException;
 import com.team3.deokhugam.exception.user.UserNotFoundException;
+import com.team3.deokhugam.global.lock.annotation.ApplicationLock;
+import com.team3.deokhugam.global.lock.domain.LockName;
+import com.team3.deokhugam.global.lock.domain.LockTarget;
 import com.team3.deokhugam.repository.user.UserRepository;
 import com.team3.deokhugam.dto.user.UserLoginRequest;
 import com.team3.deokhugam.exception.user.LoginFailedException;
@@ -26,6 +29,12 @@ public class UserService {
   private final PasswordEncoder passwordEncoder;
   private final UserPermissionValidator userPermissionValidator;
 
+  @ApplicationLock(
+      target = LockTarget.USER,
+      targetId = "#request.email",
+      lockName = LockName.USER_REGISTER,
+      duration = "3s"
+  )
   @Transactional
   public UserDto register(UserRegisterRequest request) {
     if (userRepository.existsByEmail(request.email())) {

@@ -12,6 +12,7 @@ import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
@@ -21,7 +22,7 @@ public class ApplicationLockService {
 
   private final ApplicationLockRepository applicationLockRepository;
 
-  @Transactional
+  @Transactional(propagation = Propagation.REQUIRES_NEW)
   public UUID acquire(
       LockTarget target,
       String targetId,
@@ -54,7 +55,7 @@ public class ApplicationLockService {
     return savedLock.getId();
   }
 
-  @Transactional
+  @Transactional(propagation = Propagation.REQUIRES_NEW)
   public void release(UUID lockId) {
     ApplicationLockEntity lock = applicationLockRepository.findById(lockId)
         .orElseThrow(ApplicationLockNotFoundException::new);
