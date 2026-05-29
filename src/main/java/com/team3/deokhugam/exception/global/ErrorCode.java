@@ -45,6 +45,9 @@ public enum ErrorCode {
   // Lock
   APPLICATION_LOCK_ALREADY_ACQUIRED("이미 실행중인 LOCK작업입니다.", HttpStatus.CONFLICT),
   APPLICATION_LOCK_NOT_FOUND("락 정보를 찾을 수 없습니다.", HttpStatus.NOT_FOUND),
+  APPLICATION_LOCK_INVALID_DURATION("락 시간 형식이 올바르지 않습니다.", HttpStatus.BAD_REQUEST),
+  APPLICATION_LOCK_INVALID_TARGET_ID("락 대상 식별자를 계산할 수 없습니다.", HttpStatus.BAD_REQUEST),
+  APPLICATION_LOCK_EXPRESSION_EVALUATION_FAILED("락 대상 식별자 표현식 평가에 실패했습니다.", HttpStatus.BAD_REQUEST),
   ;
 
   private final String message;
