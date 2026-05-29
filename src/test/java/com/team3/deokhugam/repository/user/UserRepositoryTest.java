@@ -18,7 +18,7 @@ import java.time.Instant;
 import static org.assertj.core.api.Assertions.assertThat;
 
 @DataJpaTest
-@ActiveProfiles("local")
+@ActiveProfiles("test")
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @Import(UserRepositoryTest.JpaAuditingTestConfig.class)
 class UserRepositoryTest {
