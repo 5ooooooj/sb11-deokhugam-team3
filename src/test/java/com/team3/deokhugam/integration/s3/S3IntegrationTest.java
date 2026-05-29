@@ -23,8 +23,7 @@ import org.springframework.context.annotation.Import;
 import org.springframework.context.annotation.Primary;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.context.ActiveProfiles;
-import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
-import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
+import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3Client;
 
@@ -45,14 +44,7 @@ public class S3IntegrationTest {
     public S3Client realS3Client(AwsProperties props) {
       return S3Client.builder()
           .region(Region.of(props.getRegion()))
-          .credentialsProvider(
-              StaticCredentialsProvider.create(
-                  AwsBasicCredentials.create(
-                      System.getenv("AWS_ACCESS_KEY_ID"),
-                      System.getenv("AWS_SECRET_ACCESS_KEY")
-                  )
-              )
-          )
+          .credentialsProvider(DefaultCredentialsProvider.create())
           .build();
     }
   }

@@ -1,8 +1,11 @@
 name: CD
 
+permissions:
+  contents: read
+
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "main", "feature/36-cicd" ]
 
 env:
   ECR_REPOSITORY_URI: ${{ vars.ECR_REPOSITORY_URI }}
@@ -13,6 +16,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
       - name: AWS CLI 설정
         uses: aws-actions/configure-aws-credentials@v4
@@ -68,6 +73,9 @@ jobs:
             --cluster ${{ vars.ECS_CLUSTER }} \
             --service ${{ vars.ECS_SERVICE }} \
             --desired-count 0
+          
+          MAX_RETRY=18  # 18 * 10초 = 최대 3분
+          COUNT=0
           while true; do
             RUNNING=$(aws ecs describe-services \
               --cluster ${{ vars.ECS_CLUSTER }} \
@@ -77,6 +85,15 @@ jobs:
             echo "실행 중인 태스크: $RUNNING"
             if [ "$RUNNING" = "0" ]; then
               break
+            fi
+            COUNT=$((COUNT + 1))
+            if [ "$COUNT" -ge "$MAX_RETRY" ]; then
+              echo "타임아웃: 태스크가 중단되지 않음"
+                aws ecs describe-services \
+                --cluster ${{ vars.ECS_CLUSTER }} \
+                --service ${{ vars.ECS_SERVICE }} \
+                --query "services[0].{runningCount:runningCount, events:events[0:3]}"
+              exit 1
             fi
             sleep 10
           done
@@ -90,6 +107,9 @@ jobs:
             --desired-count 1 \
             --availability-zone-rebalancing DISABLED \
             --deployment-configuration "minimumHealthyPercent=0,maximumPercent=100"
+        
+          MAX_RETRY=40  # 40 * 15초 = 최대 10분 (aws ecs wait와 동일 기준)
+          COUNT=0
           while true; do
             PRIMARY_RUNNING=$(aws ecs describe-services \
               --cluster ${{ vars.ECS_CLUSTER }} \
@@ -101,7 +121,16 @@ jobs:
               echo "새 태스크 RUNNING 확인"
               break
             fi
-            sleep 15
+            COUNT=$((COUNT + 1))
+            if [ "$COUNT" -ge "$MAX_RETRY" ]; then
+              echo "타임아웃: 새 태스크가 RUNNING 상태가 되지 않음"
+              aws ecs describe-services \
+                --cluster ${{ vars.ECS_CLUSTER }} \
+                --service ${{ vars.ECS_SERVICE }} \
+                --query "services[0].{deployments:deployments, events:events[0:5]}"
+             exit 1
+            fi
+              sleep 15
           done
 
       - name: ECS 배포 상태 확인

@@ -43,7 +43,7 @@ tasks.named('test') {
 	useJUnitPlatform {
 		excludeTags 'wip'
 	}
-	finalizedBy jacocoTestReport
+	finalizedBy jacocoTestReport, jacocoTestCoverageVerification
 }
 
 jacocoTestReport {
@@ -53,3 +53,16 @@ jacocoTestReport {
 		html.required = true
 	}
 }
+
+// jacoco 테스트 커버리지 80% 강제 코드
+// 추후 개발 어느정도 진행 되면 활성화
+//jacocoTestCoverageVerification {
+//	violationRules {
+//		rule {
+//			limit {
+//				minimum = 0.80
+//			}
+//		}
+//	}
+//}
+//check.dependsOn jacocoTestCoverageVerification

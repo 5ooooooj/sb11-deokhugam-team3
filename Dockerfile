@@ -11,9 +11,10 @@ RUN gradle clean build -x test --no-daemon
 FROM eclipse-temurin:17-jre
 WORKDIR /app
 
-RUN apt-get update && apt-get install -y --no-install-recommends tzdata && \
-    ln -sf /usr/share/zoneinfo/Asia/Seoul /etc/localtime && \
-    echo "Asia/Seoul" > /etc/timezone && \
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive TZ=Asia/Seoul \
+    apt-get install -y --no-install-recommends tzdata && \
+    ln -sf /usr/share/zoneinfo/$TZ /etc/localtime && \
+    echo "$TZ" > /etc/timezone && \
     rm -rf /var/lib/apt/lists/*
 
 RUN groupadd -r app && useradd -r -g app app
