@@ -143,6 +143,25 @@ CREATE TABLE IF NOT EXISTS power_users (
                                            CONSTRAINT fk_power_users_user FOREIGN KEY (user_id) REFERENCES users(id)
 );
 
+-- application_locks 테이블 생성 --
+CREATE TABLE IF NOT EXISTS application_locks (
+                                            id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
+                                            target VARCHAR(255) NOT NULL,
+                                            target_id VARCHAR(255) NOT NULL,
+                                            lock_name VARCHAR(255) NOT NULL,
+                                            lock_key VARCHAR(255) NOT NULL,
+                                            status VARCHAR(255) NOT NULL,
+                                            locked_at TIMESTAMPTZ NOT NULL,
+                                            released_at TIMESTAMPTZ,
+                                            expires_at TIMESTAMPTZ NOT NULL,
+
+                                            CONSTRAINT ck_application_locks_target
+                                            CHECK (target IN ('USER', 'BOOK', 'REVIEW', 'BATCH', 'NOTIFICATION')),
+
+                                            CONSTRAINT ck_application_locks_status
+                                            CHECK (status IN ('LOCKED', 'RELEASED'))
+);
+
 -- indexes --
 
 -- users --
@@ -208,3 +227,13 @@ CREATE INDEX IF NOT EXISTS idx_popular_reviews_period_rank ON popular_reviews (p
 -- power_users --
 -- 기간별 파워 유저 조회 (커서 페이지네이션, B-Tree)
 CREATE INDEX IF NOT EXISTS idx_power_users_period_rank ON power_users (period, rank, calculated_at, id);
+
+-- application_locks --
+-- 같은 lock_key로 LOCKED 상태인 락은 하나만 허용 (활성 락 중복 막기)
+CREATE UNIQUE INDEX IF NOT EXISTS uk_application_locks_active
+    ON application_locks (lock_key)
+    WHERE status = 'LOCKED';
+-- 방어 배치에서 만료된 LOCKED 락을 빠르게 찾기 위한 인덱스 (만료된 락 빠르게 찾기)
+CREATE INDEX IF NOT EXISTS idx_application_locks_expired
+    ON application_locks (expires_at)
+    WHERE status = 'LOCKED';

@@ -24,7 +24,7 @@ public class ApplicationLockEntity {
   @GeneratedValue(strategy = GenerationType.UUID)
   private UUID id;
 
-  // 락 대상 도메인 (USER, BOOK, REVIEW, BATCH)
+  // 락 대상 도메인 (USER, BOOK, REVIEW, BATCH, NOTIFICATION)
   @Enumerated(EnumType.STRING)
   @Column(nullable = false)
   private LockTarget target;
