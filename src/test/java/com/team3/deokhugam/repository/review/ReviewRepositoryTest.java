@@ -18,7 +18,7 @@ import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabas
 @DataJpaTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @Import(JpaAuditingConfig.class)
-@ActiveProfiles("local")
+@ActiveProfiles("test")
 class ReviewRepositoryTest {
 
   @Autowired

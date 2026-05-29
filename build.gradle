@@ -2,6 +2,7 @@ plugins {
     id 'java'
     id 'org.springframework.boot' version '3.5.14'
     id 'io.spring.dependency-management' version '1.1.7'
+    id 'jacoco'
 }
 
 group = 'com.team3'
@@ -43,5 +44,29 @@ dependencies {
 }
 
 tasks.named('test') {
-    useJUnitPlatform()
+	useJUnitPlatform {
+		excludeTags 'wip'
+	}
+	finalizedBy jacocoTestReport, jacocoTestCoverageVerification
 }
+
+jacocoTestReport {
+	dependsOn test
+	reports {
+		xml.required = true
+		html.required = true
+	}
+}
+
+// jacoco 테스트 커버리지 80% 강제 코드
+// 추후 개발 어느정도 진행 되면 활성화
+//jacocoTestCoverageVerification {
+//	violationRules {
+//		rule {
+//			limit {
+//				minimum = 0.80
+//			}
+//		}
+//	}
+//}
+//check.dependsOn jacocoTestCoverageVerification
