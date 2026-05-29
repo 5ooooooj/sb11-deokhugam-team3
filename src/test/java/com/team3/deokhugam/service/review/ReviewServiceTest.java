@@ -151,4 +151,47 @@ class ReviewServiceTest {
         reviewId, userId, new ReviewUpdateRequest("수정", 4)))
         .isInstanceOf(DeokhugamException.class);
   }
+
+  @Test
+  @DisplayName("리뷰 상세 조회 성공 - 존재하는 리뷰면 ReviewDto를 반환한다")
+  void getReview_success() {
+    UUID reviewId = UUID.randomUUID();
+    UUID userId = UUID.randomUUID();
+    UUID bookId = UUID.randomUUID();
+    Review review = Review.create(userId, bookId, 5, "재밌어요");
+
+    given(reviewRepository.findById(reviewId)).willReturn(Optional.of(review));
+
+    ReviewDto result = reviewService.getReview(reviewId, userId);
+
+    assertThat(result).isNotNull();
+    assertThat(result.bookId()).isEqualTo(bookId);
+    assertThat(result.userId()).isEqualTo(userId);
+    assertThat(result.rating()).isEqualTo(5);
+    assertThat(result.content()).isEqualTo("재밌어요");
+  }
+
+  @Test
+  @DisplayName("리뷰 상세 조회 실패 - 리뷰가 없으면 예외가 발생한다")
+  void getReview_notFound_throws() {
+    UUID reviewId = UUID.randomUUID();
+    given(reviewRepository.findById(reviewId)).willReturn(Optional.empty());
+
+    assertThatThrownBy(() -> reviewService.getReview(reviewId, UUID.randomUUID()))
+        .isInstanceOf(DeokhugamException.class);
+  }
+
+  @Test
+  @DisplayName("리뷰 상세 조회 실패 - 논리 삭제된 리뷰면 예외가 발생한다")
+  void getReview_deleted_throws() {
+    UUID reviewId = UUID.randomUUID();
+    UUID userId = UUID.randomUUID();
+    Review review = Review.create(userId, UUID.randomUUID(), 5, "삭제될 리뷰");
+    review.softDelete();  // 미리 삭제 처리
+
+    given(reviewRepository.findById(reviewId)).willReturn(Optional.of(review));
+
+    assertThatThrownBy(() -> reviewService.getReview(reviewId, userId))
+        .isInstanceOf(DeokhugamException.class);
+  }
 }
