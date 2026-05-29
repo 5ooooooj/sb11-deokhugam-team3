@@ -180,4 +180,18 @@ class ReviewServiceTest {
     assertThatThrownBy(() -> reviewService.getReview(reviewId, UUID.randomUUID()))
         .isInstanceOf(DeokhugamException.class);
   }
+
+  @Test
+  @DisplayName("리뷰 상세 조회 실패 - 논리 삭제된 리뷰면 예외가 발생한다")
+  void getReview_deleted_throws() {
+    UUID reviewId = UUID.randomUUID();
+    UUID userId = UUID.randomUUID();
+    Review review = Review.create(userId, UUID.randomUUID(), 5, "삭제될 리뷰");
+    review.softDelete();  // 미리 삭제 처리
+
+    given(reviewRepository.findById(reviewId)).willReturn(Optional.of(review));
+
+    assertThatThrownBy(() -> reviewService.getReview(reviewId, userId))
+        .isInstanceOf(DeokhugamException.class);
+  }
 }

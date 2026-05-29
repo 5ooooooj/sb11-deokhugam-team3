@@ -60,9 +60,11 @@ public class ReviewService {
   public ReviewDto getReview(UUID reviewId, UUID requestUserId) {
     Review review = reviewRepository.findById(reviewId)
         .orElseThrow(() -> new DeokhugamException(ErrorCode.REVIEW_NOT_FOUND));
+    if (review.isDeleted()) {
+      throw new DeokhugamException(ErrorCode.REVIEW_NOT_FOUND);
+    }
     return ReviewDto.from(review);
   }
-
   private Review findOwnedReview(UUID reviewId, UUID requestUserId) {
     Review review = reviewRepository.findById(reviewId)
         .orElseThrow(() -> new DeokhugamException(ErrorCode.REVIEW_NOT_FOUND));
