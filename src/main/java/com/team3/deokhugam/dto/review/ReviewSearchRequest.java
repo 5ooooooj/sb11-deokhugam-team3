@@ -21,6 +21,13 @@ public record ReviewSearchRequest(
   private static final ReviewOrderBy DEFAULT_ORDER_BY = ReviewOrderBy.CREATED_AT;
   private static final Sort.Direction DEFAULT_DIRECTION = Sort.Direction.DESC;
   private static final int DEFAULT_LIMIT = 50;
+  private static void validateCursorAndAfter(String cursor, Instant after) {
+    boolean hasCursor = cursor != null && !cursor.isBlank();
+    boolean hasAfter = after != null;
+    if (hasCursor != hasAfter) {
+      throw new DeokhugamException(ErrorCode.INVALID_INPUT);
+    }
+  }
 
   public static ReviewSearchRequest of(
       UUID userId,
@@ -33,6 +40,7 @@ public record ReviewSearchRequest(
       Integer limit,
       UUID requestUserId
   ) {
+    validateCursorAndAfter(cursor, after);
     return new ReviewSearchRequest(
         userId,
         bookId,

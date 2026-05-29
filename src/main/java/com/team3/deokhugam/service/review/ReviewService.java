@@ -91,8 +91,8 @@ public class ReviewService {
 
     return new CursorPageResponse<>(
         content,
-        resolveNextCursor(lastReview, request.orderBy()),
-        lastReview == null ? null : lastReview.getCreatedAt(),
+        hasNext ? resolveNextCursor(lastReview, request.orderBy()) : null,
+        hasNext && lastReview != null ? lastReview.getCreatedAt() : null,
         content.size(),
         totalElements,
         hasNext
