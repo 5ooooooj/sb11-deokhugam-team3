@@ -7,7 +7,6 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
-import org.springframework.batch.item.Chunk;
 import org.springframework.batch.item.ItemWriter;
 import org.springframework.stereotype.Component;
 
@@ -25,8 +24,14 @@ public class PopularBookWriter {
       List<PopularBook> ranked = new ArrayList<>(chunk.getItems());
       ranked.sort(Comparator.comparingDouble(PopularBook::getScore).reversed());
 
+      int rank = 1;
       for (int i = 0; i < ranked.size(); i++) {
-        ranked.get(i).assignRank(i + 1);
+        if (i > 0 && ranked.get(i).getScore() == ranked.get(i - 1).getScore()) {
+          ranked.get(i).assignRank(ranked.get(i - 1).getRank());
+        } else {
+          ranked.get(i).assignRank(i + 1);
+        }
+        rank++;
       }
 
       popularBookRepository.saveAll(ranked);

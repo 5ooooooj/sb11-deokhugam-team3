@@ -19,7 +19,7 @@ public class PopularBookProcessor {
           .period(period)
           .score(score)
           .reviewCount(item.reviewCount())
-          .rating(item.reviewCount())
+          .rating(item.ratingAvg())
           .calculatedAt(Instant.now())
           .build();
     };
