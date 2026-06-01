@@ -24,6 +24,9 @@ import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import com.team3.deokhugam.exception.global.DeokhugamException;
+import com.team3.deokhugam.exception.global.ErrorCode;
 
 @WebMvcTest(ReviewController.class)
 class ReviewControllerTest {
@@ -117,5 +120,41 @@ class ReviewControllerTest {
         .andExpect(status().isNoContent());
 
     verify(reviewService).hardDeleteReview(reviewId, userId);
+  }
+
+  @Test
+  @DisplayName("GET /api/reviews/{id} - 리뷰 상세 조회 성공 시 200과 ReviewDto를 반환한다")
+  void getReview_returns200() throws Exception {
+    UUID reviewId = UUID.randomUUID();
+    UUID userId = UUID.randomUUID();
+    UUID bookId = UUID.randomUUID();
+
+    ReviewDto response = new ReviewDto(
+        reviewId, bookId, null, null, userId, null,
+        "재밌어요", 5, 0, 0, false, Instant.now(), Instant.now());
+
+    given(reviewService.getReview(eq(reviewId), eq(userId))).willReturn(response);
+
+    mockMvc.perform(get("/api/reviews/{reviewId}", reviewId)
+            .header("Deokhugam-Request-User-ID", userId.toString()))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.id").value(reviewId.toString()))
+        .andExpect(jsonPath("$.bookId").value(bookId.toString()))
+        .andExpect(jsonPath("$.content").value("재밌어요"))
+        .andExpect(jsonPath("$.rating").value(5));
+  }
+
+  @Test
+  @DisplayName("GET /api/reviews/{id} - 존재하지 않는 리뷰면 404를 반환한다")
+  void getReview_notFound_returns404() throws Exception {
+    UUID reviewId = UUID.randomUUID();
+    UUID userId = UUID.randomUUID();
+
+    given(reviewService.getReview(eq(reviewId), eq(userId)))
+        .willThrow(new DeokhugamException(ErrorCode.REVIEW_NOT_FOUND));
+
+    mockMvc.perform(get("/api/reviews/{reviewId}", reviewId)
+            .header("Deokhugam-Request-User-ID", userId.toString()))
+        .andExpect(status().isNotFound());
   }
 }

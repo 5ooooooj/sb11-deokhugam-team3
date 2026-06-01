@@ -1,0 +1,141 @@
+name: CD
+
+permissions:
+  contents: read
+
+on:
+  push:
+    branches: [ "main" ]
+
+env:
+  ECR_REPOSITORY_URI: ${{ vars.ECR_REPOSITORY_URI }}
+  IMAGE_TAG: ${{ github.sha }}
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: AWS CLI 설정
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: ECR Private 로그인
+        run: |
+          aws ecr get-login-password --region ${{ vars.AWS_REGION }} | \
+          docker login --username AWS --password-stdin ${{ vars.ECR_REPOSITORY_URI }}
+
+      - name: Docker build & push
+        run: |
+          docker build \
+            -t "$ECR_REPOSITORY_URI:$IMAGE_TAG" \
+            -t "$ECR_REPOSITORY_URI:latest" .
+          docker push "$ECR_REPOSITORY_URI:$IMAGE_TAG"
+          docker push "$ECR_REPOSITORY_URI:latest"
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: build-and-push
+    steps:
+      - name: AWS CLI 설정
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: 태스크 정의 교체
+        run: |
+          TASK_DEF=$(aws ecs describe-task-definition \
+            --task-definition ${{ vars.ECS_TASK_DEFINITION }} \
+            --query taskDefinition)
+          NEW_TASK_DEF=$(echo "$TASK_DEF" | jq \
+            --arg IMAGE "$ECR_REPOSITORY_URI:$IMAGE_TAG" \
+            '.containerDefinitions[0].image = $IMAGE
+            | del(.taskDefinitionArn, .revision, .status,
+                  .requiresAttributes, .compatibilities,
+                  .registeredAt, .registeredBy)')
+          NEW_REVISION=$(aws ecs register-task-definition \
+            --cli-input-json "$NEW_TASK_DEF" \
+            --query taskDefinition.taskDefinitionArn \
+            --output text)
+          echo "NEW_REVISION=$NEW_REVISION" >> $GITHUB_ENV
+
+      - name: 기존 태스크 중단
+        run: |
+          aws ecs update-service \
+            --cluster ${{ vars.ECS_CLUSTER }} \
+            --service ${{ vars.ECS_SERVICE }} \
+            --desired-count 0
+          
+          MAX_RETRY=18  # 18 * 10초 = 최대 3분
+          COUNT=0
+          while true; do
+            RUNNING=$(aws ecs describe-services \
+              --cluster ${{ vars.ECS_CLUSTER }} \
+              --service ${{ vars.ECS_SERVICE }} \
+              --query "services[0].runningCount" \
+              --output text)
+            echo "실행 중인 태스크: $RUNNING"
+            if [ "$RUNNING" = "0" ]; then
+              break
+            fi
+            COUNT=$((COUNT + 1))
+            if [ "$COUNT" -ge "$MAX_RETRY" ]; then
+              echo "타임아웃: 태스크가 중단되지 않음"
+                aws ecs describe-services \
+                --cluster ${{ vars.ECS_CLUSTER }} \
+                --service ${{ vars.ECS_SERVICE }} \
+                --query "services[0].{runningCount:runningCount, events:events[0:3]}"
+              exit 1
+            fi
+            sleep 10
+          done
+
+      - name: ECS 서비스 업데이트
+        run: |
+          aws ecs update-service \
+            --cluster ${{ vars.ECS_CLUSTER }} \
+            --service ${{ vars.ECS_SERVICE }} \
+            --task-definition $NEW_REVISION \
+            --desired-count 1 \
+            --availability-zone-rebalancing DISABLED \
+            --deployment-configuration "minimumHealthyPercent=0,maximumPercent=100"
+        
+          MAX_RETRY=40  # 40 * 15초 = 최대 10분 (aws ecs wait와 동일 기준)
+          COUNT=0
+          while true; do
+            PRIMARY_RUNNING=$(aws ecs describe-services \
+              --cluster ${{ vars.ECS_CLUSTER }} \
+              --service ${{ vars.ECS_SERVICE }} \
+              --query "services[0].deployments[?status=='PRIMARY'].runningCount | [0]" \
+              --output text)
+            echo "새 태스크 실행 중: $PRIMARY_RUNNING"
+            if [ "$PRIMARY_RUNNING" = "1" ]; then
+              echo "새 태스크 RUNNING 확인"
+              break
+            fi
+            COUNT=$((COUNT + 1))
+            if [ "$COUNT" -ge "$MAX_RETRY" ]; then
+              echo "타임아웃: 새 태스크가 RUNNING 상태가 되지 않음"
+              aws ecs describe-services \
+                --cluster ${{ vars.ECS_CLUSTER }} \
+                --service ${{ vars.ECS_SERVICE }} \
+                --query "services[0].{deployments:deployments, events:events[0:5]}"
+             exit 1
+            fi
+              sleep 15
+          done
+
+      - name: ECS 배포 상태 확인
+        run: |
+          aws ecs describe-services \
+            --cluster ${{ vars.ECS_CLUSTER }} \
+            --service ${{ vars.ECS_SERVICE }} \
+            --query "services[0].deployments"
