@@ -22,7 +22,7 @@ public class Comment extends SoftDeletableEntity {
   private Review review;
 
   @ManyToOne(fetch = FetchType.LAZY)
-  @JoinColumn(name = "user_id", nullable = false, updatable = false)
+  @JoinColumn(name = "user_id", nullable = true, updatable = false)
   private User user;
 
   @Column(nullable = false, columnDefinition = "text")
@@ -44,7 +44,7 @@ public class Comment extends SoftDeletableEntity {
 
   // 본인 확인
   public void validateOwner(UUID requestUserId) {
-    if (!this.user.getId().equals(requestUserId)) {
+    if (this.user == null || !this.user.getId().equals(requestUserId)) {
       throw new CommentForbiddenException();
     }
   }

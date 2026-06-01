@@ -38,7 +38,7 @@ public class Notification extends BaseEntity {
   // 정적 팩토리 메서드
   public static Notification create(User user, Review review,
       NotificationType type, String message) {
-    if (user == null || review == null || message == null) {
+    if (user == null || message == null) {
       throw new IllegalArgumentException("user, review, message must not be null");
     }
     Notification notification = new Notification();

@@ -142,8 +142,8 @@ public class CommentServiceImpl implements CommentService {
     return new CommentDto(
         comment.getId(),
         comment.getReview().getId(),
-        comment.getUser().getId(),
-        comment.getUser().getNickname(),
+        comment.getUser() != null ? comment.getUser().getId() : null,
+        comment.getUser() != null ? comment.getUser().getNickname() : "탈퇴한 사용자",
         comment.getContent(),
         comment.getCreatedAt(),
         comment.getUpdatedAt()

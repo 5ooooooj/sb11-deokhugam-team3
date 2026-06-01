@@ -116,7 +116,7 @@ public class NotificationServiceImpl implements NotificationService {
     return new NotificationDto(
         notification.getId(),
         notification.getUser().getId(),
-        notification.getReview().getId(),
+        notification.getReview() != null ? notification.getReview().getId() : null,
         null,
         notification.getMessage(),
         notification.getType(),
