@@ -16,6 +16,7 @@ import com.team3.deokhugam.exception.comment.CommentNotFoundException;
 import com.team3.deokhugam.global.dto.CursorPageResponse;
 import com.team3.deokhugam.service.comment.CommentService;
 
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
@@ -197,5 +198,19 @@ class CommentControllerTest {
         .andExpect(jsonPath("$.hasNext").value(false));
 
     verify(commentService).findAll(any(UUID.class), any(), any(Integer.class));
+  }
+  @Test
+  @DisplayName("댓글 물리 삭제 성공")
+  void hardDelete_success() throws Exception {
+    // given
+    UUID commentId = UUID.randomUUID();
+    UUID requestUserId = UUID.randomUUID();
+
+    // when & then
+    mockMvc.perform(delete("/api/comments/{commentId}/hard", commentId)
+            .header("Deokhugam-Request-User-ID", requestUserId.toString()))
+        .andExpect(status().isNoContent());
+
+    verify(commentService).hardDelete(any(UUID.class), any(UUID.class));
   }
 }

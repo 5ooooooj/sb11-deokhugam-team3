@@ -78,7 +78,9 @@ public class CommentServiceImpl implements CommentService {
   }
 
   @Override
-  public void hardDelete(UUID commentId) {
+  public void hardDelete(UUID commentId, UUID requestUserId) {
+    Comment comment = findComment(commentId);
+    comment.validateOwner(requestUserId);
     commentRepository.deleteById(commentId);
   }
 

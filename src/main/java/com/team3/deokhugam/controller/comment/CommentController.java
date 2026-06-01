@@ -56,7 +56,7 @@ public class CommentController {
       @PathVariable UUID commentId,
       @RequestHeader("Deokhugam-Request-User-ID") UUID requestUserId
   ) {
-    commentService.hardDelete(commentId);
+    commentService.hardDelete(commentId, requestUserId);
     return ResponseEntity.noContent().build();
   }
 

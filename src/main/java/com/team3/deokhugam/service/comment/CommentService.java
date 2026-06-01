@@ -16,7 +16,7 @@ public interface CommentService {
 
   void delete(UUID commentId, UUID requestUserId);
 
-  void hardDelete(UUID commentId);
+  void hardDelete(UUID commentId, UUID requestUserId);
 
   CommentDto findById(UUID commentId);
 
