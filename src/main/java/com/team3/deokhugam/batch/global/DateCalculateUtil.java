@@ -1,20 +1,16 @@
 package com.team3.deokhugam.batch.global;
 
 import java.time.Instant;
-import java.time.LocalDate;
-import java.time.ZoneId;
+import java.time.temporal.ChronoUnit;
 
 public class DateCalculateUtil {
 
   public static Instant getStartDate(Period period) {
-    LocalDate start = switch (period) {
-      case DAILY -> LocalDate.now();
-      case WEEKLY -> LocalDate.now().minusWeeks(1);
-      case MONTHLY -> LocalDate.now().minusMonths(1);
+    return switch (period) {
+      case DAILY -> Instant.now().truncatedTo(ChronoUnit.DAYS);
+      case WEEKLY -> Instant.now().minus(7, ChronoUnit.DAYS).truncatedTo(ChronoUnit.DAYS);
+      case MONTHLY -> Instant.now().minus(30, ChronoUnit.DAYS).truncatedTo(ChronoUnit.DAYS);
       case ALL_TIME -> null;
     };
-
-    if (start == null) return null;
-    return start.atStartOfDay(ZoneId.systemDefault()).toInstant();
   }
 }

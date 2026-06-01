@@ -33,9 +33,9 @@ public class PopularBookJobConfig {
   public Job popularBookJob() {
     return new JobBuilder("popularBookJob", jobRepository)
         .start(popularBookStep(Period.DAILY))
-        .start(popularBookStep(Period.WEEKLY))
-        .start(popularBookStep(Period.MONTHLY))
-        .start(popularBookStep(Period.ALL_TIME))
+        .next(popularBookStep(Period.WEEKLY))
+        .next(popularBookStep(Period.MONTHLY))
+        .next(popularBookStep(Period.ALL_TIME))
         .build();
   }
 
