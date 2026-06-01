@@ -16,7 +16,12 @@ import org.springframework.http.MediaType;
 @Retention(RetentionPolicy.RUNTIME)
 @Operation(
     summary = "도서 수정",
-    description = "도서 정보를 수정합니다. ISBN은 수정할 수 없습니다.",
+    description = """
+        도서 정보를 수정합니다. ISBN은 수정할 수 없습니다.
+        
+        현재 썸네일 URL은 bookData.thumbnailUrl 값을 기준으로 수정합니다.
+        thumbnailImage 파일 업로드 후 URL로 변환하는 기능은 S3 업로드 연동 작업에서 처리할 예정입니다.
+        """,
     requestBody = @RequestBody(
         required = true,
         content = @Content(

@@ -118,8 +118,8 @@ public class BookService {
 
     return switch (orderBy) {
       case TITLE -> book.getTitle();
-      case PUBLISHED_DATE -> book.getPublishedDate().toString();
-      case RATING -> book.getRating().toString();
+      case PUBLISHED_DATE -> book.getPublishedDate() == null ? null : book.getPublishedDate().toString();
+      case RATING -> book.getRating() == null ? null : book.getRating().toString();
       case REVIEW_COUNT -> String.valueOf(book.getReviewCount());
     };
   }

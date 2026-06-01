@@ -565,4 +565,40 @@ class BookControllerTest {
 
     verify(bookService).hardDelete(bookId);
   }
+
+  @Test
+  @DisplayName("도서 수정 시 출판일이 null이면 400 반환")
+  void updateBookWithNullPublishedDate() throws Exception {
+    // given
+    UUID bookId = UUID.randomUUID();
+
+    BookUpdateRequest request =
+        new BookUpdateRequest(
+            "수정 후 제목",
+            "수정 후 저자",
+            "수정 후 설명",
+            "수정 후 출판사",
+            null,
+            "https://example.com/after.jpg"
+        );
+
+    MockMultipartFile bookData =
+        new MockMultipartFile(
+            "bookData",
+            "bookData.json",
+            MediaType.APPLICATION_JSON_VALUE,
+            objectMapper.writeValueAsBytes(request)
+        );
+
+    // when, then
+    mockMvc.perform(
+            multipart("/api/books/{bookId}", bookId)
+                .file(bookData)
+                .with(requestBuilder -> {
+                  requestBuilder.setMethod("PATCH");
+                  return requestBuilder;
+                })
+        )
+        .andExpect(status().isBadRequest());
+  }
 }
