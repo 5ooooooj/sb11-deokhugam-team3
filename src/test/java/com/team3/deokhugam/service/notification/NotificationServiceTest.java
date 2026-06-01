@@ -190,4 +190,19 @@ public class NotificationServiceTest {
     assertThat(result.hasNext()).isFalse();
     assertThat(result.content()).hasSize(2);
   }
+  @Test
+  @DisplayName("존재하지 않는 리뷰 알림 생성 시 저장 안 함")
+  void createCommentNotification_reviewNotFound() {
+    // given
+    UUID reviewId = UUID.randomUUID();
+    UUID commenterUserId = UUID.randomUUID();
+
+    given(reviewRepository.findById(reviewId)).willReturn(Optional.empty());
+
+    // when
+    notificationService.createCommentNotification(reviewId, commenterUserId);
+
+    // then
+    verify(notificationRepository, never()).save(any());
+  }
 }

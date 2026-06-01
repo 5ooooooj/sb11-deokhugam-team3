@@ -252,4 +252,45 @@ public class CommentServiceTest {
     assertThat(result.hasNext()).isTrue();
     assertThat(result.content()).hasSize(size);
   }
+
+  // hardDelete 테스트 없었는데 추가
+  @Test
+  @DisplayName("댓글 물리 삭제 성공")
+  void hardDelete_success() {
+    // given
+    UUID commentId = UUID.randomUUID();
+    UUID userId = UUID.randomUUID();
+
+    User user = mock(User.class);
+    given(user.getId()).willReturn(userId);
+    Review review = mock(Review.class);
+
+    Comment comment = Comment.create(review, user, "내용");
+    given(commentRepository.findById(commentId)).willReturn(Optional.of(comment));
+
+    // when
+    commentService.hardDelete(commentId, userId);
+
+    // then
+    verify(commentRepository).deleteById(commentId);
+  }
+  @Test
+  @DisplayName("탈퇴한 사용자 댓글 조회 시 닉네임 탈퇴한 사용자로 표시")
+  void findById_deletedUser() {
+    // given
+    UUID commentId = UUID.randomUUID();
+
+    Review review = mock(Review.class);
+    given(review.getId()).willReturn(UUID.randomUUID());
+
+    Comment comment = Comment.create(review, null, "내용");
+    given(commentRepository.findById(commentId)).willReturn(Optional.of(comment));
+
+    // when
+    CommentDto result = commentService.findById(commentId);
+
+    // then
+    assertThat(result.userNickname()).isEqualTo("탈퇴한 사용자");
+    assertThat(result.userId()).isNull();
+  }
 }
