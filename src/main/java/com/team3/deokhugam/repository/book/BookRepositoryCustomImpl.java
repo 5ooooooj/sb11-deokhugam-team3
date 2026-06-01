@@ -7,6 +7,7 @@ import com.querydsl.core.types.OrderSpecifier;
 import com.querydsl.core.types.dsl.BooleanExpression;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import com.team3.deokhugam.domain.book.Book;
+import com.team3.deokhugam.dto.book.BookCursor;
 import com.team3.deokhugam.dto.book.BookSearchRequest;
 import com.team3.deokhugam.exception.book.InvalidBookSearchConditionException;
 import jakarta.persistence.EntityManager;
@@ -82,52 +83,80 @@ public class BookRepositoryCustomImpl implements BookRepositoryCustom {
   }
 
   private BooleanExpression titleCursorCondition(BookSearchRequest request) {
-    String cursor = request.cursor();
+    BookCursor cursor = request.cursor();
+    String value = cursor.value();
 
     if (request.direction().isAscending()) {
-      return book.title.gt(cursor)
-          .or(book.title.eq(cursor).and(book.createdAt.gt(request.after())));
+      return book.title.gt(value)
+          .or(book.title.eq(value).and(book.createdAt.gt(cursor.createdAt())))
+          .or(book.title.eq(value)
+              .and(book.createdAt.eq(cursor.createdAt()))
+              .and(book.id.gt(cursor.id())));
     }
 
-    return book.title.lt(cursor)
-        .or(book.title.eq(cursor).and(book.createdAt.lt(request.after())));
+    return book.title.lt(value)
+        .or(book.title.eq(value).and(book.createdAt.lt(cursor.createdAt())))
+        .or(book.title.eq(value)
+            .and(book.createdAt.eq(cursor.createdAt()))
+            .and(book.id.lt(cursor.id())));
   }
 
   private BooleanExpression publishedDateCursorCondition(BookSearchRequest request) {
-    LocalDate cursor = parsePublishedDateCursor(request.cursor());
+    BookCursor cursor = request.cursor();
+    LocalDate value = parsePublishedDateCursor(cursor.value());
 
     if (request.direction().isAscending()) {
-      return book.publishedDate.gt(cursor)
-          .or(book.publishedDate.eq(cursor).and(book.createdAt.gt(request.after())));
+      return book.publishedDate.gt(value)
+          .or(book.publishedDate.eq(value).and(book.createdAt.gt(cursor.createdAt())))
+          .or(book.publishedDate.eq(value)
+              .and(book.createdAt.eq(cursor.createdAt()))
+              .and(book.id.gt(cursor.id())));
     }
 
-    return book.publishedDate.lt(cursor)
-        .or(book.publishedDate.eq(cursor).and(book.createdAt.lt(request.after())));
+    return book.publishedDate.lt(value)
+        .or(book.publishedDate.eq(value).and(book.createdAt.lt(cursor.createdAt())))
+        .or(book.publishedDate.eq(value)
+            .and(book.createdAt.eq(cursor.createdAt()))
+            .and(book.id.lt(cursor.id())));
   }
 
   private BooleanExpression ratingCursorCondition(BookSearchRequest request) {
-    BigDecimal cursor = parseRatingCursor(request.cursor());
+    BookCursor cursor = request.cursor();
+    BigDecimal value = parseRatingCursor(cursor.value());
 
     if (request.direction().isAscending()) {
-      return book.rating.gt(cursor)
-          .or(book.rating.eq(cursor).and(book.createdAt.gt(request.after())));
+      return book.rating.gt(value)
+          .or(book.rating.eq(value).and(book.createdAt.gt(cursor.createdAt())))
+          .or(book.rating.eq(value)
+              .and(book.createdAt.eq(cursor.createdAt()))
+              .and(book.id.gt(cursor.id())));
     }
-    return book.rating.lt(cursor)
-        .or(book.rating.eq(cursor).and(book.createdAt.lt(request.after())));
+
+    return book.rating.lt(value)
+        .or(book.rating.eq(value).and(book.createdAt.lt(cursor.createdAt())))
+        .or(book.rating.eq(value)
+            .and(book.createdAt.eq(cursor.createdAt()))
+            .and(book.id.lt(cursor.id())));
   }
 
   private BooleanExpression reviewCountCursorCondition(BookSearchRequest request) {
-    int cursor = parseReviewCountCursor(request.cursor());
+    BookCursor cursor = request.cursor();
+    int value = parseReviewCountCursor(cursor.value());
 
     if (request.direction().isAscending()) {
-      return book.reviewCount.gt(cursor)
-          .or(book.reviewCount.eq(cursor).and(book.createdAt.gt(request.after())));
+      return book.reviewCount.gt(value)
+          .or(book.reviewCount.eq(value).and(book.createdAt.gt(cursor.createdAt())))
+          .or(book.reviewCount.eq(value)
+              .and(book.createdAt.eq(cursor.createdAt()))
+              .and(book.id.gt(cursor.id())));
     }
 
-    return book.reviewCount.lt(cursor)
-        .or(book.reviewCount.eq(cursor).and(book.createdAt.lt(request.after())));
+    return book.reviewCount.lt(value)
+        .or(book.reviewCount.eq(value).and(book.createdAt.lt(cursor.createdAt())))
+        .or(book.reviewCount.eq(value)
+            .and(book.createdAt.eq(cursor.createdAt()))
+            .and(book.id.lt(cursor.id())));
   }
-
 
   private OrderSpecifier<?>[] orderSpecifiers(BookSearchRequest request) {
     Order direction = resolveDirection(request.direction());
@@ -135,19 +164,23 @@ public class BookRepositoryCustomImpl implements BookRepositoryCustom {
     return switch (request.orderBy()) {
       case TITLE -> new OrderSpecifier<?>[]{
           new OrderSpecifier<>(direction, book.title),
-          new OrderSpecifier<>(direction, book.createdAt)
+          new OrderSpecifier<>(direction, book.createdAt),
+          new OrderSpecifier<>(direction, book.id)
       };
       case PUBLISHED_DATE -> new OrderSpecifier<?>[]{
           new OrderSpecifier<>(direction, book.publishedDate),
-          new OrderSpecifier<>(direction, book.createdAt)
+          new OrderSpecifier<>(direction, book.createdAt),
+          new OrderSpecifier<>(direction, book.id)
       };
       case RATING -> new OrderSpecifier<?>[]{
           new OrderSpecifier<>(direction, book.rating),
-          new OrderSpecifier<>(direction, book.createdAt)
+          new OrderSpecifier<>(direction, book.createdAt),
+          new OrderSpecifier<>(direction, book.id)
       };
       case REVIEW_COUNT -> new OrderSpecifier<?>[]{
           new OrderSpecifier<>(direction, book.reviewCount),
-          new OrderSpecifier<>(direction, book.createdAt)
+          new OrderSpecifier<>(direction, book.createdAt),
+          new OrderSpecifier<>(direction, book.id)
       };
     };
   }
@@ -155,7 +188,6 @@ public class BookRepositoryCustomImpl implements BookRepositoryCustom {
   private Order resolveDirection(Sort.Direction direction) {
     return direction.isAscending() ? Order.ASC : Order.DESC;
   }
-
 
   private LocalDate parsePublishedDateCursor(String cursor) {
     try {
@@ -165,7 +197,6 @@ public class BookRepositoryCustomImpl implements BookRepositoryCustom {
     }
   }
 
-
   private BigDecimal parseRatingCursor(String cursor) {
     try {
       return new BigDecimal(cursor);
@@ -174,7 +205,6 @@ public class BookRepositoryCustomImpl implements BookRepositoryCustom {
     }
   }
 
-
   private int parseReviewCountCursor(String cursor) {
     try {
       return Integer.parseInt(cursor);
@@ -182,5 +212,4 @@ public class BookRepositoryCustomImpl implements BookRepositoryCustom {
       throw new InvalidBookSearchConditionException();
     }
   }
-
 }

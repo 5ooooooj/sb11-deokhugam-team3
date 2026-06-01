@@ -15,10 +15,8 @@ import com.team3.deokhugam.service.book.BookService;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
-import java.time.Instant;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
-import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -59,8 +57,6 @@ public class BookController {
       @RequestParam(required = false) String orderBy,
       @RequestParam(required = false) String direction,
       @RequestParam(required = false) String cursor,
-      @RequestParam(required = false)
-      @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant after,
       @RequestParam(defaultValue = "50") Integer limit
   ) {
     BookSearchRequest request =
@@ -69,7 +65,6 @@ public class BookController {
             orderBy,
             direction,
             cursor,
-            after,
             limit
         );
 

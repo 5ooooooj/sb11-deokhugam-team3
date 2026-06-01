@@ -4,6 +4,7 @@ import static com.team3.deokhugam.domain.book.BookTestFactory.book;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.team3.deokhugam.domain.book.Book;
+import com.team3.deokhugam.dto.book.BookCursor;
 import com.team3.deokhugam.dto.book.BookSearchRequest;
 import com.team3.deokhugam.global.config.JpaAuditingConfig;
 import java.math.BigDecimal;
@@ -78,7 +79,6 @@ class BookRepositoryTest {
         "title",
         "ASC",
         null,
-        null,
         10
     );
 
@@ -131,7 +131,6 @@ class BookRepositoryTest {
         "repo-title-sort-20",
         "title",
         "ASC",
-        null,
         null,
         10
     );
@@ -190,7 +189,6 @@ class BookRepositoryTest {
         "title",
         "ASC",
         null,
-        null,
         2
     );
 
@@ -248,7 +246,6 @@ class BookRepositoryTest {
         "title",
         "ASC",
         null,
-        null,
         10
     );
 
@@ -301,19 +298,23 @@ class BookRepositoryTest {
         "title",
         "ASC",
         null,
-        null,
         2
     );
 
     List<Book> firstPage = bookRepository.search(firstPageRequest);
     Book lastBookOfFirstPage = firstPage.get(firstPage.size() - 1);
 
+    String cursor = BookCursor.encode(
+        lastBookOfFirstPage.getTitle(),
+        lastBookOfFirstPage.getCreatedAt(),
+        lastBookOfFirstPage.getId()
+    );
+
     BookSearchRequest secondPageRequest = BookSearchRequest.of(
         "repo-count-cursor-20",
         "title",
         "ASC",
-        lastBookOfFirstPage.getTitle(),
-        lastBookOfFirstPage.getCreatedAt(),
+        cursor,
         2
     );
 
@@ -325,8 +326,8 @@ class BookRepositoryTest {
   }
 
   @Test
-  @DisplayName("cursor와 after 이후의 도서 목록을 조회한다")
-  void searchWithCursorAndAfter() {
+  @DisplayName("cursor token 이후의 도서 목록을 조회한다")
+  void searchWithCursorToken() {
     // given
     Book book1 = book()
         .title("가나다라")
@@ -366,19 +367,23 @@ class BookRepositoryTest {
         "title",
         "ASC",
         null,
-        null,
         2
     );
 
     List<Book> firstPage = bookRepository.search(firstRequest);
     Book lastBookOfFirstPage = firstPage.get(firstPage.size() - 1);
 
+    String cursor = BookCursor.encode(
+        lastBookOfFirstPage.getTitle(),
+        lastBookOfFirstPage.getCreatedAt(),
+        lastBookOfFirstPage.getId()
+    );
+
     BookSearchRequest secondRequest = BookSearchRequest.of(
         null,
         "title",
         "ASC",
-        lastBookOfFirstPage.getTitle(),
-        lastBookOfFirstPage.getCreatedAt(),
+        cursor,
         2
     );
 
@@ -421,7 +426,6 @@ class BookRepositoryTest {
         null,
         "publishedDate",
         "DESC",
-        null,
         null,
         10
     );
@@ -469,7 +473,6 @@ class BookRepositoryTest {
         "rating",
         "DESC",
         null,
-        null,
         10
     );
 
@@ -515,7 +518,6 @@ class BookRepositoryTest {
         null,
         "reviewCount",
         "DESC",
-        null,
         null,
         10
     );

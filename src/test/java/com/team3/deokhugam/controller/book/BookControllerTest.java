@@ -14,6 +14,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.team3.deokhugam.dto.book.BookCreateRequest;
+import com.team3.deokhugam.dto.book.BookCursor;
 import com.team3.deokhugam.dto.book.BookDto;
 import com.team3.deokhugam.dto.book.BookOrderBy;
 import com.team3.deokhugam.dto.book.BookSearchRequest;
@@ -243,10 +244,16 @@ class BookControllerTest {
             secondCreatedAt
         );
 
+    String nextCursor = BookCursor.encode(
+        secondBook.title(),
+        secondCreatedAt,
+        secondBook.id()
+    );
+
     CursorPageResponse<BookDto> response =
         new CursorPageResponse<>(
             List.of(firstBook, secondBook),
-            "스프링 백엔드2",
+            nextCursor,
             secondCreatedAt,
             2,
             3L,
@@ -268,7 +275,7 @@ class BookControllerTest {
         .andExpect(jsonPath("$.content.length()").value(2))
         .andExpect(jsonPath("$.content[0].title").value("스프링 백엔드"))
         .andExpect(jsonPath("$.content[1].title").value("스프링 백엔드2"))
-        .andExpect(jsonPath("$.nextCursor").value("스프링 백엔드2"))
+        .andExpect(jsonPath("$.nextCursor").value(nextCursor))
         .andExpect(jsonPath("$.nextAfter").exists())
         .andExpect(jsonPath("$.size").value(2))
         .andExpect(jsonPath("$.totalElements").value(3))
@@ -289,10 +296,13 @@ class BookControllerTest {
   }
 
   @Test
-  @DisplayName("cursor와 after 파라미터로 도서 목록을 조회한다")
-  void searchBooksWithCursorAndAfter() throws Exception {
+  @DisplayName("cursor token으로 도서 목록을 조회한다")
+  void searchBooksWithCursorToken() throws Exception {
     // given
     Instant after = Instant.parse("2024-01-01T00:00:00Z");
+    UUID id = UUID.fromString("00000000-0000-0000-0000-000000000001");
+
+    String cursor = BookCursor.encode("자바", after, id);
 
     CursorPageResponse<BookDto> response = new CursorPageResponse<>(
         List.of(),
@@ -308,8 +318,7 @@ class BookControllerTest {
     // when, then
     mockMvc.perform(
             get("/api/books")
-                .param("cursor", "자바")
-                .param("after", "2024-01-01T00:00:00Z")
+                .param("cursor", cursor)
                 .param("orderBy", "title")
                 .param("direction", "ASC")
                 .param("limit", "2")
@@ -323,8 +332,9 @@ class BookControllerTest {
 
     BookSearchRequest request = captor.getValue();
 
-    assertThat(request.cursor()).isEqualTo("자바");
-    assertThat(request.after()).isEqualTo(after);
+    assertThat(request.cursor().value()).isEqualTo("자바");
+    assertThat(request.cursor().createdAt()).isEqualTo(after);
+    assertThat(request.cursor().id()).isEqualTo(id);
     assertThat(request.limit()).isEqualTo(2);
     assertThat(request.orderBy()).isEqualTo(BookOrderBy.TITLE);
     assertThat(request.direction()).isEqualTo(Sort.Direction.ASC);

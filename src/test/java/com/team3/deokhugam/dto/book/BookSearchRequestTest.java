@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.team3.deokhugam.exception.book.InvalidBookSearchConditionException;
 import java.time.Instant;
+import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.data.domain.Sort;
@@ -17,7 +18,6 @@ class BookSearchRequestTest {
     // given, when
     BookSearchRequest request =
         BookSearchRequest.of(
-            null,
             null,
             null,
             null,
@@ -39,7 +39,6 @@ class BookSearchRequestTest {
             null,
             null,
             null,
-            null,
             100
         );
 
@@ -53,7 +52,6 @@ class BookSearchRequestTest {
     // when, then
     assertThatThrownBy(() ->
         BookSearchRequest.of(
-            null,
             null,
             null,
             null,
@@ -73,19 +71,17 @@ class BookSearchRequestTest {
             null,
             null,
             null,
-            null,
             0
         )
     ).isInstanceOf(InvalidBookSearchConditionException.class);
   }
 
   @Test
-  @DisplayName("cursor와 after가 모두 없으면 첫 페이지 요청이다")
-  void hasCursorWithNoCursorAndNoAfter() {
+  @DisplayName("cursor token이 없으면 첫 페이지 요청이다")
+  void hasCursorWithNoCursorToken() {
     // given
     BookSearchRequest request =
         BookSearchRequest.of(
-            null,
             null,
             null,
             null,
@@ -98,84 +94,42 @@ class BookSearchRequestTest {
   }
 
   @Test
-  @DisplayName("cursor와 after가 모두 있으면 커서 요청이다")
-  void hasCursorWithCursorAndAfter() {
+  @DisplayName("cursor token이 있으면 커서 요청이다")
+  void hasCursorWithCursorToken() {
     // given
-    Instant after = Instant.parse("2026-06-01T00:00:00Z");
+    Instant createdAt = Instant.parse("2026-06-01T00:00:00Z");
+    UUID id = UUID.fromString("00000000-0000-0000-0000-000000000001");
+    String cursor = BookCursor.encode("자바", createdAt, id);
 
     BookSearchRequest request =
         BookSearchRequest.of(
             null,
             "title",
             "ASC",
-            "자바",
-            after,
+            cursor,
             50
         );
 
     // when, then
     assertThat(request.hasCursor()).isTrue();
+    assertThat(request.cursor().value()).isEqualTo("자바");
+    assertThat(request.cursor().createdAt()).isEqualTo(createdAt);
+    assertThat(request.cursor().id()).isEqualTo(id);
   }
 
   @Test
-  @DisplayName("cursor만 있고 after가 없으면 예외 발생")
-  void hasCursorWithCursorOnly() {
-    // given
-    BookSearchRequest request =
+  @DisplayName("잘못된 cursor token이면 예외 발생")
+  void invalidCursorToken() {
+    // when, then
+    assertThatThrownBy(() ->
         BookSearchRequest.of(
             null,
             "title",
             "ASC",
-            "자바",
-            null,
+            "invalid-token",
             50
-        );
-
-    // when, then
-    assertThatThrownBy(request::hasCursor)
-        .isInstanceOf(InvalidBookSearchConditionException.class);
-  }
-
-  @Test
-  @DisplayName("after만 있고 cursor가 없으면 예외 발생")
-  void hasCursorWithAfterOnly() {
-    // given
-    Instant after = Instant.parse("2026-06-01T00:00:00Z");
-
-    BookSearchRequest request =
-        BookSearchRequest.of(
-            null,
-            "title",
-            "ASC",
-            null,
-            after,
-            50
-        );
-
-    // when, then
-    assertThatThrownBy(request::hasCursor)
-        .isInstanceOf(InvalidBookSearchConditionException.class);
-  }
-
-  @Test
-  @DisplayName("cursor가 공백이고 after가 있으면 예외 발생")
-  void hasCursorWithBlankCursorAndAfter() {
-    // given
-    Instant after = Instant.parse("2026-06-01T00:00:00Z");
-
-    BookSearchRequest request =
-        BookSearchRequest.of(
-            null,
-            "title",
-            "ASC",
-            " ",
-            after,
-            50
-        );
-
-    // when, then
-    assertThatThrownBy(request::hasCursor)
-        .isInstanceOf(InvalidBookSearchConditionException.class);
+        )
+    ).isInstanceOf(InvalidBookSearchConditionException.class);
   }
 
   @Test
@@ -187,7 +141,6 @@ class BookSearchRequestTest {
             null,
             "title",
             "ASC",
-            null,
             null,
             100
         );

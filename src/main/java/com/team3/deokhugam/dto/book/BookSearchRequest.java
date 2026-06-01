@@ -8,8 +8,7 @@ public record BookSearchRequest(
     String keyword,
     BookOrderBy orderBy,
     Sort.Direction direction,
-    String cursor,
-    Instant after,
+    BookCursor cursor,
     int limit
 ) {
 
@@ -23,15 +22,13 @@ public record BookSearchRequest(
       String orderBy,
       String direction,
       String cursor,
-      Instant after,
       Integer limit
   ) {
     return new BookSearchRequest(
         normalizeBlank(keyword),
         parseOrderBy(orderBy),
         parseDirection(direction),
-        normalizeBlank(cursor),
-        after,
+        parseCursor(cursor),
         parseLimit(limit)
     );
   }
@@ -43,7 +40,6 @@ public record BookSearchRequest(
         orderBy,
         direction,
         cursor,
-        after,
         limit
     );
   }
@@ -53,17 +49,7 @@ public record BookSearchRequest(
   }
 
   public boolean hasCursor() {
-    boolean hasCursorValue = cursor != null && !cursor.isBlank();
-
-    if(!hasCursorValue && after == null) {
-      return false;
-    }
-
-    if(!hasCursorValue || after == null) {
-      throw new InvalidBookSearchConditionException();
-    }
-
-    return true;
+    return cursor != null;
   }
 
   private static BookOrderBy parseOrderBy(String orderBy) {
@@ -84,6 +70,14 @@ public record BookSearchRequest(
     } catch (IllegalArgumentException e) {
       throw new InvalidBookSearchConditionException();
     }
+  }
+
+  private static BookCursor parseCursor(String cursor) {
+    if (cursor == null || cursor.isBlank()) {
+      return null;
+    }
+
+    return BookCursor.decode(cursor);
   }
 
   private static int parseLimit(Integer limit) {

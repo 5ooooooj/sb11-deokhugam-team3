@@ -10,6 +10,7 @@ import static org.mockito.Mockito.when;
 
 import com.team3.deokhugam.domain.book.Book;
 import com.team3.deokhugam.dto.book.BookCreateRequest;
+import com.team3.deokhugam.dto.book.BookCursor;
 import com.team3.deokhugam.dto.book.BookDto;
 import com.team3.deokhugam.dto.book.BookSearchRequest;
 import com.team3.deokhugam.dto.book.BookUpdateRequest;
@@ -153,7 +154,6 @@ class BookServiceTest {
             "title",
             "ASC",
             null,
-            null,
             2
         );
 
@@ -210,7 +210,7 @@ class BookServiceTest {
     assertThat(result.content())
         .extracting(BookDto::title)
         .containsExactly("코드잇 스프링", "코드잇 스프링2");
-    assertThat(result.nextCursor()).isEqualTo("코드잇 스프링2");
+    BookCursor nextCursor = BookCursor.decode(result.nextCursor());
     assertThat(result.nextAfter()).isEqualTo(secondCreatedAt);
     assertThat(result.size()).isEqualTo(2);
     assertThat(result.totalElements()).isEqualTo(3L);
@@ -229,7 +229,6 @@ class BookServiceTest {
             "없는 책",
             "title",
             "ASC",
-            null,
             null,
             10
         );
