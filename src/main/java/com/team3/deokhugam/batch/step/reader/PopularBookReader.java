@@ -20,22 +20,37 @@ public class PopularBookReader {
   public JpaPagingItemReader<PopularBookRawData> create(Period period) {
     Instant startDate = DateCalculateUtil.getStartDate(period);
 
-    return new JpaPagingItemReaderBuilder<PopularBookRawData>()
-        .name("popularBookReader")
-        .entityManagerFactory(entityManagerFactory)
-        .queryString("""
-            SELECT new com.deokhugam.batch.dto.PopularBookRawData(
-              r.book.id,
-              COUNT(r),
-              AVG(r.rating)
-            )
-            FROM Review r
-            WHERE (:startDate IS NULL OR r.createdAt >= :startDate)
-            GROUP BY r.book.id
-            """)
-        .parameterValues(Map.of("startDate", startDate))
-        .pageSize(500)
-        .build();
-  }
+    JpaPagingItemReaderBuilder<PopularBookRawData> builder =
+        new JpaPagingItemReaderBuilder<PopularBookRawData>()
+            .name("popularBookReader_" + period.name())
+            .entityManagerFactory(entityManagerFactory)
+            .pageSize(500);
 
+    if (startDate == null) {
+      // ALL_TIME 날짜조건 없음
+      builder.queryString("""
+        SELECT new com.team3.deokhugam.batch.dto.PopularBookRawData(
+          r.bookId,
+          CAST(COUNT(r) AS int),
+          CAST(AVG(r.rating) AS Double)
+        )
+        FROM Review r
+        GROUP BY r.bookId
+        """);
+    } else {
+      builder.queryString("""
+        SELECT new com.team3.deokhugam.batch.dto.PopularBookRawData(
+          r.bookId,
+          CAST(COUNT(r) AS int),
+          CAST(AVG(r.rating) AS Double)
+        )
+        FROM Review r
+        WHERE r.createdAt >= :startDate
+        GROUP BY r.bookId
+        """)
+          .parameterValues(Map.of("startDate", startDate));
+    }
+
+    return builder.build();
+  }
 }
