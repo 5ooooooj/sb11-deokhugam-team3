@@ -13,6 +13,7 @@ import com.team3.deokhugam.dto.book.BookSearchRequest;
 import com.team3.deokhugam.global.dto.CursorPageResponse;
 import com.team3.deokhugam.service.book.BookService;
 import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.time.Instant;
 import java.util.UUID;
@@ -33,6 +34,7 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
+@Tag(name = "도서 관리", description = "도서 관련 API")
 @RestController
 @RequestMapping("/api/books")
 @RequiredArgsConstructor
