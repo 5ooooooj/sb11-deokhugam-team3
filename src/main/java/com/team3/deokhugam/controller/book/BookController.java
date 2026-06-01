@@ -4,6 +4,7 @@ import com.team3.deokhugam.controller.book.docs.BookCreateApi;
 import com.team3.deokhugam.controller.book.docs.BookSearchApi;
 import com.team3.deokhugam.controller.book.docs.BookFindByIdApi;
 import com.team3.deokhugam.controller.book.docs.BookUpdateApi;
+import com.team3.deokhugam.controller.book.docs.BookDeleteApi;
 import com.team3.deokhugam.dto.book.BookCreateRequest;
 import com.team3.deokhugam.dto.book.BookUpdateRequest;
 import com.team3.deokhugam.dto.book.BookDto;
@@ -22,6 +23,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestPart;
@@ -90,5 +92,15 @@ public class BookController {
       @RequestPart(value = "thumbnailImage", required = false) MultipartFile thumbnailImage
   ) {
     return bookService.update(bookId, request);
+  }
+
+  @BookDeleteApi
+  @DeleteMapping("/{bookId}")
+  @ResponseStatus(HttpStatus.NO_CONTENT)
+  public void delete(
+      @Parameter(description = "삭제할 도서 ID")
+      @PathVariable UUID bookId
+  ) {
+    bookService.delete(bookId);
   }
 }

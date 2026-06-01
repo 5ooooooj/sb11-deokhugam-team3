@@ -278,7 +278,7 @@ class BookServiceTest {
             "수정 후 출판사",
             LocalDate.of(2026, 5, 28),
             "https://example.com/after.jpg"
-            );
+        );
 
     when(bookRepository.findByIdAndDeletedAtIsNull(bookId)).thenReturn(Optional.of(book));
 
@@ -318,6 +318,50 @@ class BookServiceTest {
 
     // when, then
     assertThatThrownBy(() -> bookService.update(bookId, request))
+        .isInstanceOf(BookNotFoundException.class);
+
+    verify(bookRepository).findByIdAndDeletedAtIsNull(bookId);
+  }
+
+  @Test
+  @DisplayName("도서를 논리 삭제하면 deletedAt이 설정됨")
+  void deleteBook() {
+    // given
+    UUID bookId = UUID.randomUUID();
+
+    Book book = book()
+        .id(bookId)
+        .title("삭제할 도서")
+        .author("삭제할 작가")
+        .description("삭제할 설명")
+        .publisher("삭제할 출판사")
+        .publishedDate(LocalDate.of(2026, 1, 1))
+        .isbn("9780000004301")
+        .thumbnailUrl("https://example.com/delete.jpg")
+        .build();
+
+    when(bookRepository.findByIdAndDeletedAtIsNull(bookId)).thenReturn(Optional.of(book));
+
+    // when
+    bookService.delete(bookId);
+
+    // then
+    assertThat(book.isDeleted()).isTrue();
+    assertThat(book.getDeletedAt()).isNotNull();
+
+    verify(bookRepository).findByIdAndDeletedAtIsNull(bookId);
+  }
+
+  @Test
+  @DisplayName("존재하지 않는 도서를 논리 삭제하면 예외 발생")
+  void deleteBookWithNotFound() {
+    // given
+    UUID bookId = UUID.randomUUID();
+
+    when(bookRepository.findByIdAndDeletedAtIsNull(bookId)).thenReturn(Optional.empty());
+
+    // when, then
+    assertThatThrownBy(() -> bookService.delete(bookId))
         .isInstanceOf(BookNotFoundException.class);
 
     verify(bookRepository).findByIdAndDeletedAtIsNull(bookId);

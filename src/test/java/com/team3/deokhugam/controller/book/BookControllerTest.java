@@ -3,8 +3,10 @@ package com.team3.deokhugam.controller.book;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -447,13 +449,13 @@ class BookControllerTest {
 
     // when, then
     mockMvc.perform(
-        multipart("/api/books/{bookId}", bookId)
+            multipart("/api/books/{bookId}", bookId)
                 .file(bookData)
                 .with(requestBuilder -> {
                   requestBuilder.setMethod("PATCH");
                   return requestBuilder;
                 })
-    )
+        )
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.id").value(bookId.toString()))
         .andExpect(jsonPath("$.title").value(request.title()))
@@ -501,5 +503,35 @@ class BookControllerTest {
         .andExpect(status().isNotFound())
         .andExpect(jsonPath("$.code").value("BOOK_NOT_FOUND"))
         .andExpect(jsonPath("$.status").value(404));
+  }
+
+  @Test
+  @DisplayName("도서를 논리 삭제하면 204를 반환")
+  void deleteBook() throws Exception {
+    // given
+    UUID bookId = UUID.randomUUID();
+
+    // when, then
+    mockMvc.perform(delete("/api/books/{bookId}", bookId))
+        .andExpect(status().isNoContent());
+
+    verify(bookService).delete(bookId);
+  }
+
+  @Test
+  @DisplayName("존재하지 않는 도서를 논리 삭제하면 404를 반환")
+  void deleteBookWithNotFoundBook() throws Exception {
+    // given
+    UUID bookId = UUID.randomUUID();
+
+    doThrow(new BookNotFoundException()).when(bookService).delete(bookId);
+
+    // when, then
+    mockMvc.perform(delete("/api/books/{bookId}", bookId))
+        .andExpect(status().isNotFound())
+        .andExpect(jsonPath("$.code").value("BOOK_NOT_FOUND"))
+        .andExpect(jsonPath("$.status").value(404));
+
+    verify(bookService).delete(bookId);
   }
 }

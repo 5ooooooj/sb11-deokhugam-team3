@@ -56,7 +56,7 @@ public class BookService {
 
     boolean hasNext = books.size() > request.limit();
 
-    List <Book> pageBooks = hasNext ? books.subList(0, request.limit()) : books;
+    List<Book> pageBooks = hasNext ? books.subList(0, request.limit()) : books;
 
     long totalElements = bookRepository.count(request);
 
@@ -92,6 +92,13 @@ public class BookService {
     return BookDto.from(book);
   }
 
+  @Transactional
+  public void delete(UUID delete) {
+    Book book = getActiveBook(delete);
+
+    book.softDelete();
+  }
+
   private Book getActiveBook(UUID bookId) {
     return bookRepository.findByIdAndDeletedAtIsNull(bookId)
         .orElseThrow(BookNotFoundException::new);
@@ -103,9 +110,9 @@ public class BookService {
     }
 
     return switch (orderBy) {
-      case TITLE ->  book.getTitle();
-      case PUBLISHED_DATE ->   book.getPublishedDate().toString();
-      case RATING ->   book.getRating().toString();
+      case TITLE -> book.getTitle();
+      case PUBLISHED_DATE -> book.getPublishedDate().toString();
+      case RATING -> book.getRating().toString();
       case REVIEW_COUNT -> String.valueOf(book.getReviewCount());
     };
   }
