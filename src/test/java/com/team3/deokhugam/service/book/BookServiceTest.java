@@ -4,6 +4,7 @@ import static com.team3.deokhugam.domain.book.BookTestFactory.book;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -365,5 +366,48 @@ class BookServiceTest {
         .isInstanceOf(BookNotFoundException.class);
 
     verify(bookRepository).findByIdAndDeletedAtIsNull(bookId);
+  }
+
+  @Test
+  @DisplayName("도서를 물리 삭제하면 Repository delete를 호출함")
+  void hardDeleteBook() {
+    // given
+    UUID bookId = UUID.randomUUID();
+
+    Book book = book()
+        .id(bookId)
+        .title("물리 삭제할 도서")
+        .author("물리 삭제할 작가")
+        .description("물리 삭제할 설명")
+        .publisher("물리 삭제할 출판사")
+        .publishedDate(LocalDate.of(2026, 1, 1))
+        .isbn("9780000004401")
+        .thumbnailUrl("https://example.com/hard-delete.jpg")
+        .build();
+
+    when(bookRepository.findById(bookId)).thenReturn(Optional.of(book));
+
+    // when
+    bookService.hardDelete(bookId);
+
+    // then
+    verify(bookRepository).findById(bookId);
+    verify(bookRepository).delete(book);
+  }
+
+  @Test
+  @DisplayName("존재하지 않는 도서를 물리 삭제하면 예외 발생")
+  void hardDeleteBookWithNotFound() {
+    // given
+    UUID bookId = UUID.randomUUID();
+
+    when(bookRepository.findById(bookId)).thenReturn(Optional.empty());
+
+    // when, then
+    assertThatThrownBy(() -> bookService.hardDelete(bookId))
+        .isInstanceOf(BookNotFoundException.class);
+
+    verify(bookRepository).findById(bookId);
+    verify(bookRepository, never()).delete(any(Book.class));
   }
 }

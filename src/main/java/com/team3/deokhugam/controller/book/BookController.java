@@ -5,6 +5,7 @@ import com.team3.deokhugam.controller.book.docs.BookSearchApi;
 import com.team3.deokhugam.controller.book.docs.BookFindByIdApi;
 import com.team3.deokhugam.controller.book.docs.BookUpdateApi;
 import com.team3.deokhugam.controller.book.docs.BookDeleteApi;
+import com.team3.deokhugam.controller.book.docs.BookHardDeleteApi;
 import com.team3.deokhugam.dto.book.BookCreateRequest;
 import com.team3.deokhugam.dto.book.BookUpdateRequest;
 import com.team3.deokhugam.dto.book.BookDto;
@@ -102,5 +103,15 @@ public class BookController {
       @PathVariable UUID bookId
   ) {
     bookService.delete(bookId);
+  }
+
+  @BookHardDeleteApi
+  @DeleteMapping("/{bookId}/hard")
+  @ResponseStatus(HttpStatus.NO_CONTENT)
+  public void hardDelete(
+      @Parameter(description = "물리 삭제 도서 ID")
+      @PathVariable UUID bookId
+  ) {
+    bookService.hardDelete(bookId);
   }
 }

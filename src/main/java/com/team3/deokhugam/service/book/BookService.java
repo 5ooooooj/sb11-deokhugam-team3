@@ -93,10 +93,17 @@ public class BookService {
   }
 
   @Transactional
-  public void delete(UUID delete) {
-    Book book = getActiveBook(delete);
+  public void delete(UUID bookId) {
+    Book book = getActiveBook(bookId);
 
     book.softDelete();
+  }
+
+  @Transactional
+  public void hardDelete(UUID bookId) {
+    Book book = bookRepository.findById(bookId).orElseThrow(BookNotFoundException::new);
+
+    bookRepository.delete(book);
   }
 
   private Book getActiveBook(UUID bookId) {

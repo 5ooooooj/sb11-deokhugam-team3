@@ -534,4 +534,35 @@ class BookControllerTest {
 
     verify(bookService).delete(bookId);
   }
+
+  @Test
+  @DisplayName("도서를 물리 삭제하면 204를 반환")
+  void hardDeleteBook() throws Exception {
+    // given
+    UUID bookId = UUID.randomUUID();
+
+    // when, then
+    mockMvc.perform(delete("/api/books/{bookId}/hard", bookId))
+        .andExpect(status().isNoContent());
+
+    verify(bookService).hardDelete(bookId);
+  }
+
+  @Test
+  @DisplayName("존재하지 않는 도서를 물리 삭제하면 404를 반환")
+  void hardDeleteBookWithNotFoundBook() throws Exception {
+    // given
+    UUID bookId = UUID.randomUUID();
+
+    doThrow(new BookNotFoundException())
+        .when(bookService).hardDelete(bookId);
+
+    // when, then
+    mockMvc.perform(delete("/api/books/{bookId}/hard", bookId))
+        .andExpect(status().isNotFound())
+        .andExpect(jsonPath("$.code").value("BOOK_NOT_FOUND"))
+        .andExpect(jsonPath("$.status").value(404));
+
+    verify(bookService).hardDelete(bookId);
+  }
 }
