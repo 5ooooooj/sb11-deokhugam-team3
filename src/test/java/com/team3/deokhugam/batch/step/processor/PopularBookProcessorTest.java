@@ -5,7 +5,7 @@ import static org.assertj.core.api.Assertions.offset;
 
 import com.team3.deokhugam.batch.dto.PopularBookRawData;
 import com.team3.deokhugam.batch.global.Period;
-import com.team3.deokhugam.domain.book.PopularBook;
+import com.team3.deokhugam.domain.dashboard.PopularBook;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;

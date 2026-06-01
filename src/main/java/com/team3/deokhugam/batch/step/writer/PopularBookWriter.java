@@ -1,8 +1,8 @@
 package com.team3.deokhugam.batch.step.writer;
 
 import com.team3.deokhugam.batch.global.Period;
-import com.team3.deokhugam.domain.book.PopularBook;
-import com.team3.deokhugam.repository.book.PopularBookRepository;
+import com.team3.deokhugam.domain.dashboard.PopularBook;
+import com.team3.deokhugam.repository.dashboard.PopularBookRepository;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;

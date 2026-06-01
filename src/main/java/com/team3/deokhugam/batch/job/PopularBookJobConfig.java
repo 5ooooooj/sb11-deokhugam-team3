@@ -5,7 +5,7 @@ import com.team3.deokhugam.batch.global.Period;
 import com.team3.deokhugam.batch.step.processor.PopularBookProcessor;
 import com.team3.deokhugam.batch.step.reader.PopularBookReader;
 import com.team3.deokhugam.batch.step.writer.PopularBookWriter;
-import com.team3.deokhugam.domain.book.PopularBook;
+import com.team3.deokhugam.domain.dashboard.PopularBook;
 import java.net.SocketTimeoutException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.batch.core.Job;

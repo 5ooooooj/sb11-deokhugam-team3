@@ -1,8 +1,9 @@
-package com.team3.deokhugam.domain.review;
+package com.team3.deokhugam.domain.dashboard;
 
 import com.team3.deokhugam.batch.global.Period;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -11,24 +12,28 @@ import jakarta.persistence.Table;
 import java.time.Instant;
 import java.util.UUID;
 import lombok.AccessLevel;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 @Entity
-@Table(name = "popular_reviews")
+@Table(name = "popular_books")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-public class PopularReview {
+@AllArgsConstructor
+@Builder
+public class PopularBook {
 
   @Id
   @GeneratedValue(strategy = GenerationType.UUID)
   @Column(name = "id", nullable = false)
   private UUID id;
 
-  @Column(name = "review_id", nullable = false)
-  private UUID reviewID;
+  @Column(name = "book_id", nullable = false)
+  private UUID bookId;
 
-  @Enumerated
+  @Enumerated(EnumType.STRING)
   @Column(name = "period", nullable = false)
   private Period period;
 
@@ -38,12 +43,16 @@ public class PopularReview {
   @Column(name = "rank", nullable = false)
   private int rank;
 
-  @Column(name = "like_count", nullable = false)
-  private int likeCount;
+  @Column(name = "review_count", nullable = false)
+  private int reviewCount;
 
-  @Column(name = "comment_count", nullable = false)
-  private int commentCount;
+  @Column(name = "rating", nullable = false)
+  private double rating;
 
   @Column(name = "calculated_at", nullable = false)
   private Instant calculatedAt;
+
+  public void assignRank(int rank) {
+    this.rank = rank;
+  }
 }

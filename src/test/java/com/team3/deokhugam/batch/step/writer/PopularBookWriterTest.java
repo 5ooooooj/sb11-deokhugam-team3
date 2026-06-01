@@ -6,8 +6,8 @@ import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.verify;
 
 import com.team3.deokhugam.batch.global.Period;
-import com.team3.deokhugam.domain.book.PopularBook;
-import com.team3.deokhugam.repository.book.PopularBookRepository;
+import com.team3.deokhugam.domain.dashboard.PopularBook;
+import com.team3.deokhugam.repository.dashboard.PopularBookRepository;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;

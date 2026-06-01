@@ -1,7 +1,7 @@
-package com.team3.deokhugam.repository.book;
+package com.team3.deokhugam.repository.dashboard;
 
 import com.team3.deokhugam.batch.global.Period;
-import com.team3.deokhugam.domain.book.PopularBook;
+import com.team3.deokhugam.domain.dashboard.PopularBook;
 import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;

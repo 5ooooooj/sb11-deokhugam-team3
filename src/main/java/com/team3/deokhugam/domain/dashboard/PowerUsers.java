@@ -1,4 +1,4 @@
-package com.team3.deokhugam.domain.user;
+package com.team3.deokhugam.domain.dashboard;
 
 import com.team3.deokhugam.batch.global.Period;
 import jakarta.persistence.Column;
