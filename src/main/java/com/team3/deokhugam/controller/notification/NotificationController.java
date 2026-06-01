@@ -4,6 +4,8 @@ import com.team3.deokhugam.dto.notification.NotificationDto;
 import com.team3.deokhugam.global.dto.CursorPageResponse;
 import com.team3.deokhugam.service.notification.NotificationService;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -22,7 +24,7 @@ public class NotificationController {
   @GetMapping
   public ResponseEntity<CursorPageResponse<NotificationDto>> findAll(
       @RequestParam(required = false) Instant after,
-      @RequestParam(defaultValue = "10") int size,
+      @RequestParam(defaultValue = "10") @Min(1) @Max(100) int size,
       @RequestHeader("Deokhugam-Request-User-ID") UUID requestUserId
   ) {
     CursorPageResponse<NotificationDto> response =

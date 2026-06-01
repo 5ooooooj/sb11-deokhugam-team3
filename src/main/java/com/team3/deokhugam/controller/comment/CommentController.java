@@ -7,6 +7,8 @@ import com.team3.deokhugam.global.dto.CursorPageResponse;
 import com.team3.deokhugam.service.comment.CommentService;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -64,7 +66,7 @@ public class CommentController {
   public ResponseEntity<CursorPageResponse<CommentDto>> findAll(
       @RequestParam UUID reviewId,
       @RequestParam(required = false) Instant after,
-      @RequestParam(defaultValue = "10") int size,
+      @RequestParam(defaultValue = "10") @Min(1) @Max(100) int size,
       @RequestHeader("Deokhugam-Request-User-ID") UUID requestUserId
   ) {
     CursorPageResponse<CommentDto> response =
