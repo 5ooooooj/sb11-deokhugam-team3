@@ -2,11 +2,15 @@ package com.team3.deokhugam.service.notification;
 
 import com.team3.deokhugam.domain.notification.Notification;
 import com.team3.deokhugam.domain.notification.NotificationType;
+import com.team3.deokhugam.domain.review.Review;
+import com.team3.deokhugam.domain.user.User;
 import com.team3.deokhugam.dto.notification.NotificationDto;
 import com.team3.deokhugam.exception.notification.NotificationNotFoundException;
+import com.team3.deokhugam.exception.user.UserNotFoundException;
 import com.team3.deokhugam.global.dto.CursorPageResponse;
 import com.team3.deokhugam.repository.notification.NotificationRepository;
 import com.team3.deokhugam.repository.review.ReviewRepository;
+import com.team3.deokhugam.repository.user.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
@@ -23,6 +27,7 @@ public class NotificationServiceImpl implements NotificationService {
 
   private final NotificationRepository notificationRepository;
   private final ReviewRepository reviewRepository;
+  private final UserRepository userRepository;
 
   @Override
   public void createCommentNotification(UUID reviewId, UUID commenterUserId) {
@@ -97,18 +102,21 @@ public class NotificationServiceImpl implements NotificationService {
 
   private void createNotification(UUID reviewId, NotificationType type, String message) {
     reviewRepository.findById(reviewId).ifPresent(review -> {
-      Notification notification = Notification.create(
-          review.getUserId(), reviewId, type, message
-      );
-      notificationRepository.save(notification);
+      // TODO: 하빈님 Review @ManyToOne 전환 후 review.getUser()로 교체
+      userRepository.findById(review.getUserId()).ifPresent(user -> {
+        Notification notification = Notification.create(
+            user, review, type, message
+        );
+        notificationRepository.save(notification);
+      });
     });
   }
 
   private NotificationDto toDto(Notification notification) {
     return new NotificationDto(
         notification.getId(),
-        notification.getUserId(),
-        notification.getReviewId(),
+        notification.getUser().getId(),
+        notification.getReview().getId(),
         null,
         notification.getMessage(),
         notification.getType(),
