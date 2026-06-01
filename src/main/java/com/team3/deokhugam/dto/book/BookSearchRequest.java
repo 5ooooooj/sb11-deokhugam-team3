@@ -16,6 +16,7 @@ public record BookSearchRequest(
   private static final BookOrderBy DEFAULT_ORDER_BY = BookOrderBy.TITLE;
   private static final Sort.Direction DEFAULT_DIRECTION = Sort.Direction.DESC;
   private static final int DEFAULT_LIMIT = 50;
+  private static final int MAX_LIMIT = 100;
 
   public static BookSearchRequest of(
       String keyword,
@@ -43,7 +44,7 @@ public record BookSearchRequest(
         direction,
         cursor,
         after,
-        parseLimit(limit)
+        limit
     );
   }
 
@@ -52,15 +53,17 @@ public record BookSearchRequest(
   }
 
   public boolean hasCursor() {
-    return cursor != null && after != null && !cursor.isBlank();
-  }
+    boolean hasCursorValue = cursor != null && !cursor.isBlank();
 
-  private static String normalizeKeyword(String keyword) {
-    if (keyword == null || keyword.isBlank()) {
-      return null;
+    if(!hasCursorValue && after == null) {
+      return false;
     }
 
-    return keyword.trim();
+    if(!hasCursorValue || after == null) {
+      throw new InvalidBookSearchConditionException();
+    }
+
+    return true;
   }
 
   private static BookOrderBy parseOrderBy(String orderBy) {
@@ -88,7 +91,7 @@ public record BookSearchRequest(
       return DEFAULT_LIMIT;
     }
 
-    if (limit <= 0) {
+    if (limit <= 0 || limit > MAX_LIMIT) {
       throw new InvalidBookSearchConditionException();
     }
 

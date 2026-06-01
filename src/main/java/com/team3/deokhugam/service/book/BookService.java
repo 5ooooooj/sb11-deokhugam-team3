@@ -5,6 +5,7 @@ import com.team3.deokhugam.dto.book.BookCreateRequest;
 import com.team3.deokhugam.dto.book.BookDto;
 import com.team3.deokhugam.dto.book.BookOrderBy;
 import com.team3.deokhugam.dto.book.BookSearchRequest;
+import com.team3.deokhugam.dto.book.BookUpdateRequest;
 import com.team3.deokhugam.exception.book.BookAlreadyExistsException;
 import com.team3.deokhugam.exception.book.BookNotFoundException;
 import com.team3.deokhugam.global.dto.CursorPageResponse;
@@ -44,8 +45,7 @@ public class BookService {
   }
 
   public BookDto findById(UUID bookId) {
-    Book book = bookRepository.findById(bookId)
-        .orElseThrow(BookNotFoundException::new);
+    Book book = getActiveBook(bookId);
 
     return BookDto.from(book);
   }
@@ -56,7 +56,7 @@ public class BookService {
 
     boolean hasNext = books.size() > request.limit();
 
-    List <Book> pageBooks = hasNext ? books.subList(0, request.limit()) : books;
+    List<Book> pageBooks = hasNext ? books.subList(0, request.limit()) : books;
 
     long totalElements = bookRepository.count(request);
 
@@ -76,15 +76,50 @@ public class BookService {
     );
   }
 
+  @Transactional
+  public BookDto update(UUID bookId, BookUpdateRequest request) {
+    Book book = getActiveBook(bookId);
+
+    book.update(
+        request.title(),
+        request.author(),
+        request.description(),
+        request.publisher(),
+        request.publishedDate(),
+        request.thumbnailUrl()
+    );
+
+    return BookDto.from(book);
+  }
+
+  @Transactional
+  public void delete(UUID bookId) {
+    Book book = getActiveBook(bookId);
+
+    book.softDelete();
+  }
+
+  @Transactional
+  public void hardDelete(UUID bookId) {
+    Book book = bookRepository.findById(bookId).orElseThrow(BookNotFoundException::new);
+
+    bookRepository.delete(book);
+  }
+
+  private Book getActiveBook(UUID bookId) {
+    return bookRepository.findByIdAndDeletedAtIsNull(bookId)
+        .orElseThrow(BookNotFoundException::new);
+  }
+
   private String resolveNextCursor(Book book, BookOrderBy orderBy) {
     if (book == null) {
       return null;
     }
 
     return switch (orderBy) {
-      case TITLE ->  book.getTitle();
-      case PUBLISHED_DATE ->   book.getPublishedDate().toString();
-      case RATING ->   book.getRating().toString();
+      case TITLE -> book.getTitle();
+      case PUBLISHED_DATE -> book.getPublishedDate() == null ? null : book.getPublishedDate().toString();
+      case RATING -> book.getRating() == null ? null : book.getRating().toString();
       case REVIEW_COUNT -> String.valueOf(book.getReviewCount());
     };
   }
