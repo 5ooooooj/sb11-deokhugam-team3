@@ -193,6 +193,8 @@ CREATE INDEX IF NOT EXISTS idx_review_likes_user_id ON review_likes (user_id);
 -- notifications --
 -- 사용자별 알림 목록 조회
 CREATE INDEX IF NOT EXISTS idx_notifications_user_id ON notifications (user_id, created_at, id);
+-- 리뷰 물리 삭제 시 ON DELETE SET NULL 대상 빠른 조회
+CREATE INDEX IF NOT EXISTS idx_notifications_review_id ON notifications (review_id);
 -- 배치: 확인된 알림 중 1주일 경과된 알림 삭제 (부분 인덱스)
 CREATE INDEX IF NOT EXISTS idx_notifications_confirmed_created ON notifications (confirmed, created_at)
     WHERE confirmed = TRUE;
