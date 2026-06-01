@@ -6,12 +6,14 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.team3.deokhugam.domain.book.Book;
 import com.team3.deokhugam.dto.book.BookCursor;
 import com.team3.deokhugam.dto.book.BookSearchRequest;
+import com.team3.deokhugam.dto.book.BookOrderBy;
 import com.team3.deokhugam.global.config.JpaAuditingConfig;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.data.domain.Sort;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
@@ -76,8 +78,8 @@ class BookRepositoryTest {
 
     BookSearchRequest request = BookSearchRequest.of(
         "repo-keyword-java-20",
-        "title",
-        "ASC",
+        BookOrderBy.TITLE,
+        Sort.Direction.ASC,
         null,
         10
     );
@@ -129,8 +131,8 @@ class BookRepositoryTest {
 
     BookSearchRequest request = BookSearchRequest.of(
         "repo-title-sort-20",
-        "title",
-        "ASC",
+        BookOrderBy.TITLE,
+        Sort.Direction.ASC,
         null,
         10
     );
@@ -186,8 +188,8 @@ class BookRepositoryTest {
 
     BookSearchRequest request = BookSearchRequest.of(
         "repo-limit-20",
-        "title",
-        "ASC",
+        BookOrderBy.TITLE,
+        Sort.Direction.ASC,
         null,
         2
     );
@@ -243,8 +245,8 @@ class BookRepositoryTest {
 
     BookSearchRequest request = BookSearchRequest.of(
         "repo-count-java-20",
-        "title",
-        "ASC",
+        BookOrderBy.TITLE,
+        Sort.Direction.ASC,
         null,
         10
     );
@@ -295,8 +297,8 @@ class BookRepositoryTest {
 
     BookSearchRequest firstPageRequest = BookSearchRequest.of(
         "repo-count-cursor-20",
-        "title",
-        "ASC",
+        BookOrderBy.TITLE,
+        Sort.Direction.ASC,
         null,
         2
     );
@@ -312,8 +314,8 @@ class BookRepositoryTest {
 
     BookSearchRequest secondPageRequest = BookSearchRequest.of(
         "repo-count-cursor-20",
-        "title",
-        "ASC",
+        BookOrderBy.TITLE,
+        Sort.Direction.ASC,
         cursor,
         2
     );
@@ -364,8 +366,8 @@ class BookRepositoryTest {
 
     BookSearchRequest firstRequest = BookSearchRequest.of(
         null,
-        "title",
-        "ASC",
+        BookOrderBy.TITLE,
+        Sort.Direction.ASC,
         null,
         2
     );
@@ -381,8 +383,8 @@ class BookRepositoryTest {
 
     BookSearchRequest secondRequest = BookSearchRequest.of(
         null,
-        "title",
-        "ASC",
+        BookOrderBy.TITLE,
+        Sort.Direction.ASC,
         cursor,
         2
     );
@@ -424,8 +426,8 @@ class BookRepositoryTest {
 
     BookSearchRequest request = BookSearchRequest.of(
         null,
-        "publishedDate",
-        "DESC",
+        BookOrderBy.PUBLISHED_DATE,
+        Sort.Direction.DESC,
         null,
         10
     );
@@ -470,8 +472,8 @@ class BookRepositoryTest {
 
     BookSearchRequest request = BookSearchRequest.of(
         null,
-        "rating",
-        "DESC",
+        BookOrderBy.RATING,
+        Sort.Direction.DESC,
         null,
         10
     );
@@ -516,8 +518,8 @@ class BookRepositoryTest {
 
     BookSearchRequest request = BookSearchRequest.of(
         null,
-        "reviewCount",
-        "DESC",
+        BookOrderBy.REVIEW_COUNT,
+        Sort.Direction.DESC,
         null,
         10
     );

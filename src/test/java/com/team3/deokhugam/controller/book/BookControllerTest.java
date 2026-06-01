@@ -296,6 +296,19 @@ class BookControllerTest {
   }
 
   @Test
+  @DisplayName("잘못된 direction으로 도서 목록 조회하면 400 응답 반환")
+  void searchBooksWithInvalidDirection() throws Exception {
+    // when, then
+    mockMvc.perform(
+            get("/api/books")
+                .param("direction", "WRONG")
+        )
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.code").value("INVALID_INPUT"))
+        .andExpect(jsonPath("$.status").value(400));
+  }
+
+  @Test
   @DisplayName("cursor token으로 도서 목록을 조회한다")
   void searchBooksWithCursorToken() throws Exception {
     // given

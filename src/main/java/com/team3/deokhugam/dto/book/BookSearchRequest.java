@@ -19,15 +19,15 @@ public record BookSearchRequest(
 
   public static BookSearchRequest of(
       String keyword,
-      String orderBy,
-      String direction,
+      BookOrderBy orderBy,
+      Sort.Direction direction,
       String cursor,
       Integer limit
   ) {
     return new BookSearchRequest(
         normalizeBlank(keyword),
-        parseOrderBy(orderBy),
-        parseDirection(direction),
+        resolveOrderBy(orderBy),
+        resolveDirection(direction),
         parseCursor(cursor),
         parseLimit(limit)
     );
@@ -52,24 +52,19 @@ public record BookSearchRequest(
     return cursor != null;
   }
 
-  private static BookOrderBy parseOrderBy(String orderBy) {
-    if (orderBy == null || orderBy.isBlank()) {
+  private static BookOrderBy resolveOrderBy(BookOrderBy orderBy) {
+    if (orderBy == null) {
       return DEFAULT_ORDER_BY;
     }
 
-    return BookOrderBy.from(orderBy);
+    return orderBy;
   }
 
-  private static Sort.Direction parseDirection(String direction) {
-    if (direction == null || direction.isBlank()) {
+  private static Sort.Direction resolveDirection(Sort.Direction direction) {
+    if (direction == null) {
       return DEFAULT_DIRECTION;
     }
-
-    try {
-      return Sort.Direction.fromString(direction);
-    } catch (IllegalArgumentException e) {
-      throw new InvalidBookSearchConditionException();
-    }
+    return direction;
   }
 
   private static BookCursor parseCursor(String cursor) {

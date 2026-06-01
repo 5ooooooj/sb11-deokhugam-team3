@@ -104,8 +104,8 @@ class BookSearchRequestTest {
     BookSearchRequest request =
         BookSearchRequest.of(
             null,
-            "title",
-            "ASC",
+            BookOrderBy.TITLE,
+            Sort.Direction.ASC,
             cursor,
             50
         );
@@ -124,8 +124,8 @@ class BookSearchRequestTest {
     assertThatThrownBy(() ->
         BookSearchRequest.of(
             null,
-            "title",
-            "ASC",
+            BookOrderBy.TITLE,
+            Sort.Direction.ASC,
             "invalid-token",
             50
         )
@@ -139,8 +139,8 @@ class BookSearchRequestTest {
     BookSearchRequest request =
         BookSearchRequest.of(
             null,
-            "title",
-            "ASC",
+            BookOrderBy.TITLE,
+            Sort.Direction.ASC,
             null,
             100
         );

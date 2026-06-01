@@ -13,6 +13,7 @@ import com.team3.deokhugam.dto.book.BookCreateRequest;
 import com.team3.deokhugam.dto.book.BookCursor;
 import com.team3.deokhugam.dto.book.BookDto;
 import com.team3.deokhugam.dto.book.BookSearchRequest;
+import com.team3.deokhugam.dto.book.BookOrderBy;
 import com.team3.deokhugam.dto.book.BookUpdateRequest;
 import com.team3.deokhugam.exception.book.BookAlreadyExistsException;
 import com.team3.deokhugam.exception.book.BookNotFoundException;
@@ -23,12 +24,14 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import org.springframework.data.domain.Sort;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Sort.Direction;
 
 @ExtendWith(MockitoExtension.class)
 class BookServiceTest {
@@ -151,8 +154,8 @@ class BookServiceTest {
     BookSearchRequest request =
         BookSearchRequest.of(
             "자바",
-            "title",
-            "ASC",
+            BookOrderBy.TITLE,
+            Sort.Direction.ASC,
             null,
             2
         );
@@ -227,8 +230,8 @@ class BookServiceTest {
     BookSearchRequest request =
         BookSearchRequest.of(
             "없는 책",
-            "title",
-            "ASC",
+            BookOrderBy.TITLE,
+            Sort.Direction.ASC,
             null,
             10
         );
