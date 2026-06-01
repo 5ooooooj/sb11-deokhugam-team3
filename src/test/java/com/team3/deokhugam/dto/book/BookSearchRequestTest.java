@@ -158,6 +158,27 @@ class BookSearchRequestTest {
   }
 
   @Test
+  @DisplayName("cursor가 공백이고 after가 있으면 예외 발생")
+  void hasCursorWithBlankCursorAndAfter() {
+    // given
+    Instant after = Instant.parse("2026-06-01T00:00:00Z");
+
+    BookSearchRequest request =
+        BookSearchRequest.of(
+            null,
+            "title",
+            "ASC",
+            " ",
+            after,
+            50
+        );
+
+    // when, then
+    assertThatThrownBy(request::hasCursor)
+        .isInstanceOf(InvalidBookSearchConditionException.class);
+  }
+
+  @Test
   @DisplayName("withLimit은 Service 내부 limit + 1 조회를 허용한다")
   void withLimitAllowsInternalLimitPlusOne() {
     // given

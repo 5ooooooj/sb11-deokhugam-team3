@@ -53,15 +53,17 @@ public record BookSearchRequest(
   }
 
   public boolean hasCursor() {
-    if(cursor == null && after == null) {
+    boolean hasCursorValue = cursor != null && !cursor.isBlank();
+
+    if(!hasCursorValue && after == null) {
       return false;
     }
 
-    if(cursor == null || after == null) {
+    if(!hasCursorValue || after == null) {
       throw new InvalidBookSearchConditionException();
     }
 
-    return !cursor.isBlank();
+    return true;
   }
 
   private static BookOrderBy parseOrderBy(String orderBy) {
