@@ -13,13 +13,23 @@ import org.springframework.http.MediaType;
 @Retention(RetentionPolicy.RUNTIME)
 @Operation(
     summary = "도서 물리 삭제",
-    description = "도서를 물리 삭제합니다. 연관 데이터 삭제 전파는 DB FK ON DELETE CASCADE 정책을 따릅니다."
+    description = "도서를 물리 삭제합니다. 등록한 사용자만 삭제할 수 있으며, 연관 데이터 삭제 전파는 DB FK ON DELETE CASCADE 정책을 따릅니다."
 )
 @ApiResponses({
     @ApiResponse(
         responseCode = "204",
         description = "도서 물리 삭제 성공"
     ),
+
+    @ApiResponse(
+        responseCode = "403",
+        description = "도서 삭제 권한 없음",
+        content = @Content(
+            mediaType = MediaType.APPLICATION_JSON_VALUE,
+            schema = @Schema(implementation = ErrorResponse.class)
+        )
+    ),
+
     @ApiResponse(
         responseCode = "404",
         description = "도서 정보 없음",

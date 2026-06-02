@@ -26,6 +26,7 @@ import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestPart;
@@ -45,10 +46,11 @@ public class BookController {
   @ResponseStatus(HttpStatus.CREATED)
   @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
   public BookDto create(
+      @RequestHeader("Deokhugam-Request-User-ID") UUID requestUserId,
       @Valid @RequestPart("bookData") BookCreateRequest request,
       @RequestPart(value = "thumbnailImage", required = false) MultipartFile thumbnailImage
   ) {
-    return bookService.create(request);
+    return bookService.create(requestUserId, request);
   }
 
   @BookSearchApi
@@ -87,10 +89,11 @@ public class BookController {
   public BookDto update(
       @Parameter(description = "수정할 도서 ID")
       @PathVariable UUID bookId,
+      @RequestHeader("Deokhugam-Request-User-ID") UUID requestUserId,
       @Valid @RequestPart("bookData") BookUpdateRequest request,
       @RequestPart(value = "thumbnailImage", required = false) MultipartFile thumbnailImage
   ) {
-    return bookService.update(bookId, request);
+    return bookService.update(bookId, requestUserId, request);
   }
 
   @BookDeleteApi
@@ -98,9 +101,10 @@ public class BookController {
   @ResponseStatus(HttpStatus.NO_CONTENT)
   public void delete(
       @Parameter(description = "삭제할 도서 ID")
-      @PathVariable UUID bookId
+      @PathVariable UUID bookId,
+      @RequestHeader("Deokhugam-Request-User-ID") UUID requestUserId
   ) {
-    bookService.delete(bookId);
+    bookService.delete(bookId, requestUserId);
   }
 
   @BookHardDeleteApi
@@ -108,8 +112,9 @@ public class BookController {
   @ResponseStatus(HttpStatus.NO_CONTENT)
   public void hardDelete(
       @Parameter(description = "물리 삭제 도서 ID")
-      @PathVariable UUID bookId
+      @PathVariable UUID bookId,
+      @RequestHeader("Deokhugam-Request-User-ID") UUID requestUserId
   ) {
-    bookService.hardDelete(bookId);
+    bookService.hardDelete(bookId, requestUserId);
   }
 }
