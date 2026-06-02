@@ -2,6 +2,7 @@ package com.team3.deokhugam.batch.step.listener;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -60,7 +61,7 @@ public class PopularBookRankingListenerTest {
   }
 
   @Test
-  @DisplayName("성공: 결과가 없으면 저장 수행하지 않음")
+  @DisplayName("성공: 데이터가 없을 때 빈 리스트로 저장 호출")
   void afterStep_doesNotSaveWhenEmpty() {
     StepExecution stepExecution = mock(StepExecution.class);
     when(stepExecution.getStatus()).thenReturn(BatchStatus.COMPLETED);

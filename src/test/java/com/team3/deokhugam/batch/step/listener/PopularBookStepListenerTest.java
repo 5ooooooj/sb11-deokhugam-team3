@@ -6,7 +6,6 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 
 import com.team3.deokhugam.batch.global.Period;
 import com.team3.deokhugam.repository.dashboard.PopularBookRepository;
@@ -31,8 +30,9 @@ public class PopularBookStepListenerTest {
   @Test
   @DisplayName("성공: beforeStep에서 해당 period 데이터를 삭제")
   void beforeStep_deletesByPeriod() {
+    TransactionStatus status = mock(TransactionStatus.class);
     given(transactionManager.getTransaction(any()))
-        .willReturn(mock(TransactionStatus.class));
+        .willReturn(status);
 
     PopularBookStepListener listener =
         new PopularBookStepListener(popularBookRepository, transactionManager, Period.DAILY);
@@ -40,6 +40,7 @@ public class PopularBookStepListenerTest {
     listener.beforeStep(mock(StepExecution.class));
 
     verify(popularBookRepository, times(1)).deleteByPeriod(Period.DAILY);
+    verify(transactionManager).commit(status);
   }
 
   @Test
@@ -58,28 +59,4 @@ public class PopularBookStepListenerTest {
     verify(popularBookRepository, never()).deleteByPeriod(Period.MONTHLY);
     verify(popularBookRepository, never()).deleteByPeriod(Period.ALL_TIME);
   }
-
-  // 트랜잭션 커밋 검증
-  @Test
-  void beforeStep_deleteByPeriod_and_commit() {
-    Period period = Period.DAILY;
-    // given
-    PlatformTransactionManager transactionManager = mock(PlatformTransactionManager.class);
-    TransactionStatus transactionStatus = mock(TransactionStatus.class);
-    when(transactionManager.getTransaction(any())).thenReturn(transactionStatus);
-
-    PopularBookStepListener listener = new PopularBookStepListener(
-        popularBookRepository,
-        transactionManager,
-        Period.DAILY
-    );
-
-    // when
-    listener.beforeStep(mock(StepExecution.class));
-
-    // then
-    verify(popularBookRepository).deleteByPeriod(period);
-    verify(transactionManager).commit(transactionStatus);
-  }
-
 }
