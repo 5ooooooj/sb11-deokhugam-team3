@@ -2,15 +2,19 @@ package com.team3.deokhugam.repository.book;
 
 import static com.team3.deokhugam.domain.book.BookTestFactory.book;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.team3.deokhugam.domain.book.Book;
 import com.team3.deokhugam.dto.book.BookCursor;
 import com.team3.deokhugam.dto.book.BookSearchRequest;
 import com.team3.deokhugam.dto.book.BookOrderBy;
+import com.team3.deokhugam.exception.book.InvalidBookSearchConditionException;
 import com.team3.deokhugam.global.config.JpaAuditingConfig;
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.data.domain.Sort;
@@ -660,5 +664,583 @@ class BookRepositoryTest {
     assertThat(result)
         .extracting(Book::getIsbn)
         .containsExactly("repo\\isbn-50");
+  }
+
+  @Test
+  @DisplayName("title 기준 DESC cursor token 이후의 도서 목록을 조회한다")
+  void searchWithTitleCursorTokenDesc() {
+    // given
+    Book bookA = book()
+        .title("repo-title-cursor-desc-50 A")
+        .author("작가 A")
+        .description("title DESC cursor 테스트용 도서입니다.")
+        .publisher("테스트출판사")
+        .publishedDate(LocalDate.of(2026, 6, 1))
+        .isbn("9780000005101")
+        .thumbnailUrl("https://example.com/title-desc-a.jpg")
+        .build();
+
+    Book bookB = book()
+        .title("repo-title-cursor-desc-50 B")
+        .author("작가 B")
+        .description("title DESC cursor 테스트용 도서입니다.")
+        .publisher("테스트출판사")
+        .publishedDate(LocalDate.of(2026, 6, 2))
+        .isbn("9780000005102")
+        .thumbnailUrl("https://example.com/title-desc-b.jpg")
+        .build();
+
+    Book bookC = book()
+        .title("repo-title-cursor-desc-50 C")
+        .author("작가 C")
+        .description("title DESC cursor 테스트용 도서입니다.")
+        .publisher("테스트출판사")
+        .publishedDate(LocalDate.of(2026, 6, 3))
+        .isbn("9780000005103")
+        .thumbnailUrl("https://example.com/title-desc-c.jpg")
+        .build();
+
+    bookRepository.saveAll(List.of(bookA, bookB, bookC));
+    bookRepository.flush();
+
+    BookSearchRequest firstRequest = BookSearchRequest.of(
+        "repo-title-cursor-desc-50",
+        BookOrderBy.TITLE,
+        Sort.Direction.DESC,
+        null,
+        2
+    );
+
+    List<Book> firstPage = bookRepository.search(firstRequest);
+    Book lastBookOfFirstPage = firstPage.get(firstPage.size() - 1);
+
+    String cursor = BookCursor.encode(
+        lastBookOfFirstPage.getTitle(),
+        lastBookOfFirstPage.getCreatedAt(),
+        lastBookOfFirstPage.getId()
+    );
+
+    BookSearchRequest secondRequest = BookSearchRequest.of(
+        "repo-title-cursor-desc-50",
+        BookOrderBy.TITLE,
+        Sort.Direction.DESC,
+        cursor,
+        2
+    );
+
+    // when
+    List<Book> result = bookRepository.search(secondRequest);
+
+    // then
+    assertThat(result)
+        .extracting(Book::getTitle)
+        .containsExactly("repo-title-cursor-desc-50 A");
+  }
+
+  @Test
+  @DisplayName("publishedDate 기준 ASC cursor token 이후의 도서 목록을 조회한다")
+  void searchWithPublishedDateCursorTokenAsc() {
+    // given
+    Book oldBook = book()
+        .title("repo-published-cursor-asc-50 old")
+        .author("작가 A")
+        .description("publishedDate ASC cursor 테스트용 도서입니다.")
+        .publisher("테스트출판사")
+        .publishedDate(LocalDate.of(2020, 1, 1))
+        .isbn("9780000005111")
+        .thumbnailUrl("https://example.com/published-asc-old.jpg")
+        .build();
+
+    Book middleBook = book()
+        .title("repo-published-cursor-asc-50 middle")
+        .author("작가 B")
+        .description("publishedDate ASC cursor 테스트용 도서입니다.")
+        .publisher("테스트출판사")
+        .publishedDate(LocalDate.of(2021, 1, 1))
+        .isbn("9780000005112")
+        .thumbnailUrl("https://example.com/published-asc-middle.jpg")
+        .build();
+
+    Book newBook = book()
+        .title("repo-published-cursor-asc-50 new")
+        .author("작가 C")
+        .description("publishedDate ASC cursor 테스트용 도서입니다.")
+        .publisher("테스트출판사")
+        .publishedDate(LocalDate.of(2022, 1, 1))
+        .isbn("9780000005113")
+        .thumbnailUrl("https://example.com/published-asc-new.jpg")
+        .build();
+
+    bookRepository.saveAll(List.of(oldBook, middleBook, newBook));
+    bookRepository.flush();
+
+    BookSearchRequest firstRequest = BookSearchRequest.of(
+        "repo-published-cursor-asc-50",
+        BookOrderBy.PUBLISHED_DATE,
+        Sort.Direction.ASC,
+        null,
+        2
+    );
+
+    List<Book> firstPage = bookRepository.search(firstRequest);
+    Book lastBookOfFirstPage = firstPage.get(firstPage.size() - 1);
+
+    String cursor = BookCursor.encode(
+        lastBookOfFirstPage.getPublishedDate().toString(),
+        lastBookOfFirstPage.getCreatedAt(),
+        lastBookOfFirstPage.getId()
+    );
+
+    BookSearchRequest secondRequest = BookSearchRequest.of(
+        "repo-published-cursor-asc-50",
+        BookOrderBy.PUBLISHED_DATE,
+        Sort.Direction.ASC,
+        cursor,
+        2
+    );
+
+    // when
+    List<Book> result = bookRepository.search(secondRequest);
+
+    // then
+    assertThat(result)
+        .extracting(Book::getTitle)
+        .containsExactly("repo-published-cursor-asc-50 new");
+  }
+
+  @Test
+  @DisplayName("publishedDate 기준 DESC cursor token 이후의 도서 목록을 조회한다")
+  void searchWithPublishedDateCursorTokenDesc() {
+    // given
+    Book oldBook = book()
+        .title("repo-published-cursor-desc-50 old")
+        .author("작가 A")
+        .description("publishedDate DESC cursor 테스트용 도서입니다.")
+        .publisher("테스트출판사")
+        .publishedDate(LocalDate.of(2020, 1, 1))
+        .isbn("9780000005121")
+        .thumbnailUrl("https://example.com/published-desc-old.jpg")
+        .build();
+
+    Book middleBook = book()
+        .title("repo-published-cursor-desc-50 middle")
+        .author("작가 B")
+        .description("publishedDate DESC cursor 테스트용 도서입니다.")
+        .publisher("테스트출판사")
+        .publishedDate(LocalDate.of(2021, 1, 1))
+        .isbn("9780000005122")
+        .thumbnailUrl("https://example.com/published-desc-middle.jpg")
+        .build();
+
+    Book newBook = book()
+        .title("repo-published-cursor-desc-50 new")
+        .author("작가 C")
+        .description("publishedDate DESC cursor 테스트용 도서입니다.")
+        .publisher("테스트출판사")
+        .publishedDate(LocalDate.of(2022, 1, 1))
+        .isbn("9780000005123")
+        .thumbnailUrl("https://example.com/published-desc-new.jpg")
+        .build();
+
+    bookRepository.saveAll(List.of(oldBook, middleBook, newBook));
+    bookRepository.flush();
+
+    BookSearchRequest firstRequest = BookSearchRequest.of(
+        "repo-published-cursor-desc-50",
+        BookOrderBy.PUBLISHED_DATE,
+        Sort.Direction.DESC,
+        null,
+        2
+    );
+
+    List<Book> firstPage = bookRepository.search(firstRequest);
+    Book lastBookOfFirstPage = firstPage.get(firstPage.size() - 1);
+
+    String cursor = BookCursor.encode(
+        lastBookOfFirstPage.getPublishedDate().toString(),
+        lastBookOfFirstPage.getCreatedAt(),
+        lastBookOfFirstPage.getId()
+    );
+
+    BookSearchRequest secondRequest = BookSearchRequest.of(
+        "repo-published-cursor-desc-50",
+        BookOrderBy.PUBLISHED_DATE,
+        Sort.Direction.DESC,
+        cursor,
+        2
+    );
+
+    // when
+    List<Book> result = bookRepository.search(secondRequest);
+
+    // then
+    assertThat(result)
+        .extracting(Book::getTitle)
+        .containsExactly("repo-published-cursor-desc-50 old");
+  }
+
+  @Test
+  @DisplayName("rating 기준 ASC cursor token 이후의 도서 목록을 조회한다")
+  void searchWithRatingCursorTokenAsc() {
+    // given
+    Book lowRatingBook = book()
+        .title("repo-rating-cursor-asc-50 low")
+        .author("작가 A")
+        .description("rating ASC cursor 테스트용 도서입니다.")
+        .publisher("테스트출판사")
+        .publishedDate(LocalDate.of(2026, 6, 1))
+        .isbn("9780000005131")
+        .thumbnailUrl("https://example.com/rating-asc-low.jpg")
+        .rating(new BigDecimal("1.5"))
+        .build();
+
+    Book middleRatingBook = book()
+        .title("repo-rating-cursor-asc-50 middle")
+        .author("작가 B")
+        .description("rating ASC cursor 테스트용 도서입니다.")
+        .publisher("테스트출판사")
+        .publishedDate(LocalDate.of(2026, 6, 2))
+        .isbn("9780000005132")
+        .thumbnailUrl("https://example.com/rating-asc-middle.jpg")
+        .rating(new BigDecimal("3.0"))
+        .build();
+
+    Book highRatingBook = book()
+        .title("repo-rating-cursor-asc-50 high")
+        .author("작가 C")
+        .description("rating ASC cursor 테스트용 도서입니다.")
+        .publisher("테스트출판사")
+        .publishedDate(LocalDate.of(2026, 6, 3))
+        .isbn("9780000005133")
+        .thumbnailUrl("https://example.com/rating-asc-high.jpg")
+        .rating(new BigDecimal("4.5"))
+        .build();
+
+    bookRepository.saveAll(List.of(lowRatingBook, middleRatingBook, highRatingBook));
+    bookRepository.flush();
+
+    BookSearchRequest firstRequest = BookSearchRequest.of(
+        "repo-rating-cursor-asc-50",
+        BookOrderBy.RATING,
+        Sort.Direction.ASC,
+        null,
+        2
+    );
+
+    List<Book> firstPage = bookRepository.search(firstRequest);
+    Book lastBookOfFirstPage = firstPage.get(firstPage.size() - 1);
+
+    String cursor = BookCursor.encode(
+        lastBookOfFirstPage.getRating().toString(),
+        lastBookOfFirstPage.getCreatedAt(),
+        lastBookOfFirstPage.getId()
+    );
+
+    BookSearchRequest secondRequest = BookSearchRequest.of(
+        "repo-rating-cursor-asc-50",
+        BookOrderBy.RATING,
+        Sort.Direction.ASC,
+        cursor,
+        2
+    );
+
+    // when
+    List<Book> result = bookRepository.search(secondRequest);
+
+    // then
+    assertThat(result)
+        .extracting(Book::getTitle)
+        .containsExactly("repo-rating-cursor-asc-50 high");
+  }
+
+  @Test
+  @DisplayName("rating 기준 DESC cursor token 이후의 도서 목록을 조회한다")
+  void searchWithRatingCursorTokenDesc() {
+    // given
+    Book lowRatingBook = book()
+        .title("repo-rating-cursor-desc-50 low")
+        .author("작가 A")
+        .description("rating DESC cursor 테스트용 도서입니다.")
+        .publisher("테스트출판사")
+        .publishedDate(LocalDate.of(2026, 6, 1))
+        .isbn("9780000005141")
+        .thumbnailUrl("https://example.com/rating-desc-low.jpg")
+        .rating(new BigDecimal("1.5"))
+        .build();
+
+    Book middleRatingBook = book()
+        .title("repo-rating-cursor-desc-50 middle")
+        .author("작가 B")
+        .description("rating DESC cursor 테스트용 도서입니다.")
+        .publisher("테스트출판사")
+        .publishedDate(LocalDate.of(2026, 6, 2))
+        .isbn("9780000005142")
+        .thumbnailUrl("https://example.com/rating-desc-middle.jpg")
+        .rating(new BigDecimal("3.0"))
+        .build();
+
+    Book highRatingBook = book()
+        .title("repo-rating-cursor-desc-50 high")
+        .author("작가 C")
+        .description("rating DESC cursor 테스트용 도서입니다.")
+        .publisher("테스트출판사")
+        .publishedDate(LocalDate.of(2026, 6, 3))
+        .isbn("9780000005143")
+        .thumbnailUrl("https://example.com/rating-desc-high.jpg")
+        .rating(new BigDecimal("4.5"))
+        .build();
+
+    bookRepository.saveAll(List.of(lowRatingBook, middleRatingBook, highRatingBook));
+    bookRepository.flush();
+
+    BookSearchRequest firstRequest = BookSearchRequest.of(
+        "repo-rating-cursor-desc-50",
+        BookOrderBy.RATING,
+        Sort.Direction.DESC,
+        null,
+        2
+    );
+
+    List<Book> firstPage = bookRepository.search(firstRequest);
+    Book lastBookOfFirstPage = firstPage.get(firstPage.size() - 1);
+
+    String cursor = BookCursor.encode(
+        lastBookOfFirstPage.getRating().toString(),
+        lastBookOfFirstPage.getCreatedAt(),
+        lastBookOfFirstPage.getId()
+    );
+
+    BookSearchRequest secondRequest = BookSearchRequest.of(
+        "repo-rating-cursor-desc-50",
+        BookOrderBy.RATING,
+        Sort.Direction.DESC,
+        cursor,
+        2
+    );
+
+    // when
+    List<Book> result = bookRepository.search(secondRequest);
+
+    // then
+    assertThat(result)
+        .extracting(Book::getTitle)
+        .containsExactly("repo-rating-cursor-desc-50 low");
+  }
+
+  @Test
+  @DisplayName("reviewCount 기준 ASC cursor token 이후의 도서 목록을 조회한다")
+  void searchWithReviewCountCursorTokenAsc() {
+    // given
+    Book lowReviewCountBook = book()
+        .title("repo-review-count-cursor-asc-50 low")
+        .author("작가 A")
+        .description("reviewCount ASC cursor 테스트용 도서입니다.")
+        .publisher("테스트출판사")
+        .publishedDate(LocalDate.of(2026, 6, 1))
+        .isbn("9780000005151")
+        .thumbnailUrl("https://example.com/review-count-asc-low.jpg")
+        .reviewCount(1)
+        .build();
+
+    Book middleReviewCountBook = book()
+        .title("repo-review-count-cursor-asc-50 middle")
+        .author("작가 B")
+        .description("reviewCount ASC cursor 테스트용 도서입니다.")
+        .publisher("테스트출판사")
+        .publishedDate(LocalDate.of(2026, 6, 2))
+        .isbn("9780000005152")
+        .thumbnailUrl("https://example.com/review-count-asc-middle.jpg")
+        .reviewCount(5)
+        .build();
+
+    Book highReviewCountBook = book()
+        .title("repo-review-count-cursor-asc-50 high")
+        .author("작가 C")
+        .description("reviewCount ASC cursor 테스트용 도서입니다.")
+        .publisher("테스트출판사")
+        .publishedDate(LocalDate.of(2026, 6, 3))
+        .isbn("9780000005153")
+        .thumbnailUrl("https://example.com/review-count-asc-high.jpg")
+        .reviewCount(10)
+        .build();
+
+    bookRepository.saveAll(List.of(lowReviewCountBook, middleReviewCountBook, highReviewCountBook));
+    bookRepository.flush();
+
+    BookSearchRequest firstRequest = BookSearchRequest.of(
+        "repo-review-count-cursor-asc-50",
+        BookOrderBy.REVIEW_COUNT,
+        Sort.Direction.ASC,
+        null,
+        2
+    );
+
+    List<Book> firstPage = bookRepository.search(firstRequest);
+    Book lastBookOfFirstPage = firstPage.get(firstPage.size() - 1);
+
+    String cursor = BookCursor.encode(
+        String.valueOf(lastBookOfFirstPage.getReviewCount()),
+        lastBookOfFirstPage.getCreatedAt(),
+        lastBookOfFirstPage.getId()
+    );
+
+    BookSearchRequest secondRequest = BookSearchRequest.of(
+        "repo-review-count-cursor-asc-50",
+        BookOrderBy.REVIEW_COUNT,
+        Sort.Direction.ASC,
+        cursor,
+        2
+    );
+
+    // when
+    List<Book> result = bookRepository.search(secondRequest);
+
+    // then
+    assertThat(result)
+        .extracting(Book::getTitle)
+        .containsExactly("repo-review-count-cursor-asc-50 high");
+  }
+
+  @Test
+  @DisplayName("reviewCount 기준 DESC cursor token 이후의 도서 목록을 조회한다")
+  void searchWithReviewCountCursorTokenDesc() {
+    // given
+    Book lowReviewCountBook = book()
+        .title("repo-review-count-cursor-desc-50 low")
+        .author("작가 A")
+        .description("reviewCount DESC cursor 테스트용 도서입니다.")
+        .publisher("테스트출판사")
+        .publishedDate(LocalDate.of(2026, 6, 1))
+        .isbn("9780000005161")
+        .thumbnailUrl("https://example.com/review-count-desc-low.jpg")
+        .reviewCount(1)
+        .build();
+
+    Book middleReviewCountBook = book()
+        .title("repo-review-count-cursor-desc-50 middle")
+        .author("작가 B")
+        .description("reviewCount DESC cursor 테스트용 도서입니다.")
+        .publisher("테스트출판사")
+        .publishedDate(LocalDate.of(2026, 6, 2))
+        .isbn("9780000005162")
+        .thumbnailUrl("https://example.com/review-count-desc-middle.jpg")
+        .reviewCount(5)
+        .build();
+
+    Book highReviewCountBook = book()
+        .title("repo-review-count-cursor-desc-50 high")
+        .author("작가 C")
+        .description("reviewCount DESC cursor 테스트용 도서입니다.")
+        .publisher("테스트출판사")
+        .publishedDate(LocalDate.of(2026, 6, 3))
+        .isbn("9780000005163")
+        .thumbnailUrl("https://example.com/review-count-desc-high.jpg")
+        .reviewCount(10)
+        .build();
+
+    bookRepository.saveAll(List.of(lowReviewCountBook, middleReviewCountBook, highReviewCountBook));
+    bookRepository.flush();
+
+    BookSearchRequest firstRequest = BookSearchRequest.of(
+        "repo-review-count-cursor-desc-50",
+        BookOrderBy.REVIEW_COUNT,
+        Sort.Direction.DESC,
+        null,
+        2
+    );
+
+    List<Book> firstPage = bookRepository.search(firstRequest);
+    Book lastBookOfFirstPage = firstPage.get(firstPage.size() - 1);
+
+    String cursor = BookCursor.encode(
+        String.valueOf(lastBookOfFirstPage.getReviewCount()),
+        lastBookOfFirstPage.getCreatedAt(),
+        lastBookOfFirstPage.getId()
+    );
+
+    BookSearchRequest secondRequest = BookSearchRequest.of(
+        "repo-review-count-cursor-desc-50",
+        BookOrderBy.REVIEW_COUNT,
+        Sort.Direction.DESC,
+        cursor,
+        2
+    );
+
+    // when
+    List<Book> result = bookRepository.search(secondRequest);
+
+    // then
+    assertThat(result)
+        .extracting(Book::getTitle)
+        .containsExactly("repo-review-count-cursor-desc-50 low");
+  }
+
+  @Test
+  @DisplayName("publishedDate cursor value가 날짜 형식이 아니면 예외가 발생한다")
+  void searchWithInvalidPublishedDateCursorValueThrowsException() {
+    // given
+    String cursor = BookCursor.encode(
+        "not-date",
+        Instant.parse("2026-06-01T00:00:00Z"),
+        UUID.fromString("00000000-0000-0000-0000-000000005171")
+    );
+
+    BookSearchRequest request = BookSearchRequest.of(
+        null,
+        BookOrderBy.PUBLISHED_DATE,
+        Sort.Direction.ASC,
+        cursor,
+        10
+    );
+
+    // when, then
+    assertThatThrownBy(() -> bookRepository.search(request))
+        .isInstanceOf(InvalidBookSearchConditionException.class);
+  }
+
+  @Test
+  @DisplayName("rating cursor value가 숫자 형식이 아니면 예외가 발생한다")
+  void searchWithInvalidRatingCursorValueThrowsException() {
+    // given
+    String cursor = BookCursor.encode(
+        "not-number",
+        Instant.parse("2026-06-01T00:00:00Z"),
+        UUID.fromString("00000000-0000-0000-0000-000000005172")
+    );
+
+    BookSearchRequest request = BookSearchRequest.of(
+        null,
+        BookOrderBy.RATING,
+        Sort.Direction.ASC,
+        cursor,
+        10
+    );
+
+    // when, then
+    assertThatThrownBy(() -> bookRepository.search(request))
+        .isInstanceOf(InvalidBookSearchConditionException.class);
+  }
+
+  @Test
+  @DisplayName("reviewCount cursor value가 정수 형식이 아니면 예외가 발생한다")
+  void searchWithInvalidReviewCountCursorValueThrowsException() {
+    // given
+    String cursor = BookCursor.encode(
+        "not-number",
+        Instant.parse("2026-06-01T00:00:00Z"),
+        UUID.fromString("00000000-0000-0000-0000-000000005173")
+    );
+
+    BookSearchRequest request = BookSearchRequest.of(
+        null,
+        BookOrderBy.REVIEW_COUNT,
+        Sort.Direction.ASC,
+        cursor,
+        10
+    );
+
+    // when, then
+    assertThatThrownBy(() -> bookRepository.search(request))
+        .isInstanceOf(InvalidBookSearchConditionException.class);
   }
 }
