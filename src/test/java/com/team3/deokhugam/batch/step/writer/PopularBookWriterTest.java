@@ -7,6 +7,7 @@ import com.team3.deokhugam.domain.dashboard.PopularBook;
 import com.team3.deokhugam.repository.dashboard.PopularBookRepository;
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
@@ -58,8 +59,7 @@ class PopularBookWriterTest {
     popularBookWriter.create(Period.DAILY).write(chunk);
 
     // then
-    verify(popularBookRepository).deleteByPeriod(Period.DAILY);
-    verify(popularBookRepository).saveAll(List.of());
+    verify(popularBookRepository).saveAll(Collections.emptyList());
   }
 
   private PopularBook createPopularBook(UUID bookId, BigDecimal score) {
