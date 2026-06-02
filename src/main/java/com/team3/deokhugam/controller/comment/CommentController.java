@@ -3,6 +3,7 @@ package com.team3.deokhugam.controller.comment;
 import com.team3.deokhugam.dto.comment.CommentCreateRequest;
 import com.team3.deokhugam.dto.comment.CommentDto;
 import com.team3.deokhugam.dto.comment.CommentUpdateRequest;
+import com.team3.deokhugam.exception.comment.CommentForbiddenException;
 import com.team3.deokhugam.global.dto.CursorPageResponse;
 import com.team3.deokhugam.service.comment.CommentService;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -30,6 +31,9 @@ public class CommentController {
       @RequestHeader("Deokhugam-Request-User-ID") UUID requestUserId,
       @Valid @RequestBody CommentCreateRequest request
   ) {
+    if (!requestUserId.equals(request.userId())) {
+      throw new CommentForbiddenException();
+    }
     CommentDto response = commentService.create(request);
     return ResponseEntity.status(HttpStatus.CREATED).body(response);
   }
