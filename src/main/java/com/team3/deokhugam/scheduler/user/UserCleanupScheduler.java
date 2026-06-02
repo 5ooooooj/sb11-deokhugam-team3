@@ -11,6 +11,7 @@ public class UserCleanupScheduler {
 
   private final UserCleanupService userCleanupService;
 
+  // 23시 50분 배치 실행
   @Scheduled(cron = "${user.cleanup.cron:-}")
   public void hardDeleteExpiredUsers(){
     userCleanupService.hardDeleteExpiredUsers();

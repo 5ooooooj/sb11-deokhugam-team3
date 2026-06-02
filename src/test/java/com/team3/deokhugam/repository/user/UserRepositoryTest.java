@@ -1,30 +1,38 @@
 package com.team3.deokhugam.repository.user;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import com.team3.deokhugam.domain.user.User;
+import jakarta.persistence.EntityManager;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
-import org.springframework.context.annotation.Import;
-import org.springframework.test.context.ActiveProfiles;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Import;
 import org.springframework.data.auditing.DateTimeProvider;
 import org.springframework.data.jpa.repository.config.EnableJpaAuditing;
-import java.time.Instant;
-
-import static org.assertj.core.api.Assertions.assertThat;
+import org.springframework.test.context.ActiveProfiles;
 
 @DataJpaTest
 @ActiveProfiles("test")
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
-@Import(UserRepositoryTest.JpaAuditingTestConfig.class)
+@Import(
+    {UserRepositoryTest.JpaAuditingTestConfig.class,
+    UserRepositoryCustomImpl.class}
+)
 class UserRepositoryTest {
 
   @Autowired
   private UserRepository userRepository;
+
+  @Autowired
+  private EntityManager entityManager;
 
   @TestConfiguration
   @EnableJpaAuditing(dateTimeProviderRef = "dateTimeProvider")
@@ -153,5 +161,66 @@ class UserRepositoryTest {
 
     // then
     assertThat(result).isEmpty();
+  }
+
+  @Test
+  @DisplayName("논리삭제 후 기준 시간이 지난 사용자만 물리삭제")
+  void deleteExpired_success(){
+    // given
+    User activeUser = userRepository.saveAndFlush(new User(
+        "active@test.com",
+        "activeUser",
+        "Password1!"
+    ));
+
+    User recentDeletedUser = userRepository.saveAndFlush(new User(
+        "recent@test.com",
+        "recentUser",
+        "Password1!"
+    ));
+    recentDeletedUser.softDelete();
+
+    User expiredDeletedUser = userRepository.saveAndFlush(new User(
+        "expired@test.com",
+        "expiredUser",
+        "Password1!"
+    ));
+    expiredDeletedUser.softDelete();
+
+    userRepository.flush();
+
+    // 12시간전 삭제된 유저
+    setDeletedAt(recentDeletedUser, Instant.now().minus(12, ChronoUnit.HOURS));
+    // 2일전 삭제된 유저
+    setDeletedAt(expiredDeletedUser, Instant.now().minus(2, ChronoUnit.DAYS));
+
+    entityManager.flush();
+    entityManager.clear();
+
+    Instant deleteBefore = Instant.now().minus(1, ChronoUnit.DAYS);
+
+    // when
+    int deletedCount = userRepository.deleteExpiredSoftDeletedUsers(deleteBefore);
+
+    entityManager.flush();
+    entityManager.clear();
+
+    // then
+    assertThat(deletedCount).isEqualTo(1);
+
+    assertThat(userRepository.findById(activeUser.getId())).isPresent();
+    assertThat(userRepository.findById(recentDeletedUser.getId())).isPresent();
+    assertThat(userRepository.findById(expiredDeletedUser.getId())).isEmpty();
+  }
+
+  private void setDeletedAt(User user, Instant deletedAt) {
+    entityManager.createQuery("""
+        update User u
+        set u.deletedAt = :deletedAt
+        where u.id = :id
+        """)
+        .setParameter("deletedAt", deletedAt)
+        .setParameter("id", user.getId())
+        .executeUpdate();
   }
 }
