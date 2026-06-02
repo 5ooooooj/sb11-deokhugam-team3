@@ -2,6 +2,7 @@ package com.team3.deokhugam.controller.user;
 
 import com.team3.deokhugam.controller.user.docs.UserFindByIdApi;
 import com.team3.deokhugam.controller.user.docs.UserRegisterApi;
+import com.team3.deokhugam.controller.user.docs.UserSoftDeleteApi;
 import com.team3.deokhugam.controller.user.docs.UserUpdateApi;
 import com.team3.deokhugam.dto.user.UserRegisterRequest;
 import com.team3.deokhugam.dto.user.UserDto;
@@ -15,6 +16,7 @@ import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -64,5 +66,13 @@ public class UserController {
       @Valid @RequestBody UserUpdateRequest request) {
     UserDto response = userService.updateUser(userId, loginUserId, request);
     return ResponseEntity.status(HttpStatus.OK).body(response);
+  }
+
+  @UserSoftDeleteApi
+  @DeleteMapping("/{userId}")
+  public ResponseEntity<Void> softDeleteUser(@PathVariable UUID userId,
+      @RequestHeader("Deokhugam-Request-User-ID") UUID loginUserId) {
+    userService.deleteUser(userId, loginUserId);
+    return ResponseEntity.status(HttpStatus.NO_CONTENT).build();
   }
 }
