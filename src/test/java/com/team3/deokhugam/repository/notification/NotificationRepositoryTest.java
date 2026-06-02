@@ -28,7 +28,8 @@ import org.springframework.test.context.TestPropertySource;
 @Import(JpaAuditingConfig.class)
 @TestPropertySource(properties = {
     "spring.jpa.hibernate.ddl-auto=create-drop",
-    "spring.sql.init.mode=never"
+    "spring.sql.init.mode=never",
+    "spring.jpa.defer-datasource-initialization=false"
 })
 class NotificationRepositoryTest {
 
