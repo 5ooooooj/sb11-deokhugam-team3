@@ -6,7 +6,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
-
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
@@ -15,7 +14,7 @@ public interface NotificationRepository extends JpaRepository<Notification, UUID
 
   @Query("""
         SELECT n FROM Notification n
-        WHERE n.userId = :userId
+        WHERE n.user.id = :userId
         AND (:after IS NULL OR n.createdAt < :after)
         ORDER BY n.createdAt DESC
         """)
@@ -29,7 +28,7 @@ public interface NotificationRepository extends JpaRepository<Notification, UUID
   @Query("""
         UPDATE Notification n
         SET n.confirmed = true
-        WHERE n.userId = :userId
+        WHERE n.user.id = :userId
         AND n.confirmed = false
         """)
   void confirmAllByUserId(@Param("userId") UUID userId);
