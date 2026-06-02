@@ -1,5 +1,6 @@
 package com.team3.deokhugam.controller.book.docs;
 
+import com.team3.deokhugam.dto.book.BookOrderBy;
 import com.team3.deokhugam.exception.global.ErrorResponse;
 import com.team3.deokhugam.global.dto.CursorPageResponse;
 import io.swagger.v3.oas.annotations.Operation;
@@ -11,6 +12,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.MediaType;
 
 @Retention(RetentionPolicy.RUNTIME)
@@ -20,10 +22,21 @@ import org.springframework.http.MediaType;
 )
 @Parameters({
     @Parameter(name = "keyword", description = "도서 제목, 저자, ISBN 검색어"),
-    @Parameter(name = "orderBy", description = "정렬 기준: title, publishedDate, rating, reviewCount"),
-    @Parameter(name = "direction", description = "정렬 방향: ASC, DESC"),
-    @Parameter(name = "cursor", description = "다음 페이지 조회를 위한 커서 값"),
-    @Parameter(name = "after", description = "다음 페이지 조회를 위한 보조 커서 시간"),
+    @Parameter(name = "orderBy", description = "정렬 기준",
+        schema = @Schema(
+            implementation = BookOrderBy.class,
+            allowableValues = {"title", "publishedDate", "rating", "reviewCount"},
+            defaultValue = "title"
+        )
+    ),
+    @Parameter(name = "direction", description = "정렬 방향",
+        schema = @Schema(
+            implementation = Sort.Direction.class,
+            allowableValues = {"ASC", "DESC"},
+            defaultValue = "DESC"
+        )
+    ),
+    @Parameter(name = "cursor", description = "다음 페이지 조회를 위한 Base64 cursor token"),
     @Parameter(name = "limit", description = "조회할 도서 개수")
 })
 @ApiResponses({
@@ -53,4 +66,5 @@ import org.springframework.http.MediaType;
     )
 })
 public @interface BookSearchApi {
+
 }

@@ -2,6 +2,7 @@ package com.team3.deokhugam.service.book;
 
 import com.team3.deokhugam.domain.book.Book;
 import com.team3.deokhugam.dto.book.BookCreateRequest;
+import com.team3.deokhugam.dto.book.BookCursor;
 import com.team3.deokhugam.dto.book.BookDto;
 import com.team3.deokhugam.dto.book.BookOrderBy;
 import com.team3.deokhugam.dto.book.BookSearchRequest;
@@ -116,6 +117,16 @@ public class BookService {
       return null;
     }
 
+    String cursorValue = resolveCursorValue(book, orderBy);
+
+    if (cursorValue == null || book.getCreatedAt() == null || book.getId() == null) {
+      return null;
+    }
+
+    return BookCursor.encode(cursorValue, book.getCreatedAt(), book.getId());
+  }
+
+  private String resolveCursorValue(Book book, BookOrderBy orderBy) {
     return switch (orderBy) {
       case TITLE -> book.getTitle();
       case PUBLISHED_DATE -> book.getPublishedDate() == null ? null : book.getPublishedDate().toString();

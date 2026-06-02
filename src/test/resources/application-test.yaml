@@ -3,6 +3,10 @@ spring:
     activate:
       on-profile: test
 
+  batch:
+    jdbc:
+      initialize-schema: always
+
   datasource:
     url: jdbc:postgresql://localhost:5432/deokhugam
     driver-class-name: org.postgresql.Driver

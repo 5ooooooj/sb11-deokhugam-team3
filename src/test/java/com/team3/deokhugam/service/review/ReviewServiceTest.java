@@ -16,7 +16,9 @@ import com.team3.deokhugam.dto.review.ReviewDto;
 import com.team3.deokhugam.dto.review.ReviewOrderBy;
 import com.team3.deokhugam.dto.review.ReviewSearchRequest;
 import com.team3.deokhugam.dto.review.ReviewUpdateRequest;
-import com.team3.deokhugam.exception.global.DeokhugamException;
+import com.team3.deokhugam.exception.review.ReviewAlreadyExistsException;
+import com.team3.deokhugam.exception.review.ReviewForbiddenException;
+import com.team3.deokhugam.exception.review.ReviewNotFoundException;
 import com.team3.deokhugam.global.dto.CursorPageResponse;
 import com.team3.deokhugam.repository.review.ReviewRepository;
 import java.nio.charset.StandardCharsets;
@@ -66,7 +68,7 @@ class ReviewServiceTest {
   }
 
   @Test
-  @DisplayName("리뷰 등록 실패 - 이미 작성한 리뷰가 있으면 예외가 발생한다")
+  @DisplayName("리뷰 등록 실패 - 이미 작성한 리뷰가 있으면 ReviewAlreadyExistsException이 발생한다")
   void createReview_duplicate_throws() {
     UUID userId = UUID.randomUUID();
     UUID bookId = UUID.randomUUID();
@@ -75,7 +77,7 @@ class ReviewServiceTest {
     given(reviewRepository.existsByUserIdAndBookId(userId, bookId)).willReturn(true);
 
     assertThatThrownBy(() -> reviewService.createReview(request))
-        .isInstanceOf(DeokhugamException.class);
+        .isInstanceOf(ReviewAlreadyExistsException.class);
 
     verify(reviewRepository, never()).save(any(Review.class));
   }
@@ -97,7 +99,7 @@ class ReviewServiceTest {
   }
 
   @Test
-  @DisplayName("리뷰 수정 실패 - 본인이 아니면 예외가 발생한다")
+  @DisplayName("리뷰 수정 실패 - 본인이 아니면 ReviewForbiddenException이 발생한다")
   void updateReview_notOwner_throws() {
     UUID reviewId = UUID.randomUUID();
     UUID ownerId = UUID.randomUUID();
@@ -108,18 +110,18 @@ class ReviewServiceTest {
 
     assertThatThrownBy(() -> reviewService.updateReview(
         reviewId, otherUserId, new ReviewUpdateRequest("수정", 4)))
-        .isInstanceOf(DeokhugamException.class);
+        .isInstanceOf(ReviewForbiddenException.class);
   }
 
   @Test
-  @DisplayName("리뷰 수정 실패 - 리뷰가 없으면 예외가 발생한다")
+  @DisplayName("리뷰 수정 실패 - 리뷰가 없으면 ReviewNotFoundException이 발생한다")
   void updateReview_notFound_throws() {
     UUID reviewId = UUID.randomUUID();
     given(reviewRepository.findById(reviewId)).willReturn(Optional.empty());
 
     assertThatThrownBy(() -> reviewService.updateReview(
         reviewId, UUID.randomUUID(), new ReviewUpdateRequest("수정", 4)))
-        .isInstanceOf(DeokhugamException.class);
+        .isInstanceOf(ReviewNotFoundException.class);
   }
 
   @Test
@@ -151,7 +153,7 @@ class ReviewServiceTest {
   }
 
   @Test
-  @DisplayName("리뷰 수정 실패 - 이미 삭제된 리뷰면 예외가 발생한다")
+  @DisplayName("리뷰 수정 실패 - 이미 삭제된 리뷰면 ReviewNotFoundException이 발생한다")
   void updateReview_deleted_throws() {
     UUID reviewId = UUID.randomUUID();
     UUID userId = UUID.randomUUID();
@@ -162,7 +164,7 @@ class ReviewServiceTest {
 
     assertThatThrownBy(() -> reviewService.updateReview(
         reviewId, userId, new ReviewUpdateRequest("수정", 4)))
-        .isInstanceOf(DeokhugamException.class);
+        .isInstanceOf(ReviewNotFoundException.class);
   }
 
   @Test
@@ -185,17 +187,17 @@ class ReviewServiceTest {
   }
 
   @Test
-  @DisplayName("리뷰 상세 조회 실패 - 리뷰가 없으면 예외가 발생한다")
+  @DisplayName("리뷰 상세 조회 실패 - 리뷰가 없으면 ReviewNotFoundException이 발생한다")
   void getReview_notFound_throws() {
     UUID reviewId = UUID.randomUUID();
     given(reviewRepository.findById(reviewId)).willReturn(Optional.empty());
 
     assertThatThrownBy(() -> reviewService.getReview(reviewId, UUID.randomUUID()))
-        .isInstanceOf(DeokhugamException.class);
+        .isInstanceOf(ReviewNotFoundException.class);
   }
 
   @Test
-  @DisplayName("리뷰 상세 조회 실패 - 논리 삭제된 리뷰면 예외가 발생한다")
+  @DisplayName("리뷰 상세 조회 실패 - 논리 삭제된 리뷰면 ReviewNotFoundException이 발생한다")
   void getReview_deleted_throws() {
     UUID reviewId = UUID.randomUUID();
     UUID userId = UUID.randomUUID();
@@ -205,7 +207,7 @@ class ReviewServiceTest {
     given(reviewRepository.findById(reviewId)).willReturn(Optional.of(review));
 
     assertThatThrownBy(() -> reviewService.getReview(reviewId, userId))
-        .isInstanceOf(DeokhugamException.class);
+        .isInstanceOf(ReviewNotFoundException.class);
   }
 
 
