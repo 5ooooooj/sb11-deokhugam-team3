@@ -81,4 +81,15 @@ public class UserService {
 
     user.softDelete();
   }
+
+  // swagger, test를 위해서만 사용. 실제로는 논리삭제 후 batch로 삭제
+  @Transactional
+  public void hardDeleteUser(UUID userId, UUID loginUserId) {
+    userPermissionValidator.validateSelf(userId, loginUserId);
+
+    User user = userRepository.findById(userId)
+        .orElseThrow(UserNotFoundException::new);
+
+    userRepository.delete(user);
+  }
 }

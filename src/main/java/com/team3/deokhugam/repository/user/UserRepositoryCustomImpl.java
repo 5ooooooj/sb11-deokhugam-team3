@@ -51,7 +51,7 @@ public class UserRepositoryCustomImpl implements UserRepositoryCustom{
   // 논리삭제
   @Override
   public void deleteExpiredSoftDeletedUsers(Instant deleteBefore){
-    long deletedCount = queryFactory
+    queryFactory
         .delete(user)
         .where(
             user.deletedAt.isNotNull(),
