@@ -6,8 +6,9 @@ import com.team3.deokhugam.dto.review.ReviewDto;
 import com.team3.deokhugam.dto.review.ReviewOrderBy;
 import com.team3.deokhugam.dto.review.ReviewSearchRequest;
 import com.team3.deokhugam.dto.review.ReviewUpdateRequest;
-import com.team3.deokhugam.exception.global.DeokhugamException;
-import com.team3.deokhugam.exception.global.ErrorCode;
+import com.team3.deokhugam.exception.review.ReviewAlreadyExistsException;
+import com.team3.deokhugam.exception.review.ReviewForbiddenException;
+import com.team3.deokhugam.exception.review.ReviewNotFoundException;
 import com.team3.deokhugam.global.dto.CursorPageResponse;
 import com.team3.deokhugam.repository.review.ReviewRepository;
 import java.nio.charset.StandardCharsets;
@@ -32,7 +33,7 @@ public class ReviewService {
     boolean exists = reviewRepository.existsByUserIdAndBookId(
         request.userId(), request.bookId());
     if (exists) {
-      throw new DeokhugamException(ErrorCode.REVIEW_ALREADY_EXISTS);
+      throw new ReviewAlreadyExistsException();
     }
 
     Review review = Review.create(
@@ -68,9 +69,9 @@ public class ReviewService {
   @Transactional(readOnly = true)
   public ReviewDto getReview(UUID reviewId, UUID requestUserId) {
     Review review = reviewRepository.findById(reviewId)
-        .orElseThrow(() -> new DeokhugamException(ErrorCode.REVIEW_NOT_FOUND));
+        .orElseThrow(ReviewNotFoundException::new);
     if (review.isDeleted()) {
-      throw new DeokhugamException(ErrorCode.REVIEW_NOT_FOUND);
+      throw new ReviewNotFoundException();
     }
     return ReviewDto.from(review);
   }
@@ -120,14 +121,14 @@ public class ReviewService {
 
   private Review findOwnedReview(UUID reviewId, UUID requestUserId) {
     Review review = reviewRepository.findById(reviewId)
-        .orElseThrow(() -> new DeokhugamException(ErrorCode.REVIEW_NOT_FOUND));
+        .orElseThrow(ReviewNotFoundException::new);
 
     if (review.isDeleted()) {
-      throw new DeokhugamException(ErrorCode.REVIEW_NOT_FOUND);
+      throw new ReviewNotFoundException();
     }
 
     if (!review.getUserId().equals(requestUserId)) {
-      throw new DeokhugamException(ErrorCode.REVIEW_FORBIDDEN);
+      throw new ReviewForbiddenException();
     }
     return review;
   }
