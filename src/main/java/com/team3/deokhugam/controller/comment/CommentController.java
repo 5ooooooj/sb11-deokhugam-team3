@@ -1,5 +1,11 @@
 package com.team3.deokhugam.controller.comment;
 
+import com.team3.deokhugam.controller.comment.docs.CommentCreateApi;
+import com.team3.deokhugam.controller.comment.docs.CommentDeleteApi;
+import com.team3.deokhugam.controller.comment.docs.CommentFindAllApi;
+import com.team3.deokhugam.controller.comment.docs.CommentFindByIdApi;
+import com.team3.deokhugam.controller.comment.docs.CommentHardDeleteApi;
+import com.team3.deokhugam.controller.comment.docs.CommentUpdateApi;
 import com.team3.deokhugam.dto.comment.CommentCreateRequest;
 import com.team3.deokhugam.dto.comment.CommentDto;
 import com.team3.deokhugam.dto.comment.CommentUpdateRequest;
@@ -26,6 +32,7 @@ public class CommentController {
 
   private final CommentService commentService;
 
+  @CommentCreateApi
   @PostMapping
   public ResponseEntity<CommentDto> create(
       @RequestHeader("Deokhugam-Request-User-ID") UUID requestUserId,
@@ -38,6 +45,7 @@ public class CommentController {
     return ResponseEntity.status(HttpStatus.CREATED).body(response);
   }
 
+  @CommentUpdateApi
   @PatchMapping("/{commentId}")
   public ResponseEntity<CommentDto> update(
       @PathVariable UUID commentId,
@@ -48,6 +56,7 @@ public class CommentController {
     return ResponseEntity.ok(response);
   }
 
+  @CommentDeleteApi
   @DeleteMapping("/{commentId}")
   public ResponseEntity<Void> delete(
       @PathVariable UUID commentId,
@@ -57,6 +66,7 @@ public class CommentController {
     return ResponseEntity.noContent().build();
   }
 
+  @CommentHardDeleteApi
   @DeleteMapping("/{commentId}/hard")
   public ResponseEntity<Void> hardDelete(
       @PathVariable UUID commentId,
@@ -66,6 +76,7 @@ public class CommentController {
     return ResponseEntity.noContent().build();
   }
 
+  @CommentFindAllApi
   @GetMapping
   public ResponseEntity<CursorPageResponse<CommentDto>> findAll(
       @RequestParam UUID reviewId,
@@ -80,6 +91,7 @@ public class CommentController {
     return ResponseEntity.ok(response);
   }
 
+  @CommentFindByIdApi
   @GetMapping("/{commentId}")
   public ResponseEntity<CommentDto> findById(
       @PathVariable UUID commentId,
