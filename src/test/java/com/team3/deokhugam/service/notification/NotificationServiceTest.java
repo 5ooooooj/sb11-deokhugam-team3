@@ -205,4 +205,30 @@ public class NotificationServiceTest {
     // then
     verify(notificationRepository, never()).save(any());
   }
+  @Test
+  @DisplayName("Notification create() null 검증 - user null")
+  void create_nullUser() {
+    assertThatThrownBy(() ->
+        Notification.create(null, mock(Review.class),
+            NotificationType.COMMENT, "메시지"))
+        .isInstanceOf(IllegalArgumentException.class);
+  }
+
+  @Test
+  @DisplayName("Notification create() null 검증 - type null")
+  void create_nullType() {
+    assertThatThrownBy(() ->
+        Notification.create(mock(User.class), mock(Review.class),
+            null, "메시지"))
+        .isInstanceOf(IllegalArgumentException.class);
+  }
+
+  @Test
+  @DisplayName("Notification create() null 검증 - message blank")
+  void create_blankMessage() {
+    assertThatThrownBy(() ->
+        Notification.create(mock(User.class), mock(Review.class),
+            NotificationType.COMMENT, ""))
+        .isInstanceOf(IllegalArgumentException.class);
+  }
 }
