@@ -5,6 +5,7 @@ import static org.mockito.Mockito.verify;
 import com.team3.deokhugam.batch.global.Period;
 import com.team3.deokhugam.domain.dashboard.PopularBook;
 import com.team3.deokhugam.repository.dashboard.PopularBookRepository;
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
@@ -35,9 +36,9 @@ class PopularBookWriterTest {
   void write_success() throws Exception {
     // given
     List<PopularBook> items = List.of(
-        createPopularBook(UUID.randomUUID(), 3.0),
-        createPopularBook(UUID.randomUUID(), 5.0),
-        createPopularBook(UUID.randomUUID(), 1.0)
+        createPopularBook(UUID.randomUUID(), BigDecimal.valueOf(3.0)),
+        createPopularBook(UUID.randomUUID(), BigDecimal.valueOf(5.0)),
+        createPopularBook(UUID.randomUUID(), BigDecimal.valueOf(1.0))
     );
     Chunk<PopularBook> chunk = new Chunk<>(items);
     ItemWriter<PopularBook> writer = popularBookWriter.create(Period.DAILY);
@@ -61,13 +62,13 @@ class PopularBookWriterTest {
     verify(popularBookRepository).saveAll(List.of());
   }
 
-  private PopularBook createPopularBook(UUID bookId, double score) {
+  private PopularBook createPopularBook(UUID bookId, BigDecimal score) {
     return PopularBook.builder()
         .bookId(bookId)
         .period(Period.DAILY)
         .score(score)
         .reviewCount(0)
-        .rating(0.0)
+        .rating(BigDecimal.ZERO)
         .calculatedAt(Instant.now())
         .build();
   }

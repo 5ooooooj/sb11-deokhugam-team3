@@ -1,11 +1,12 @@
 package com.team3.deokhugam.batch.step.processor;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.offset;
+import static org.assertj.core.api.Assertions.within;
 
 import com.team3.deokhugam.batch.dto.PopularBookRawData;
 import com.team3.deokhugam.batch.global.Period;
 import com.team3.deokhugam.domain.dashboard.PopularBook;
+import java.math.BigDecimal;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -30,7 +31,7 @@ public class PopularBookProcessorTest {
     PopularBookRawData rawData = new PopularBookRawData(
         UUID.randomUUID(),
         10,
-        4.0
+        BigDecimal.valueOf(4.0)
     );
 
     // when
@@ -38,11 +39,11 @@ public class PopularBookProcessorTest {
 
     // then
     assertThat(result).isNotNull();
-    assertThat(result.getScore()).isCloseTo(6.4, offset(0.001));
+    assertThat(result.getScore()).isCloseTo(BigDecimal.valueOf(6.4), within(BigDecimal.valueOf(0.001)));
     assertThat(result.getPeriod()).isEqualTo(Period.DAILY);
     assertThat(result.getBookId()).isEqualTo(rawData.bookId());
     assertThat(result.getReviewCount()).isEqualTo(10);
-    assertThat(result.getRating()).isCloseTo(4.0, offset(0.001));
+    assertThat(result.getRating()).isCloseTo(BigDecimal.valueOf(4.0), within(BigDecimal.valueOf(0.001)));
   }
 
   @Test
@@ -52,7 +53,7 @@ public class PopularBookProcessorTest {
     PopularBookRawData rawData = new PopularBookRawData(
         UUID.randomUUID(),
         0,
-        3.0
+        BigDecimal.valueOf(3.0)
     );
 
     // when
@@ -60,7 +61,7 @@ public class PopularBookProcessorTest {
 
     // then
     assertThat(result).isNotNull();
-    assertThat(result.getScore()).isCloseTo(1.8, offset(0.001));
+    assertThat(result.getScore()).isCloseTo(BigDecimal.valueOf(1.8), within(BigDecimal.valueOf(0.001)));
     assertThat(result.getPeriod()).isEqualTo(Period.WEEKLY);
   }
 
@@ -71,7 +72,7 @@ public class PopularBookProcessorTest {
     PopularBookRawData rawData = new PopularBookRawData(
         UUID.randomUUID(),
         5,
-        1.0
+        BigDecimal.valueOf(1.0)
     );
 
     // when
@@ -79,7 +80,7 @@ public class PopularBookProcessorTest {
 
     // then
     assertThat(result).isNotNull();
-    assertThat(result.getScore()).isCloseTo(2.6, offset(0.001));
+    assertThat(result.getScore()).isCloseTo(BigDecimal.valueOf(2.6), within(BigDecimal.valueOf(0.001)));
     assertThat(result.getPeriod()).isEqualTo(Period.MONTHLY);
   }
 
@@ -90,7 +91,7 @@ public class PopularBookProcessorTest {
     PopularBookRawData rawData = new PopularBookRawData(
         UUID.randomUUID(),
         0,
-        0.0
+        BigDecimal.ZERO
     );
 
     // when
@@ -98,7 +99,7 @@ public class PopularBookProcessorTest {
 
     // then
     assertThat(result).isNotNull();
-    assertThat(result.getScore()).isEqualTo(0.0);
+    assertThat(result.getScore()).isEqualByComparingTo(BigDecimal.valueOf(0.0));
     assertThat(result.getPeriod()).isEqualTo(Period.ALL_TIME);
   }
 
@@ -109,7 +110,7 @@ public class PopularBookProcessorTest {
     PopularBookRawData rawData = new PopularBookRawData(
         UUID.randomUUID(),
         5,
-        5.0
+        BigDecimal.valueOf(5.0)
     );
 
     // when
@@ -117,7 +118,7 @@ public class PopularBookProcessorTest {
 
     // then
     assertThat(result).isNotNull();
-    assertThat(result.getScore()).isEqualTo(5.0);
+    assertThat(result.getScore()).isEqualByComparingTo(BigDecimal.valueOf(5.0));
   }
 
   @Test
@@ -127,7 +128,7 @@ public class PopularBookProcessorTest {
     PopularBookRawData rawData = new PopularBookRawData(
         UUID.randomUUID(),
         1,
-        3.0
+        BigDecimal.valueOf(3.0)
     );
 
     // when & then

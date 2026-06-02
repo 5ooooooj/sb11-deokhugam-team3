@@ -8,6 +8,7 @@ import static org.mockito.Mockito.when;
 import com.team3.deokhugam.batch.global.Period;
 import com.team3.deokhugam.domain.dashboard.PopularBook;
 import com.team3.deokhugam.repository.dashboard.PopularBookRepository;
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
@@ -34,9 +35,9 @@ public class PopularBookRankingListenerTest {
   @DisplayName("성공: afterStep에서 전체 기준으로 순위 부여")
   void afterStep_assignsGlobalRank() {
     List<PopularBook> books = List.of(
-        createPopularBook(UUID.randomUUID(), 5.0),
-        createPopularBook(UUID.randomUUID(), 5.0),
-        createPopularBook(UUID.randomUUID(), 1.0)
+        createPopularBook(UUID.randomUUID(), BigDecimal.valueOf(5.0)),
+        createPopularBook(UUID.randomUUID(), BigDecimal.valueOf(5.0)),
+        createPopularBook(UUID.randomUUID(), BigDecimal.valueOf(1.0))
     );
     when(popularBookRepository.findByPeriodOrderByScoreDesc(Period.DAILY))
         .thenReturn(books);
@@ -71,7 +72,7 @@ public class PopularBookRankingListenerTest {
     // 데이터 550건
     List<PopularBook> books = new ArrayList<>();
     for (int i = 550; i >= 1; i--) {
-      books.add(createPopularBook(UUID.randomUUID(), (double) i));
+      books.add(createPopularBook(UUID.randomUUID(), BigDecimal.valueOf(i)));
     }
     when(popularBookRepository.findByPeriodOrderByScoreDesc(Period.DAILY))
         .thenReturn(books);
@@ -90,13 +91,13 @@ public class PopularBookRankingListenerTest {
     assertThat(saved.get(549).getRank()).isEqualTo(550);
   }
 
-  private PopularBook createPopularBook(UUID bookId, double score) {
+  private PopularBook createPopularBook(UUID bookId, BigDecimal score) {
     return PopularBook.builder()
         .bookId(bookId)
         .period(Period.DAILY)
         .score(score)
         .reviewCount(0)
-        .rating(0.0)
+        .rating(BigDecimal.ZERO)
         .calculatedAt(Instant.now())
         .build();
   }

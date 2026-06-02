@@ -32,7 +32,7 @@ public class PopularBookReader {
         SELECT new com.team3.deokhugam.batch.dto.PopularBookRawData(
           r.bookId,
           CAST(COUNT(r) AS int),
-          CAST(AVG(r.rating) AS Double)
+          CAST(AVG(r.rating) AS bigdecimal )
         )
         FROM Review r
         GROUP BY r.bookId
@@ -43,7 +43,7 @@ public class PopularBookReader {
         SELECT new com.team3.deokhugam.batch.dto.PopularBookRawData(
           r.bookId,
           CAST(COUNT(r) AS int),
-          CAST(AVG(r.rating) AS Double)
+          CAST(AVG(r.rating) AS bigdecimal)
         )
         FROM Review r
         WHERE r.createdAt >= :startDate

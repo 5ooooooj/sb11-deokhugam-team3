@@ -5,6 +5,7 @@ import com.team3.deokhugam.repository.dashboard.PopularBookRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.batch.core.StepExecution;
 import org.springframework.batch.core.StepExecutionListener;
+import org.springframework.lang.Nullable;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -23,7 +24,7 @@ public class PopularBookStepListener implements StepExecutionListener {
   }
 
   @Override
-  public void beforeStep(StepExecution stepExecution) {
+  public void beforeStep(@Nullable StepExecution stepExecution) {
     TransactionTemplate transactionTemplate =
         new TransactionTemplate(transactionManager);
     transactionTemplate.execute(status -> {

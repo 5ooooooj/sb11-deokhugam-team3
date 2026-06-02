@@ -1,7 +1,7 @@
 package com.team3.deokhugam.batch.step.reader;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.offset;
+import static org.assertj.core.api.Assertions.within;
 
 import com.team3.deokhugam.batch.dto.PopularBookRawData;
 import com.team3.deokhugam.batch.global.Period;
@@ -9,6 +9,7 @@ import com.team3.deokhugam.domain.review.Review;
 import com.team3.deokhugam.repository.review.ReviewRepository;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.EntityManagerFactory;
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
@@ -94,7 +95,7 @@ class PopularBookReaderTest {
     assertThat(result).isNotNull();
     assertThat(result.bookId()).isEqualTo(bookId);
     assertThat(result.reviewCount()).isEqualTo(2);
-    assertThat(result.ratingAvg()).isCloseTo(3.0, offset(0.001)); // (4+2)/2
+    assertThat(result.ratingAvg()).isCloseTo(BigDecimal.valueOf(3.0), within(BigDecimal.valueOf(0.001)));
   }
 
   @Test
@@ -126,7 +127,7 @@ class PopularBookReaderTest {
     // then
     assertThat(result).isNotNull();
     assertThat(result.reviewCount()).isEqualTo(2); // 삭제된 리뷰 포함
-    assertThat(result.ratingAvg()).isCloseTo(3.0, offset(0.001)); // (4+2)/2
+    assertThat(result.ratingAvg()).isCloseTo(BigDecimal.valueOf(3.0), within(BigDecimal.valueOf(0.001))); // (4+2)/2
   }
 
   @Test
@@ -160,7 +161,7 @@ class PopularBookReaderTest {
     // then
     assertThat(result).isNotNull();
     assertThat(result.reviewCount()).isEqualTo(3); // 전체 포함
-    assertThat(result.ratingAvg()).isCloseTo(4.0, offset(0.001)); // (5+3+4)/3
+    assertThat(result.ratingAvg()).isCloseTo(BigDecimal.valueOf(4.0), within(BigDecimal.valueOf(0.001))); // (5+3+4)/3
   }
 
   @Test
@@ -225,7 +226,7 @@ class PopularBookReaderTest {
         .findFirst()
         .orElseThrow();
     assertThat(book1Result.reviewCount()).isEqualTo(2);
-    assertThat(book1Result.ratingAvg()).isCloseTo(4.0, offset(0.001)); // (5+3)/2
+    assertThat(book1Result.ratingAvg()).isCloseTo(BigDecimal.valueOf(4.0), within(BigDecimal.valueOf(0.001))); // (5+3)/2
   }
 }
 

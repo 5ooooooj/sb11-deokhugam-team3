@@ -8,6 +8,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.batch.core.ExitStatus;
 import org.springframework.batch.core.StepExecution;
 import org.springframework.batch.core.StepExecutionListener;
+import org.springframework.lang.Nullable;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -23,12 +24,12 @@ public class PopularBookRankingListener implements StepExecutionListener {
   }
 
   @Override
-  public ExitStatus afterStep(StepExecution stepExecution) {
+  public ExitStatus afterStep(@Nullable StepExecution stepExecution) {
     List<PopularBook> all = popularBookRepository.findByPeriodOrderByScoreDesc(period);
 
     int rank = 1;
     for (int i = 0; i < all.size(); i++) {
-      if (i > 0 && all.get(i).getScore() == all.get(i-1).getScore()) {
+      if (i > 0 && all.get(i).getScore().compareTo(all.get(i-1).getScore()) == 0) {
         all.get(i).assignRank(all.get(i-1).getRank());
       } else {
         all.get(i).assignRank(rank);
