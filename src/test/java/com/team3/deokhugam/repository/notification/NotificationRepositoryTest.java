@@ -20,10 +20,13 @@ import org.springframework.context.annotation.Import;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.test.context.ActiveProfiles;
 
+import org.springframework.test.annotation.DirtiesContext;
+
 @DataJpaTest
 @ActiveProfiles("test")
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @Import(JpaAuditingConfig.class)
+@DirtiesContext(classMode = DirtiesContext.ClassMode.BEFORE_CLASS)  // ← 추가
 class NotificationRepositoryTest {
 
   @Autowired
