@@ -1,7 +1,6 @@
 package com.team3.deokhugam.controller.user;
 
 import com.team3.deokhugam.controller.user.docs.UserFindByIdApi;
-import com.team3.deokhugam.controller.user.docs.UserHardDeleteApi;
 import com.team3.deokhugam.controller.user.docs.UserRegisterApi;
 import com.team3.deokhugam.controller.user.docs.UserSoftDeleteApi;
 import com.team3.deokhugam.controller.user.docs.UserUpdateApi;
@@ -74,14 +73,6 @@ public class UserController {
   public ResponseEntity<Void> softDeleteUser(@PathVariable UUID userId,
       @RequestHeader("Deokhugam-Request-User-ID") UUID loginUserId) {
     userService.deleteUser(userId, loginUserId);
-    return ResponseEntity.status(HttpStatus.NO_CONTENT).build();
-  }
-
-  @UserHardDeleteApi
-  @DeleteMapping("/{userId}/hard")
-  public ResponseEntity<Void> hardDeleteUser(@PathVariable UUID userId,
-      @RequestHeader("Deokhugam-Request-User-ID") UUID loginUserId) {
-    userService.hardDeleteUser(userId, loginUserId);
     return ResponseEntity.status(HttpStatus.NO_CONTENT).build();
   }
 }
