@@ -111,8 +111,11 @@ class CommentRepositoryTest {
     Comment comment1 = Comment.create(review, user, "첫 번째 댓글");
     commentRepository.save(comment1);
     entityManager.flush();
+    entityManager.clear();
 
-    Instant after = Instant.now();
+    // comment1의 createdAt 기반으로 after 계산 (1나노초 후)
+    Comment savedComment1 = commentRepository.findById(comment1.getId()).orElseThrow();
+    Instant after = savedComment1.getCreatedAt().plusNanos(1);
 
     Comment comment2 = Comment.create(review, user, "두 번째 댓글");
     commentRepository.save(comment2);
