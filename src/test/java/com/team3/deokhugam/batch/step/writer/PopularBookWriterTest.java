@@ -50,7 +50,7 @@ class PopularBookWriterTest {
   }
 
   @Test
-  @DisplayName("성공: 데이터가 없을 때 삭제만 수행")
+  @DisplayName("성공: 빈 chunk를 처리")
   void write_emptyChunk() throws Exception {
     // given
     Chunk<PopularBook> chunk = new Chunk<>(List.of());
