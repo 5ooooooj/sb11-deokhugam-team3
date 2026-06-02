@@ -38,8 +38,8 @@ public class Notification extends BaseEntity {
   // 정적 팩토리 메서드
   public static Notification create(User user, Review review,
       NotificationType type, String message) {
-    if (user == null || message == null) {
-      throw new IllegalArgumentException("user, review, message must not be null");
+    if (user == null || review == null || type == null || message == null || message.isBlank()) {
+      throw new IllegalArgumentException("user, review, type, message must not be null or blank");
     }
     Notification notification = new Notification();
     notification.user = user;
