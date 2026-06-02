@@ -48,34 +48,37 @@ public class GlobalExceptionHandler {
 
     return ResponseEntity.status(ErrorCode.INVALID_INPUT.getStatus()).body(response);
   }
-
-
+  
   @ExceptionHandler(MissingServletRequestParameterException.class)
   public ResponseEntity<ErrorResponse> handleMissingServletRequestParameter(
-      MissingServletRequestParameterException e) {
+      MissingServletRequestParameterException e
+  ) {
     log.warn("Missing request parameter: {}", e.getParameterName());
     return invalidInput(e.getParameterName() + " 파라미터가 필요합니다.");
   }
 
-
   @ExceptionHandler(MissingRequestHeaderException.class)
   public ResponseEntity<ErrorResponse> handleMissingRequestHeader(
-      MissingRequestHeaderException e) {
+      MissingRequestHeaderException e
+  ) {
     log.warn("Missing request header: {}", e.getHeaderName());
     return invalidInput(e.getHeaderName() + " 헤더가 필요합니다.");
   }
 
-
   @ExceptionHandler(MethodArgumentTypeMismatchException.class)
-  public ResponseEntity<ErrorResponse> handleMethodArgumentTypeMismatch(
-      MethodArgumentTypeMismatchException e) {
-    log.warn("Type mismatch for parameter: {}", e.getName());
-    return invalidInput(e.getName() + " 값이 올바르지 않습니다.");
+  public ResponseEntity<ErrorResponse> handleMethodArgumentTypeMismatchException(
+      MethodArgumentTypeMismatchException e
+  ) {
+    log.warn("Request parameter type mismatch: {}", e.getMessage());
+    String details = e.getName() + ": 요청값이 올바르지 않습니다.";
+
+    return invalidInput(details);
   }
 
   @ExceptionHandler(DataIntegrityViolationException.class)
   public ResponseEntity<ErrorResponse> handleDataIntegrityViolationException(
-      DataIntegrityViolationException e) {
+      DataIntegrityViolationException e
+  ) {
     log.warn("Data integrity violation occurred: {}", e.getMessage());
 
     ErrorResponse response = ErrorResponse.builder()
@@ -101,7 +104,6 @@ public class GlobalExceptionHandler {
 
     return ResponseEntity.status(ErrorCode.INTERNAL_SERVER_ERROR.getStatus()).body(response);
   }
-
 
   private ResponseEntity<ErrorResponse> invalidInput(String details) {
     ErrorResponse response = ErrorResponse.builder()

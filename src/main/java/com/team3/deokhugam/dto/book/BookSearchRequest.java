@@ -8,8 +8,7 @@ public record BookSearchRequest(
     String keyword,
     BookOrderBy orderBy,
     Sort.Direction direction,
-    String cursor,
-    Instant after,
+    BookCursor cursor,
     int limit
 ) {
 
@@ -20,18 +19,16 @@ public record BookSearchRequest(
 
   public static BookSearchRequest of(
       String keyword,
-      String orderBy,
-      String direction,
+      BookOrderBy orderBy,
+      Sort.Direction direction,
       String cursor,
-      Instant after,
       Integer limit
   ) {
     return new BookSearchRequest(
         normalizeBlank(keyword),
-        parseOrderBy(orderBy),
-        parseDirection(direction),
-        normalizeBlank(cursor),
-        after,
+        resolveOrderBy(orderBy),
+        resolveDirection(direction),
+        parseCursor(cursor),
         parseLimit(limit)
     );
   }
@@ -43,7 +40,6 @@ public record BookSearchRequest(
         orderBy,
         direction,
         cursor,
-        after,
         limit
     );
   }
@@ -53,37 +49,30 @@ public record BookSearchRequest(
   }
 
   public boolean hasCursor() {
-    boolean hasCursorValue = cursor != null && !cursor.isBlank();
-
-    if(!hasCursorValue && after == null) {
-      return false;
-    }
-
-    if(!hasCursorValue || after == null) {
-      throw new InvalidBookSearchConditionException();
-    }
-
-    return true;
+    return cursor != null;
   }
 
-  private static BookOrderBy parseOrderBy(String orderBy) {
-    if (orderBy == null || orderBy.isBlank()) {
+  private static BookOrderBy resolveOrderBy(BookOrderBy orderBy) {
+    if (orderBy == null) {
       return DEFAULT_ORDER_BY;
     }
 
-    return BookOrderBy.from(orderBy);
+    return orderBy;
   }
 
-  private static Sort.Direction parseDirection(String direction) {
-    if (direction == null || direction.isBlank()) {
+  private static Sort.Direction resolveDirection(Sort.Direction direction) {
+    if (direction == null) {
       return DEFAULT_DIRECTION;
     }
+    return direction;
+  }
 
-    try {
-      return Sort.Direction.fromString(direction);
-    } catch (IllegalArgumentException e) {
-      throw new InvalidBookSearchConditionException();
+  private static BookCursor parseCursor(String cursor) {
+    if (cursor == null || cursor.isBlank()) {
+      return null;
     }
+
+    return BookCursor.decode(cursor);
   }
 
   private static int parseLimit(Integer limit) {
