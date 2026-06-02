@@ -3,11 +3,13 @@ package com.team3.deokhugam.domain.dashboard;
 import com.team3.deokhugam.batch.global.Period;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.UUID;
 import lombok.AccessLevel;
@@ -28,12 +30,12 @@ public class PopularReview {
   @Column(name = "review_id", nullable = false)
   private UUID reviewID;
 
-  @Enumerated
+  @Enumerated(EnumType.STRING)
   @Column(name = "period", nullable = false)
   private Period period;
 
   @Column(name = "score", nullable = false)
-  private double score;
+  private BigDecimal score;
 
   @Column(name = "rank", nullable = false)
   private int rank;

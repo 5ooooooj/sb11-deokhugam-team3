@@ -2,6 +2,7 @@ package com.team3.deokhugam.batch.job;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.team3.deokhugam.batch.global.DateCalculateUtil;
 import com.team3.deokhugam.batch.global.Period;
 import com.team3.deokhugam.domain.dashboard.PopularBook;
 import com.team3.deokhugam.domain.review.Review;
@@ -186,9 +187,6 @@ public class PopularBookJobTest {
       return null;
     });
 
-    // 저장 확인
-    System.out.println("저장된 리뷰 수: " + reviewRepository.count());
-
     // when
     JobExecution execution = jobLauncherTestUtils.launchJob(
         new JobParametersBuilder()
@@ -196,14 +194,57 @@ public class PopularBookJobTest {
             .toJobParameters()
     );
 
-    System.out.println("Job 상태: " + execution.getStatus());
-    System.out.println("DAILY 결과 수: " + popularBookRepository.findByPeriod(Period.DAILY).size());
-    System.out.println("ALL_TIME 결과 수: " + popularBookRepository.findByPeriod(Period.ALL_TIME).size());
-
-
     // then
     List<PopularBook> dailyResults = popularBookRepository.findByPeriod(Period.DAILY);
     assertThat(dailyResults).hasSize(1);
     assertThat(dailyResults.get(0).getRank()).isEqualTo(1);
+  }
+
+  @Test
+  @DisplayName("성공: 다수 도서 있을 때 글로벌 순위 올바르게 저장됨")
+  void job_globalRankIsCorrect_forMultipleBooks() throws Exception {
+    // given
+    UUID bookId1 = UUID.randomUUID();
+    UUID bookId2 = UUID.randomUUID();
+    UUID bookId3 = UUID.randomUUID();
+
+    transactionTemplate.execute(status -> {
+      reviewRepository.save(Review.create(UUID.randomUUID(), bookId1, 5, "리뷰1"));
+      reviewRepository.save(Review.create(UUID.randomUUID(), bookId1, 5, "리뷰2"));
+      reviewRepository.save(Review.create(UUID.randomUUID(), bookId1, 5, "리뷰3"));
+
+      reviewRepository.save(Review.create(UUID.randomUUID(), bookId2, 3, "리뷰4"));
+      reviewRepository.save(Review.create(UUID.randomUUID(), bookId2, 3, "리뷰5"));
+
+      reviewRepository.save(Review.create(UUID.randomUUID(), bookId3, 1, "리뷰6"));
+      return null;
+    });
+
+    // 저장된 리뷰 createdAt 확인
+    reviewRepository.findAll().forEach(r ->
+        System.out.println("createdAt: " + r.getCreatedAt()));
+    System.out.println("DAILY startDate: " + DateCalculateUtil.getStartDate(Period.DAILY));
+
+
+    // when
+    jobLauncherTestUtils.launchJob(
+        new JobParametersBuilder()
+            .addLocalDate("targetDate", LocalDate.now())
+            .toJobParameters()
+    );
+
+    System.out.println("DAILY 결과: " + popularBookRepository.findByPeriodOrderByScoreDesc(Period.DAILY).size());
+    System.out.println("ALL_TIME 결과: " + popularBookRepository.findByPeriodOrderByScoreDesc(Period.ALL_TIME).size());
+
+
+    // then
+    List<PopularBook> results = popularBookRepository.findByPeriodOrderByScoreDesc(Period.DAILY);
+    assertThat(results).hasSize(3);
+    assertThat(results.get(0).getBookId()).isEqualTo(bookId1);
+    assertThat(results.get(0).getRank()).isEqualTo(1);
+    assertThat(results.get(1).getBookId()).isEqualTo(bookId2);
+    assertThat(results.get(1).getRank()).isEqualTo(2);
+    assertThat(results.get(2).getBookId()).isEqualTo(bookId3);
+    assertThat(results.get(2).getRank()).isEqualTo(3);
   }
 }

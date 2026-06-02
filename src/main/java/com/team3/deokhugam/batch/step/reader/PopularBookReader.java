@@ -36,6 +36,7 @@ public class PopularBookReader {
         )
         FROM Review r
         GROUP BY r.bookId
+        ORDER BY r.bookId
         """);
     } else {
       builder.queryString("""
@@ -47,6 +48,7 @@ public class PopularBookReader {
         FROM Review r
         WHERE r.createdAt >= :startDate
         GROUP BY r.bookId
+        ORDER BY r.bookId
         """)
           .parameterValues(Map.of("startDate", startDate));
     }

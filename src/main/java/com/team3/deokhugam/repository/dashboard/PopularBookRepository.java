@@ -12,6 +12,8 @@ public interface PopularBookRepository extends JpaRepository<PopularBook, UUID> 
 
   List<PopularBook> findByPeriod(Period period);
 
+  List<PopularBook> findByPeriodOrderByScoreDesc(Period period);
+
   @Modifying
   @Query("DELETE FROM PopularBook p WHERE p.period = :period")
   void deleteByPeriod(Period period);

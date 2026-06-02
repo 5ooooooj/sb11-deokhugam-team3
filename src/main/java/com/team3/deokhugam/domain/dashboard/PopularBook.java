@@ -9,6 +9,7 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.UUID;
 import lombok.AccessLevel;
@@ -38,7 +39,7 @@ public class PopularBook {
   private Period period;
 
   @Column(name = "score", nullable = false)
-  private double score;
+  private BigDecimal score;
 
   @Column(name = "rank", nullable = false)
   private int rank;
@@ -47,7 +48,7 @@ public class PopularBook {
   private int reviewCount;
 
   @Column(name = "rating", nullable = false)
-  private double rating;
+  private BigDecimal rating;
 
   @Column(name = "calculated_at", nullable = false)
   private Instant calculatedAt;

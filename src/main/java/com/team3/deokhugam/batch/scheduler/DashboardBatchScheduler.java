@@ -21,8 +21,9 @@ public class DashboardBatchScheduler {
 
   private final JobLauncher jobLauncher;
   private final Job popularBookJob;
-  private final Job popularReviewJob;
-  private final Job powerUserJob;
+// 미구현 job, 구현 후 주석 해제
+//  private final Job popularReviewJob;
+//  private final Job powerUserJob;
 
   @Scheduled(cron = "0 0 0 * * *")
   public void runDashboardBatch() {
@@ -31,8 +32,8 @@ public class DashboardBatchScheduler {
         .toJobParameters();
 
       runJob(popularBookJob, params); // 실패시 이후 중단
-      runJob(popularReviewJob, params); // 실패시 이후 중단
-      runJob(powerUserJob, params);
+//      runJob(popularReviewJob, params); // 실패시 이후 중단
+//      runJob(powerUserJob, params);
   }
 
   private void runJob(Job job, JobParameters params) {
