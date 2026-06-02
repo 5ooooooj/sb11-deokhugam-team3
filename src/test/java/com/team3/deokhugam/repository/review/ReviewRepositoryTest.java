@@ -2,10 +2,16 @@ package com.team3.deokhugam.repository.review;
 
 import static com.team3.deokhugam.domain.review.ReviewTestFactory.review;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.team3.deokhugam.domain.review.Review;
+import com.team3.deokhugam.dto.review.ReviewOrderBy;
 import com.team3.deokhugam.dto.review.ReviewSearchRequest;
+import com.team3.deokhugam.exception.global.DeokhugamException;
 import com.team3.deokhugam.global.config.JpaAuditingConfig;
+import java.nio.charset.StandardCharsets;
+import java.time.Instant;
+import java.util.Base64;
 import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
@@ -15,6 +21,7 @@ import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabas
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager;
 import org.springframework.context.annotation.Import;
+import org.springframework.data.domain.Sort;
 import org.springframework.test.context.ActiveProfiles;
 
 @DataJpaTest
@@ -68,7 +75,9 @@ class ReviewRepositoryTest {
     ));
 
     ReviewSearchRequest request = ReviewSearchRequest.of(
-        targetUserId, null, null, "createdAt", "DESC", null, null, 10, UUID.randomUUID()
+        targetUserId, null, null,
+        ReviewOrderBy.CREATED_AT, Sort.Direction.DESC,
+        null, 10, UUID.randomUUID()
     );
 
     List<Review> result = reviewRepository.search(request);
@@ -88,7 +97,9 @@ class ReviewRepositoryTest {
     ));
 
     ReviewSearchRequest request = ReviewSearchRequest.of(
-        null, targetBookId, null, "createdAt", "DESC", null, null, 10, UUID.randomUUID()
+        null, targetBookId, null,
+        ReviewOrderBy.CREATED_AT, Sort.Direction.DESC,
+        null, 10, UUID.randomUUID()
     );
 
     List<Review> result = reviewRepository.search(request);
@@ -107,7 +118,9 @@ class ReviewRepositoryTest {
     ));
 
     ReviewSearchRequest request = ReviewSearchRequest.of(
-        null, null, "repo-keyword-스프링", "createdAt", "DESC", null, null, 10, UUID.randomUUID()
+        null, null, "repo-keyword-스프링",
+        ReviewOrderBy.CREATED_AT, Sort.Direction.DESC,
+        null, 10, UUID.randomUUID()
     );
 
     List<Review> result = reviewRepository.search(request);
@@ -126,7 +139,9 @@ class ReviewRepositoryTest {
     ));
 
     ReviewSearchRequest request = ReviewSearchRequest.of(
-        null, null, "repo-rating-sort", "rating", "DESC", null, null, 10, UUID.randomUUID()
+        null, null, "repo-rating-sort",
+        ReviewOrderBy.RATING, Sort.Direction.DESC,
+        null, 10, UUID.randomUUID()
     );
 
     List<Review> result = reviewRepository.search(request);
@@ -145,7 +160,9 @@ class ReviewRepositoryTest {
     ));
 
     ReviewSearchRequest request = ReviewSearchRequest.of(
-        null, null, "repo-limit", "createdAt", "DESC", null, null, 2, UUID.randomUUID()
+        null, null, "repo-limit",
+        ReviewOrderBy.CREATED_AT, Sort.Direction.DESC,
+        null, 2, UUID.randomUUID()
     );
 
     List<Review> result = reviewRepository.search(request);
@@ -164,7 +181,9 @@ class ReviewRepositoryTest {
     reviewRepository.save(review2);
 
     ReviewSearchRequest request = ReviewSearchRequest.of(
-        null, null, "repo-deleted", "createdAt", "DESC", null, null, 10, UUID.randomUUID()
+        null, null, "repo-deleted",
+        ReviewOrderBy.CREATED_AT, Sort.Direction.DESC,
+        null, 10, UUID.randomUUID()
     );
 
     List<Review> result = reviewRepository.search(request);
@@ -184,11 +203,94 @@ class ReviewRepositoryTest {
     ));
 
     ReviewSearchRequest request = ReviewSearchRequest.of(
-        targetUserId, null, null, "createdAt", "DESC", null, null, 10, UUID.randomUUID()
+        targetUserId, null, null,
+        ReviewOrderBy.CREATED_AT, Sort.Direction.DESC,
+        null, 10, UUID.randomUUID()
     );
 
     long result = reviewRepository.count(request);
 
     assertThat(result).isEqualTo(2);
+  }
+
+
+
+  @Test
+  @DisplayName("커서 페이지네이션 - createdAt 커서가 디코드되어 필터가 동작한다")
+  void searchWithCreatedAtCursor() {
+    reviewRepository.saveAll(List.of(
+        review().content("cursor-asc A").build(),
+        review().content("cursor-asc B").build()
+    ));
+
+
+    String raw = Instant.now().plusSeconds(60) + "|" + UUID.randomUUID();
+    String cursor = Base64.getUrlEncoder().withoutPadding()
+        .encodeToString(raw.getBytes(StandardCharsets.UTF_8));
+
+    ReviewSearchRequest request = ReviewSearchRequest.of(
+        null, null, "cursor-asc",
+        ReviewOrderBy.CREATED_AT, Sort.Direction.ASC,
+        cursor, 10, UUID.randomUUID()
+    );
+
+    List<Review> result = reviewRepository.search(request);
+
+    assertThat(result).isEmpty();
+  }
+
+  @Test
+  @DisplayName("커서 페이지네이션 - RATING 3-part 커서가 디코드되어 필터가 동작한다")
+  void searchWithRatingCursor() {
+    reviewRepository.saveAll(List.of(
+        review().rating(5).content("rating-cursor A").build(),
+        review().rating(3).content("rating-cursor B").build()
+    ));
+
+
+    String raw = 6 + "|" + Instant.now() + "|" + UUID.randomUUID();
+    String cursor = Base64.getUrlEncoder().withoutPadding()
+        .encodeToString(raw.getBytes(StandardCharsets.UTF_8));
+
+    ReviewSearchRequest request = ReviewSearchRequest.of(
+        null, null, "rating-cursor",
+        ReviewOrderBy.RATING, Sort.Direction.ASC,
+        cursor, 10, UUID.randomUUID()
+    );
+
+    List<Review> result = reviewRepository.search(request);
+
+    assertThat(result).isEmpty();
+  }
+
+  @Test
+  @DisplayName("커서 페이지네이션 - 잘못된 커서(Base64 형식 아님)는 INVALID_INPUT 예외")
+  void searchWithInvalidCursor() {
+    ReviewSearchRequest request = ReviewSearchRequest.of(
+        null, null, null,
+        ReviewOrderBy.CREATED_AT, Sort.Direction.DESC,
+        "!@#$ not-base64 !@#$", 10, UUID.randomUUID()
+    );
+
+    assertThatThrownBy(() -> reviewRepository.search(request))
+        .isInstanceOf(DeokhugamException.class);
+  }
+
+  @Test
+  @DisplayName("커서 페이지네이션 - RATING 커서가 part 개수 부족이면 INVALID_INPUT 예외")
+  void searchWithMalformedRatingCursor() {
+
+    String raw = Instant.now() + "|" + UUID.randomUUID();
+    String cursor = Base64.getUrlEncoder().withoutPadding()
+        .encodeToString(raw.getBytes(StandardCharsets.UTF_8));
+
+    ReviewSearchRequest request = ReviewSearchRequest.of(
+        null, null, null,
+        ReviewOrderBy.RATING, Sort.Direction.DESC,
+        cursor, 10, UUID.randomUUID()
+    );
+
+    assertThatThrownBy(() -> reviewRepository.search(request))
+        .isInstanceOf(DeokhugamException.class);
   }
 }

@@ -19,13 +19,16 @@ public enum ReviewOrderBy {
     return value;
   }
 
+
   public static ReviewOrderBy from(String value) {
     if (value == null || value.isBlank()) {
       return CREATED_AT;
     }
 
+    String normalized = value.trim();
     return Arrays.stream(values())
-        .filter(orderBy -> orderBy.value.equals(value))
+        .filter(orderBy -> orderBy.value.equalsIgnoreCase(normalized)
+            || orderBy.name().equalsIgnoreCase(normalized))
         .findFirst()
         .orElseThrow(() -> new DeokhugamException(ErrorCode.INVALID_INPUT));
   }

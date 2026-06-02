@@ -11,9 +11,12 @@ import com.team3.deokhugam.dto.review.ReviewSearchRequest;
 import com.team3.deokhugam.exception.global.DeokhugamException;
 import com.team3.deokhugam.exception.global.ErrorCode;
 import jakarta.persistence.EntityManager;
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.time.format.DateTimeParseException;
+import java.util.Base64;
 import java.util.List;
+import java.util.UUID;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Repository;
 
@@ -77,6 +80,7 @@ public class ReviewRepositoryCustomImpl implements ReviewRepositoryCustom {
     return review.content.containsIgnoreCase(request.keyword());
   }
 
+
   private BooleanExpression cursorCondition(ReviewSearchRequest request) {
     if (!request.hasCursor()) {
       return null;
@@ -88,36 +92,61 @@ public class ReviewRepositoryCustomImpl implements ReviewRepositoryCustom {
     };
   }
 
-  private BooleanExpression createdAtCursorCondition(ReviewSearchRequest request) {
-    Instant cursor = parseInstantCursor(request.cursor());
 
-    if (request.direction().isAscending()) {
-      return review.createdAt.gt(cursor);
+  private BooleanExpression createdAtCursorCondition(ReviewSearchRequest request) {
+    String[] parts = decodeCursor(request.cursor());
+    if (parts.length != 2) {
+      throw new DeokhugamException(ErrorCode.INVALID_INPUT);
     }
-    return review.createdAt.lt(cursor);
+    Instant createdAt = parseInstant(parts[0]);
+    UUID id = parseUuid(parts[1]);
+    boolean asc = request.direction().isAscending();
+
+    BooleanExpression sameCreatedAtTieBreak = review.createdAt.eq(createdAt)
+        .and(asc ? review.id.gt(id) : review.id.lt(id));
+    BooleanExpression differentCreatedAt =
+        asc ? review.createdAt.gt(createdAt) : review.createdAt.lt(createdAt);
+
+    return differentCreatedAt.or(sameCreatedAtTieBreak);
   }
+
 
   private BooleanExpression ratingCursorCondition(ReviewSearchRequest request) {
-    int cursor = parseIntCursor(request.cursor());
-
-    if (request.direction().isAscending()) {
-      return review.rating.gt(cursor)
-          .or(review.rating.eq(cursor).and(review.createdAt.gt(request.after())));
+    String[] parts = decodeCursor(request.cursor());
+    if (parts.length != 3) {
+      throw new DeokhugamException(ErrorCode.INVALID_INPUT);
     }
-    return review.rating.lt(cursor)
-        .or(review.rating.eq(cursor).and(review.createdAt.lt(request.after())));
+    int rating = parseInt(parts[0]);
+    Instant createdAt = parseInstant(parts[1]);
+    UUID id = parseUuid(parts[2]);
+    boolean asc = request.direction().isAscending();
+
+    BooleanExpression differentRating =
+        asc ? review.rating.gt(rating) : review.rating.lt(rating);
+    BooleanExpression sameRatingDifferentCreatedAt = review.rating.eq(rating)
+        .and(asc ? review.createdAt.gt(createdAt) : review.createdAt.lt(createdAt));
+    BooleanExpression sameRatingSameCreatedAtTieBreak = review.rating.eq(rating)
+        .and(review.createdAt.eq(createdAt))
+        .and(asc ? review.id.gt(id) : review.id.lt(id));
+
+    return differentRating
+        .or(sameRatingDifferentCreatedAt)
+        .or(sameRatingSameCreatedAtTieBreak);
   }
+
 
   private OrderSpecifier<?>[] orderSpecifiers(ReviewSearchRequest request) {
     Order direction = resolveDirection(request.direction());
 
     return switch (request.orderBy()) {
       case CREATED_AT -> new OrderSpecifier<?>[]{
-          new OrderSpecifier<>(direction, review.createdAt)
+          new OrderSpecifier<>(direction, review.createdAt),
+          new OrderSpecifier<>(direction, review.id)
       };
       case RATING -> new OrderSpecifier<?>[]{
           new OrderSpecifier<>(direction, review.rating),
-          new OrderSpecifier<>(direction, review.createdAt)
+          new OrderSpecifier<>(direction, review.createdAt),
+          new OrderSpecifier<>(direction, review.id)
       };
     };
   }
@@ -126,18 +155,37 @@ public class ReviewRepositoryCustomImpl implements ReviewRepositoryCustom {
     return direction.isAscending() ? Order.ASC : Order.DESC;
   }
 
-  private Instant parseInstantCursor(String cursor) {
+
+
+  private String[] decodeCursor(String cursor) {
     try {
-      return Instant.parse(cursor);
+      byte[] decoded = Base64.getUrlDecoder().decode(cursor);
+      return new String(decoded, StandardCharsets.UTF_8).split("\\|");
+    } catch (IllegalArgumentException e) {
+      throw new DeokhugamException(ErrorCode.INVALID_INPUT);
+    }
+  }
+
+  private Instant parseInstant(String value) {
+    try {
+      return Instant.parse(value);
     } catch (DateTimeParseException e) {
       throw new DeokhugamException(ErrorCode.INVALID_INPUT);
     }
   }
 
-  private int parseIntCursor(String cursor) {
+  private int parseInt(String value) {
     try {
-      return Integer.parseInt(cursor);
+      return Integer.parseInt(value);
     } catch (NumberFormatException e) {
+      throw new DeokhugamException(ErrorCode.INVALID_INPUT);
+    }
+  }
+
+  private UUID parseUuid(String value) {
+    try {
+      return UUID.fromString(value);
+    } catch (IllegalArgumentException e) {
       throw new DeokhugamException(ErrorCode.INVALID_INPUT);
     }
   }

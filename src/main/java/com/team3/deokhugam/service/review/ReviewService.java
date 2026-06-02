@@ -10,6 +10,8 @@ import com.team3.deokhugam.exception.global.DeokhugamException;
 import com.team3.deokhugam.exception.global.ErrorCode;
 import com.team3.deokhugam.global.dto.CursorPageResponse;
 import com.team3.deokhugam.repository.review.ReviewRepository;
+import java.nio.charset.StandardCharsets;
+import java.util.Base64;
 import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -75,38 +77,45 @@ public class ReviewService {
 
   @Transactional(readOnly = true)
   public CursorPageResponse<ReviewDto> searchReviews(ReviewSearchRequest request) {
+    // hasNext 판별을 위해 limit + 1 만큼 조회한다.
     ReviewSearchRequest pageRequest = request.withLimit(request.limit() + PAGE_FETCH_OVER);
     List<Review> reviews = reviewRepository.search(pageRequest);
 
     boolean hasNext = reviews.size() > request.limit();
     List<Review> pageReviews = hasNext ? reviews.subList(0, request.limit()) : reviews;
 
-    long totalElements = reviewRepository.count(request);
-
     List<ReviewDto> content = pageReviews.stream()
         .map(ReviewDto::from)
         .toList();
 
-    Review lastReview = pageReviews.isEmpty() ? null : pageReviews.get(pageReviews.size() - 1);
+
+    String nextCursor = hasNext
+        ? buildNextCursor(pageReviews.get(pageReviews.size() - 1), request.orderBy())
+        : null;
+
+
+    long totalElements = request.hasCursor() ? 0L : reviewRepository.count(request);
 
     return new CursorPageResponse<>(
         content,
-        hasNext ? resolveNextCursor(lastReview, request.orderBy()) : null,
-        hasNext && lastReview != null ? lastReview.getCreatedAt() : null,
+        nextCursor,
+        null,
         content.size(),
         totalElements,
         hasNext
     );
   }
 
-  private String resolveNextCursor(Review review, ReviewOrderBy orderBy) {
-    if (review == null) {
-      return null;
-    }
-    return switch (orderBy) {
-      case CREATED_AT -> review.getCreatedAt().toString();
-      case RATING -> String.valueOf(review.getRating());
+
+  private String buildNextCursor(Review review, ReviewOrderBy orderBy) {
+    String raw = switch (orderBy) {
+      case CREATED_AT -> review.getCreatedAt().toString() + "|" + review.getId();
+      case RATING -> review.getRating() + "|"
+          + review.getCreatedAt() + "|"
+          + review.getId();
     };
+    return Base64.getUrlEncoder().withoutPadding()
+        .encodeToString(raw.getBytes(StandardCharsets.UTF_8));
   }
 
   private Review findOwnedReview(UUID reviewId, UUID requestUserId) {

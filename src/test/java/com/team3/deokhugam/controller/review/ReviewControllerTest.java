@@ -5,18 +5,22 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verify;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.team3.deokhugam.dto.review.ReviewCreateRequest;
 import com.team3.deokhugam.dto.review.ReviewDto;
 import com.team3.deokhugam.dto.review.ReviewUpdateRequest;
+import com.team3.deokhugam.exception.global.DeokhugamException;
+import com.team3.deokhugam.exception.global.ErrorCode;
+import com.team3.deokhugam.global.dto.CursorPageResponse;
 import com.team3.deokhugam.service.review.ReviewService;
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -25,12 +29,6 @@ import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import com.team3.deokhugam.exception.global.DeokhugamException;
-import com.team3.deokhugam.exception.global.ErrorCode;
-import com.team3.deokhugam.global.dto.CursorPageResponse;
-import java.time.Instant;
-import java.util.List;
 
 @WebMvcTest(ReviewController.class)
 class ReviewControllerTest {
@@ -179,8 +177,8 @@ class ReviewControllerTest {
 
     given(reviewService.searchReviews(any())).willReturn(response);
 
+
     mockMvc.perform(get("/api/reviews")
-            .param("requestUserId", requestUserId.toString())
             .header("Deokhugam-Request-User-ID", requestUserId.toString()))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.content").isArray())
@@ -190,4 +188,31 @@ class ReviewControllerTest {
   }
 
 
+
+  @Test
+  @DisplayName("GET /api/reviews - 필수 헤더 누락 시 400을 반환한다 (수정 5)")
+  void searchReviews_missingHeader_returns400() throws Exception {
+    mockMvc.perform(get("/api/reviews"))
+        .andExpect(status().isBadRequest());
+  }
+
+  @Test
+  @DisplayName("GET /api/reviews - 잘못된 orderBy 값이면 400을 반환한다 (수정 3)")
+  void searchReviews_invalidOrderBy_returns400() throws Exception {
+    UUID userId = UUID.randomUUID();
+    mockMvc.perform(get("/api/reviews")
+            .param("orderBy", "garbage")
+            .header("Deokhugam-Request-User-ID", userId.toString()))
+        .andExpect(status().isBadRequest());
+  }
+
+  @Test
+  @DisplayName("GET /api/reviews - 잘못된 direction 값이면 400을 반환한다 (수정 3)")
+  void searchReviews_invalidDirection_returns400() throws Exception {
+    UUID userId = UUID.randomUUID();
+    mockMvc.perform(get("/api/reviews")
+            .param("direction", "WRONG_VALUE")
+            .header("Deokhugam-Request-User-ID", userId.toString()))
+        .andExpect(status().isBadRequest());
+  }
 }

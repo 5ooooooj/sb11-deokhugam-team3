@@ -2,6 +2,7 @@ package com.team3.deokhugam.controller.review;
 
 import com.team3.deokhugam.dto.review.ReviewCreateRequest;
 import com.team3.deokhugam.dto.review.ReviewDto;
+import com.team3.deokhugam.dto.review.ReviewOrderBy;
 import com.team3.deokhugam.dto.review.ReviewSearchRequest;
 import com.team3.deokhugam.dto.review.ReviewUpdateRequest;
 import com.team3.deokhugam.global.dto.CursorPageResponse;
@@ -14,10 +15,9 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
-import java.time.Instant;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
-import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -85,31 +85,30 @@ public class ReviewController {
       @Parameter(description = "도서 ID", example = "123e4567-e89b-12d3-a456-426614174000")
       @RequestParam(required = false) UUID bookId,
 
-      @Parameter(description = "검색 키워드 (작성자 닉네임 | 내용)", example = "홍길동")
+
+      @Parameter(description = "검색 키워드 (내용)", example = "재밌어요")
       @RequestParam(required = false) String keyword,
 
-      @Parameter(description = "정렬 기준(createdAt | rating)", example = "createdAt")
-      @RequestParam(required = false, defaultValue = "createdAt") String orderBy,
 
-      @Parameter(description = "정렬 방향", schema = @Schema(allowableValues = {"ASC", "DESC"}, defaultValue = "DESC"), example = "DESC")
-      @RequestParam(required = false, defaultValue = "DESC") String direction,
+      @Parameter(description = "정렬 기준 (createdAt | rating)", example = "createdAt")
+      @RequestParam(required = false, defaultValue = "createdAt") ReviewOrderBy orderBy,
 
-      @Parameter(description = "커서 페이지네이션 커서")
+
+      @Parameter(description = "정렬 방향 (ASC | DESC)", example = "DESC")
+      @RequestParam(required = false, defaultValue = "DESC") Sort.Direction direction,
+
+
+      @Parameter(description = "다음 페이지 커서 (이전 응답의 nextCursor 값을 그대로 사용)")
       @RequestParam(required = false) String cursor,
 
-      @Parameter(description = "보조 커서(createdAt)")
-      @RequestParam(required = false)
-      @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant after,
 
-      @Parameter(description = "페이지 크기", example = "50")
-      @RequestParam(defaultValue = "50") Integer limit,
+      @Parameter(description = "페이지 크기 (미지정 시 50)", example = "50")
+      @RequestParam(required = false) Integer limit,
 
-      @Parameter(description = "요청자 ID", example = "123e4567-e89b-12d3-a456-426614174000", required = true)
-      @RequestParam UUID requestUserId,
 
-      @RequestHeader("Deokhugam-Request-User-ID") UUID headerUserId) {
+      @RequestHeader("Deokhugam-Request-User-ID") UUID requestUserId) {
     ReviewSearchRequest request = ReviewSearchRequest.of(
-        userId, bookId, keyword, orderBy, direction, cursor, after, limit, requestUserId);
+        userId, bookId, keyword, orderBy, direction, cursor, limit, requestUserId);
     return reviewService.searchReviews(request);
   }
 
