@@ -21,11 +21,14 @@ import org.springframework.test.context.ActiveProfiles;
 
 import org.springframework.test.annotation.DirtiesContext;
 
+import org.springframework.test.context.jdbc.Sql;
+
 @DataJpaTest
 @ActiveProfiles("test")
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @Import(JpaAuditingConfig.class)
-@DirtiesContext(classMode = DirtiesContext.ClassMode.BEFORE_CLASS)  // ← 추가
+@DirtiesContext(classMode = DirtiesContext.ClassMode.BEFORE_CLASS)
+@Sql(scripts = "classpath:schema.sql", executionPhase = Sql.ExecutionPhase.BEFORE_TEST_CLASS)
 class CommentRepositoryTest {
 
   @Autowired
