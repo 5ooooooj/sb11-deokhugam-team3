@@ -8,7 +8,7 @@ import com.team3.deokhugam.domain.user.User;
 import com.team3.deokhugam.global.config.JpaAuditingConfig;
 import java.time.Instant;
 import java.util.List;
-import org.junit.jupiter.api.BeforeEach;
+import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -18,7 +18,6 @@ import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager;
 import org.springframework.context.annotation.Import;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.test.context.ActiveProfiles;
-import org.springframework.test.context.TestPropertySource;
 
 @DataJpaTest
 @ActiveProfiles("test")
@@ -32,24 +31,16 @@ class CommentRepositoryTest {
   @Autowired
   private TestEntityManager entityManager;
 
-  private Review review;
-  private User user;
-
-  @BeforeEach
-  void setUp() {
-    user = new User("test@test.com", "테스터", "Password1!");
-    entityManager.persist(user);
-
-    review = Review.create(user.getId(), java.util.UUID.randomUUID(), 5, "좋은 책이에요");
-    entityManager.persist(review);
-
-    entityManager.flush();
-  }
-
   @Test
   @DisplayName("댓글을 저장하고 ID로 조회할 수 있습니다.")
   void saveAndFindById() {
     // given
+    User user = new User("test1@test.com", "테스터1", "Password1!");
+    entityManager.persist(user);
+    Review review = Review.create(user.getId(), UUID.randomUUID(), 5, "좋은 책이에요");
+    entityManager.persist(review);
+    entityManager.flush();
+
     Comment comment = Comment.create(review, user, "좋은 리뷰네요");
 
     // when
@@ -63,6 +54,12 @@ class CommentRepositoryTest {
   @DisplayName("reviewId로 댓글 목록을 조회할 수 있습니다.")
   void findByReviewIdWithCursor_success() {
     // given
+    User user = new User("test2@test.com", "테스터2", "Password1!");
+    entityManager.persist(user);
+    Review review = Review.create(user.getId(), UUID.randomUUID(), 5, "좋은 책이에요");
+    entityManager.persist(review);
+    entityManager.flush();
+
     Comment comment1 = Comment.create(review, user, "첫 번째 댓글");
     Comment comment2 = Comment.create(review, user, "두 번째 댓글");
     commentRepository.saveAll(List.of(comment1, comment2));
@@ -81,6 +78,12 @@ class CommentRepositoryTest {
   @DisplayName("논리 삭제된 댓글은 조회에서 제외됩니다.")
   void findByReviewIdWithCursor_excludesDeleted() {
     // given
+    User user = new User("test3@test.com", "테스터3", "Password1!");
+    entityManager.persist(user);
+    Review review = Review.create(user.getId(), UUID.randomUUID(), 5, "좋은 책이에요");
+    entityManager.persist(review);
+    entityManager.flush();
+
     Comment activeComment = Comment.create(review, user, "활성 댓글");
     Comment deletedComment = Comment.create(review, user, "삭제된 댓글");
     commentRepository.saveAll(List.of(activeComment, deletedComment));
@@ -103,12 +106,17 @@ class CommentRepositoryTest {
   @DisplayName("after 파라미터로 커서 페이지네이션이 동작합니다.")
   void findByReviewIdWithCursor_withAfter() {
     // given
+    User user = new User("test4@test.com", "테스터4", "Password1!");
+    entityManager.persist(user);
+    Review review = Review.create(user.getId(), UUID.randomUUID(), 5, "좋은 책이에요");
+    entityManager.persist(review);
+    entityManager.flush();
+
     Comment comment1 = Comment.create(review, user, "첫 번째 댓글");
     commentRepository.save(comment1);
     entityManager.flush();
     entityManager.clear();
 
-    // comment1의 createdAt 기반으로 after 계산 (1나노초 후)
     Comment savedComment1 = commentRepository.findById(comment1.getId()).orElseThrow();
     Instant after = savedComment1.getCreatedAt().plusNanos(1);
 
@@ -130,6 +138,12 @@ class CommentRepositoryTest {
   @DisplayName("limit 조건이 적용됩니다.")
   void findByReviewIdWithCursor_withLimit() {
     // given
+    User user = new User("test5@test.com", "테스터5", "Password1!");
+    entityManager.persist(user);
+    Review review = Review.create(user.getId(), UUID.randomUUID(), 5, "좋은 책이에요");
+    entityManager.persist(review);
+    entityManager.flush();
+
     commentRepository.saveAll(List.of(
         Comment.create(review, user, "댓글 1"),
         Comment.create(review, user, "댓글 2"),
