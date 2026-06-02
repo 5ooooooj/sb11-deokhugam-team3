@@ -532,4 +532,133 @@ class BookRepositoryTest {
     assertThat(result.get(0).getTitle()).isEqualTo("리뷰 많은 책");
     assertThat(result.get(1).getTitle()).isEqualTo("리뷰 적은 책");
   }
+
+  @Test
+  @DisplayName("Keyword에 %가 포함되면 title에서 문자 그대로 검색한다.")
+  void searchByKeywordEscapePercentInTitle() {
+    // given
+    Book percentBook = book()
+        .title("repo-like-percent-50 100% 자바")
+        .author("작가 A")
+        .description("% escape 테스트용 도서입니다.")
+        .publisher("테스트출판사")
+        .publishedDate(LocalDate.of(2026, 6, 1))
+        .isbn("9780000005001")
+        .thumbnailUrl("https://example.com/like-percent-a.jpg")
+        .build();
+
+    Book nonPercentBook = book()
+        .title("repo-like-percent-50 100점 자바")
+        .author("작가 B")
+        .description("% escape 비교용 도서입니다.")
+        .publisher("테스트출판사")
+        .publishedDate(LocalDate.of(2026, 6, 2))
+        .isbn("9780000005002")
+        .thumbnailUrl("https://example.com/like-percent-b.jpg")
+        .build();
+
+    bookRepository.saveAll(List.of(percentBook, nonPercentBook));
+
+    BookSearchRequest request = BookSearchRequest.of(
+        "100%",
+        BookOrderBy.TITLE,
+        Sort.Direction.ASC,
+        null,
+        10
+    );
+
+    // when
+    List<Book> result = bookRepository.search(request);
+
+    // then
+    assertThat(result)
+        .extracting(Book::getTitle)
+        .containsExactly("repo-like-percent-50 100% 자바");
+  }
+
+  @Test
+  @DisplayName("keyword에 _가 포함되면 author에서 문자 그대로 검색한다")
+  void searchByKeywordEscapesUnderscoreInAuthor() {
+    // given
+    Book underscoreAuthorBook = book()
+        .title("repo-like-underscore-50 A")
+        .author("작가_A")
+        .description("_ escape 테스트용 도서입니다.")
+        .publisher("테스트출판사")
+        .publishedDate(LocalDate.of(2026, 6, 1))
+        .isbn("9780000005011")
+        .thumbnailUrl("https://example.com/like-underscore-a.jpg")
+        .build();
+
+    Book nonUnderscoreAuthorBook = book()
+        .title("repo-like-underscore-50 B")
+        .author("작가XA")
+        .description("_ escape 비교용 도서입니다.")
+        .publisher("테스트출판사")
+        .publishedDate(LocalDate.of(2026, 6, 2))
+        .isbn("9780000005012")
+        .thumbnailUrl("https://example.com/like-underscore-b.jpg")
+        .build();
+
+    bookRepository.saveAll(List.of(underscoreAuthorBook, nonUnderscoreAuthorBook));
+
+    BookSearchRequest request = BookSearchRequest.of(
+        "작가_",
+        BookOrderBy.TITLE,
+        Sort.Direction.ASC,
+        null,
+        10
+    );
+
+    // when
+    List<Book> result = bookRepository.search(request);
+
+    // then
+    assertThat(result)
+        .extracting(Book::getAuthor)
+        .containsExactly("작가_A");
+  }
+
+  @Test
+  @DisplayName("keyword에 역슬래시가 포함되면 isbn에서 문자 그대로 검색한다")
+  void searchByKeywordEscapesBackslashInIsbn() {
+    // given
+    Book backslashIsbnBook = book()
+        .title("repo-like-backslash-50 A")
+        .author("작가 A")
+        .description("\\ escape 테스트용 도서입니다.")
+        .publisher("테스트출판사")
+        .publishedDate(LocalDate.of(2026, 6, 1))
+        .isbn("repo\\isbn-50")
+        .thumbnailUrl("https://example.com/like-backslash-a.jpg")
+        .build();
+
+    Book nonBackslashIsbnBook = book()
+        .title("repo-like-backslash-50 B")
+        .author("작가 B")
+        .description("\\ escape 비교용 도서입니다.")
+        .publisher("테스트출판사")
+        .publishedDate(LocalDate.of(2026, 6, 2))
+        .isbn("repo-isbn-50")
+        .thumbnailUrl("https://example.com/like-backslash-b.jpg")
+        .build();
+
+    bookRepository.saveAll(List.of(backslashIsbnBook, nonBackslashIsbnBook));
+
+    BookSearchRequest request = BookSearchRequest.of(
+        "repo\\isbn",
+        BookOrderBy.TITLE,
+        Sort.Direction.ASC,
+        null,
+        10
+    );
+
+    // when
+    List<Book> result = bookRepository.search(request);
+
+    // then
+    assertThat(result)
+        .extracting(Book::getIsbn)
+        .containsExactly("repo\\isbn-50");
+  }
 }

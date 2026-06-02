@@ -15,11 +15,14 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.format.DateTimeParseException;
 import java.util.List;
+import java.util.Locale;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Repository;
 
 @Repository
 public class BookRepositoryCustomImpl implements BookRepositoryCustom {
+
+  private static final char LIKE_ESCAPE_CHARACTER = '\\';
 
   private final JPAQueryFactory queryFactory;
 
@@ -64,9 +67,19 @@ public class BookRepositoryCustomImpl implements BookRepositoryCustom {
       return null;
     }
 
-    return book.title.containsIgnoreCase(request.keyword())
-        .or(book.author.containsIgnoreCase(request.keyword()))
-        .or(book.isbn.containsIgnoreCase(request.keyword()));
+    String keyword = escapeLikeKeyword(request.keyword());
+    String pattern = "%" + keyword + "%";
+
+    return book.title.lower().like(pattern, LIKE_ESCAPE_CHARACTER)
+        .or(book.author.lower().like(pattern, LIKE_ESCAPE_CHARACTER))
+        .or(book.isbn.lower().like(pattern, LIKE_ESCAPE_CHARACTER));
+  }
+
+  private String escapeLikeKeyword(String keyword) {
+    return keyword.toLowerCase(Locale.ROOT)
+        .replace("\\", "\\\\")
+        .replace("%", "\\%")
+        .replace("_", "\\_");
   }
 
   private BooleanExpression cursorCondition(BookSearchRequest request) {
