@@ -4,6 +4,9 @@ import static com.team3.deokhugam.domain.comment.CommentTestFactory.comment;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.team3.deokhugam.domain.comment.Comment;
+import com.team3.deokhugam.domain.review.Review;
+import com.team3.deokhugam.domain.review.ReviewTestFactory;
+import com.team3.deokhugam.domain.user.User;
 import com.team3.deokhugam.global.config.JpaAuditingConfig;
 import java.time.Instant;
 import java.util.List;
@@ -12,6 +15,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
+import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager;
 import org.springframework.context.annotation.Import;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.test.context.ActiveProfiles;
@@ -24,16 +28,6 @@ class CommentRepositoryTest {
 
   @Autowired
   private CommentRepository commentRepository;
-
-  @Test
-  @DisplayName("댓글을 저장하고 ID로 조회할 수 있습니다.")
-  void saveAndFindById() {
-    Comment comment = comment().content("좋은 리뷰네요").build();
-
-    Comment saved = commentRepository.save(comment);
-
-    assertThat(commentRepository.findById(saved.getId())).isPresent();
-  }
 
   @Test
   @DisplayName("reviewId로 댓글 목록을 조회할 수 있습니다.")
@@ -103,5 +97,22 @@ class CommentRepositoryTest {
     );
 
     assertThat(result).hasSize(2);
+  }
+
+  @Autowired
+  private TestEntityManager entityManager;
+
+  @Test
+  void saveAndFindById() {
+    User user = new User("test1@test.com", "테스터1", "Password1!");
+    entityManager.persist(user);
+    Review review = ReviewTestFactory.review().userId(user.getId()).build();
+    entityManager.persist(review);
+    entityManager.flush();
+
+    Comment comment = comment().review(review).user(user).content("좋은 리뷰네요").build();
+    Comment saved = commentRepository.save(comment);
+
+    assertThat(commentRepository.findById(saved.getId())).isPresent();
   }
 }
