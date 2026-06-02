@@ -7,6 +7,8 @@ import com.team3.deokhugam.domain.notification.NotificationType;
 import com.team3.deokhugam.domain.review.Review;
 import com.team3.deokhugam.domain.user.User;
 import com.team3.deokhugam.global.config.JpaAuditingConfig;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
@@ -24,19 +26,19 @@ import org.springframework.test.annotation.DirtiesContext;
 
 import org.springframework.test.context.jdbc.Sql;
 
-@DataJpaTest
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.transaction.annotation.Transactional;
+
+@SpringBootTest
 @ActiveProfiles("test")
-@AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
-@Import(JpaAuditingConfig.class)
-@DirtiesContext(classMode = DirtiesContext.ClassMode.BEFORE_CLASS)
-@Sql(scripts = "classpath:schema.sql", executionPhase = Sql.ExecutionPhase.BEFORE_TEST_METHOD)
+@Transactional
 class NotificationRepositoryTest {
 
   @Autowired
   private NotificationRepository notificationRepository;
 
-  @Autowired
-  private TestEntityManager entityManager;
+  @PersistenceContext
+  private EntityManager entityManager;
 
   @Test
   @DisplayName("알림을 저장하고 ID로 조회할 수 있습니다.")
