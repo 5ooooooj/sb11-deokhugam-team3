@@ -38,8 +38,6 @@ import org.junit.jupiter.api.MethodOrderer;
 @ActiveProfiles("test")
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @Import(JpaAuditingConfig.class)
-@TestClassOrder(ClassOrderer.OrderAnnotation.class)
-@Order(1)
 class CommentRepositoryTest {
 
   @Autowired
