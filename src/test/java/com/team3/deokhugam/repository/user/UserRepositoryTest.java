@@ -200,14 +200,12 @@ class UserRepositoryTest {
     Instant deleteBefore = Instant.now().minus(1, ChronoUnit.DAYS);
 
     // when
-    int deletedCount = userRepository.deleteExpiredSoftDeletedUsers(deleteBefore);
+    userRepository.deleteExpiredSoftDeletedUsers(deleteBefore);
 
     entityManager.flush();
     entityManager.clear();
 
     // then
-    assertThat(deletedCount).isEqualTo(1);
-
     assertThat(userRepository.findById(activeUser.getId())).isPresent();
     assertThat(userRepository.findById(recentDeletedUser.getId())).isPresent();
     assertThat(userRepository.findById(expiredDeletedUser.getId())).isEmpty();

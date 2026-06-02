@@ -14,9 +14,9 @@ public class UserCleanupService {
   private final UserRepository userRepository;
 
   @Transactional
-  public int hardDeleteExpiredUsers(){
+  public void hardDeleteExpiredUsers(){
     Instant deleteBefore = Instant.now().minus(1, ChronoUnit.DAYS);
-    return userRepository.deleteExpiredSoftDeletedUsers(deleteBefore);
+    userRepository.deleteExpiredSoftDeletedUsers(deleteBefore);
   }
 
 }

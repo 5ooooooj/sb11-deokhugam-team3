@@ -10,6 +10,6 @@ public interface UserRepositoryCustom {
 
   Optional<User> findActiveById(UUID id);
 
-  int deleteExpiredSoftDeletedUsers(Instant deleteBefore);
+  void deleteExpiredSoftDeletedUsers(Instant deleteBefore);
 
 }

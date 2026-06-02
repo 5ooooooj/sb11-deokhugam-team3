@@ -322,4 +322,42 @@ class UserControllerTest {
 
     verify(userService).deleteUser(userId, loginUserId);
   }
+
+  @Test
+  void deleteUser_fail_notFound() throws Exception {
+    // given
+    UUID userId = UUID.randomUUID();
+
+    willThrow(new UserNotFoundException())
+        .given(userService)
+        .deleteUser(userId, userId);
+
+    // when, then
+    mockMvc.perform(delete("/api/users/{userId}", userId)
+            .header("Deokhugam-Request-User-ID", userId.toString()))
+        .andExpect(status().isNotFound())
+        .andExpect(jsonPath("$.code").value("USER_NOT_FOUND"))
+        .andExpect(jsonPath("$.status").value(404));
+
+    verify(userService).deleteUser(userId, userId);
+  }
+
+  @Test
+  void deleteUser_fail_internalServerError() throws Exception {
+    // given
+    UUID userId = UUID.randomUUID();
+
+    willThrow(new RuntimeException("unexpected error"))
+        .given(userService)
+        .deleteUser(userId, userId);
+
+    // when, then
+    mockMvc.perform(delete("/api/users/{userId}", userId)
+            .header("Deokhugam-Request-User-ID", userId.toString()))
+        .andExpect(status().isInternalServerError())
+        .andExpect(jsonPath("$.code").value("INTERNAL_SERVER_ERROR"))
+        .andExpect(jsonPath("$.status").value(500));
+
+    verify(userService).deleteUser(userId, userId);
+  }
 }

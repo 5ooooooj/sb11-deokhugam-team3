@@ -27,15 +27,10 @@ public class UserCleanupServiceTest {
 
   @Test
   void hardDeleteExpiredUsers_success() {
-    // given
-    given(userRepository.deleteExpiredSoftDeletedUsers(any(Instant.class)))
-        .willReturn(3);
-
     // when
-    int result = userCleanupService.hardDeleteExpiredUsers();
+    userCleanupService.hardDeleteExpiredUsers();
 
     // then
-    assertThat(result).isEqualTo(3);
     verify(userRepository).deleteExpiredSoftDeletedUsers(any(Instant.class));
   }
 
@@ -44,8 +39,6 @@ public class UserCleanupServiceTest {
   void usesOneDayAgo(){
     // given
     Instant beforeCall = Instant.now().minus(1, ChronoUnit.DAYS);
-    given(userRepository.deleteExpiredSoftDeletedUsers(org.mockito.ArgumentMatchers.any(Instant.class)))
-        .willReturn(1);
 
     // when
     userCleanupService.hardDeleteExpiredUsers();

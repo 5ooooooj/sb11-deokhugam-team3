@@ -50,7 +50,7 @@ public class UserRepositoryCustomImpl implements UserRepositoryCustom{
 
   // 논리삭제
   @Override
-  public int deleteExpiredSoftDeletedUsers(Instant deleteBefore){
+  public void deleteExpiredSoftDeletedUsers(Instant deleteBefore){
     long deletedCount = queryFactory
         .delete(user)
         .where(
@@ -58,8 +58,5 @@ public class UserRepositoryCustomImpl implements UserRepositoryCustom{
             user.deletedAt.loe(deleteBefore)
         )
         .execute();
-
-    return Math.toIntExact(deletedCount);
   }
-
 }
