@@ -14,11 +14,13 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.team3.deokhugam.dto.book.BookCreateRequest;
+import com.team3.deokhugam.dto.book.BookCursor;
 import com.team3.deokhugam.dto.book.BookDto;
 import com.team3.deokhugam.dto.book.BookOrderBy;
 import com.team3.deokhugam.dto.book.BookSearchRequest;
 import com.team3.deokhugam.dto.book.BookUpdateRequest;
 import com.team3.deokhugam.exception.book.BookAlreadyExistsException;
+import com.team3.deokhugam.exception.book.BookForbiddenException;
 import com.team3.deokhugam.exception.book.BookNotFoundException;
 import com.team3.deokhugam.global.dto.CursorPageResponse;
 import com.team3.deokhugam.service.book.BookService;
@@ -41,6 +43,8 @@ import org.springframework.test.web.servlet.MockMvc;
 @WebMvcTest(BookController.class)
 class BookControllerTest {
 
+  private static final String REQUEST_USER_ID_HEADER = "Deokhugam-Request-User-ID";
+
   @Autowired
   private MockMvc mockMvc;
 
@@ -54,6 +58,8 @@ class BookControllerTest {
   @DisplayName("도서 생성")
   void createBook() throws Exception {
     // given
+    UUID requestUserId = UUID.randomUUID();
+
     BookCreateRequest request =
         new BookCreateRequest(
             "그리고 아무도 없었다",
@@ -83,15 +89,22 @@ class BookControllerTest {
             now
         );
 
-    when(bookService.create(any(BookCreateRequest.class))).thenReturn(response);
+    when(bookService.create(eq(requestUserId), any(BookCreateRequest.class))).thenReturn(response);
+
+    MockMultipartFile bookData =
+        new MockMultipartFile(
+            "bookData",
+            "bookData.json",
+            MediaType.APPLICATION_JSON_VALUE,
+            objectMapper.writeValueAsBytes(request)
+        );
 
     // when, then
-    MockMultipartFile bookData =
-        new MockMultipartFile("bookData", "bookData.json",
-            MediaType.APPLICATION_JSON_VALUE, objectMapper.writeValueAsBytes(request));
-
     mockMvc.perform(
-            multipart("/api/books").file(bookData))
+            multipart("/api/books")
+                .file(bookData)
+                .header(REQUEST_USER_ID_HEADER, requestUserId.toString())
+        )
         .andExpect(status().isCreated())
         .andExpect(jsonPath("$.title").value(request.title()))
         .andExpect(jsonPath("$.author").value(request.author()))
@@ -102,6 +115,8 @@ class BookControllerTest {
   @DisplayName("필수값이 누락되면 도서를 생성할 수 없다")
   void createBookWithoutRequiredField() throws Exception {
     // given
+    UUID requestUserId = UUID.randomUUID();
+
     BookCreateRequest request =
         new BookCreateRequest(
             "",
@@ -110,18 +125,24 @@ class BookControllerTest {
             "황금가지",
             LocalDate.of(2013, 12, 31),
             "9788960177758",
-            "https://example.com/book.jpg");
+            "https://example.com/book.jpg"
+        );
 
     MockMultipartFile bookData =
         new MockMultipartFile(
             "bookData",
             "bookData.json",
             MediaType.APPLICATION_JSON_VALUE,
-            objectMapper.writeValueAsBytes(request));
+            objectMapper.writeValueAsBytes(request)
+        );
 
     // when, then
     mockMvc
-        .perform(multipart("/api/books").file(bookData))
+        .perform(
+            multipart("/api/books")
+                .file(bookData)
+                .header(REQUEST_USER_ID_HEADER, requestUserId.toString())
+        )
         .andExpect(status().isBadRequest());
   }
 
@@ -129,6 +150,8 @@ class BookControllerTest {
   @DisplayName("ISBN이 중복되면 409를 반환한다")
   void createBookWithDuplicateIsbn() throws Exception {
     // given
+    UUID requestUserId = UUID.randomUUID();
+
     BookCreateRequest request =
         new BookCreateRequest(
             "그리고 아무도 없었다",
@@ -137,21 +160,27 @@ class BookControllerTest {
             "황금가지",
             LocalDate.of(2013, 12, 31),
             "9788960177758",
-            "https://example.com/book.jpg");
+            "https://example.com/book.jpg"
+        );
 
     MockMultipartFile bookData =
         new MockMultipartFile(
             "bookData",
             "bookData.json",
             MediaType.APPLICATION_JSON_VALUE,
-            objectMapper.writeValueAsBytes(request));
+            objectMapper.writeValueAsBytes(request)
+        );
 
-    when(bookService.create(any(BookCreateRequest.class)))
+    when(bookService.create(eq(requestUserId), any(BookCreateRequest.class)))
         .thenThrow(new BookAlreadyExistsException());
 
     // when, then
     mockMvc
-        .perform(multipart("/api/books").file(bookData))
+        .perform(
+            multipart("/api/books")
+                .file(bookData)
+                .header(REQUEST_USER_ID_HEADER, requestUserId.toString())
+        )
         .andExpect(status().isConflict());
   }
 
@@ -246,7 +275,7 @@ class BookControllerTest {
     CursorPageResponse<BookDto> response =
         new CursorPageResponse<>(
             List.of(firstBook, secondBook),
-            "스프링 백엔드2",
+            "encoded-cursor",
             secondCreatedAt,
             2,
             3L,
@@ -268,7 +297,7 @@ class BookControllerTest {
         .andExpect(jsonPath("$.content.length()").value(2))
         .andExpect(jsonPath("$.content[0].title").value("스프링 백엔드"))
         .andExpect(jsonPath("$.content[1].title").value("스프링 백엔드2"))
-        .andExpect(jsonPath("$.nextCursor").value("스프링 백엔드2"))
+        .andExpect(jsonPath("$.nextCursor").value("encoded-cursor"))
         .andExpect(jsonPath("$.nextAfter").exists())
         .andExpect(jsonPath("$.size").value(2))
         .andExpect(jsonPath("$.totalElements").value(3))
@@ -289,27 +318,44 @@ class BookControllerTest {
   }
 
   @Test
-  @DisplayName("cursor와 after 파라미터로 도서 목록을 조회한다")
-  void searchBooksWithCursorAndAfter() throws Exception {
-    // given
-    Instant after = Instant.parse("2024-01-01T00:00:00Z");
+  @DisplayName("잘못된 direction으로 도서 목록 조회하면 400 응답 반환")
+  void searchBooksWithInvalidDirection() throws Exception {
+    // when, then
+    mockMvc.perform(
+            get("/api/books")
+                .param("direction", "WRONG")
+        )
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.code").value("INVALID_INPUT"))
+        .andExpect(jsonPath("$.status").value(400));
+  }
 
-    CursorPageResponse<BookDto> response = new CursorPageResponse<>(
-        List.of(),
-        null,
-        null,
-        0,
-        0L,
-        false
+  @Test
+  @DisplayName("cursor token 파라미터로 도서 목록을 조회한다")
+  void searchBooksWithCursorToken() throws Exception {
+    // given
+    String cursor = BookCursor.encode(
+        "자바",
+        Instant.parse("2024-01-01T00:00:00Z"),
+        UUID.fromString("00000000-0000-0000-0000-000000000001")
     );
+
+    CursorPageResponse<BookDto> response =
+        new CursorPageResponse<>(
+            List.of(),
+            null,
+            null,
+            0,
+            0L,
+            false
+        );
 
     when(bookService.search(any())).thenReturn(response);
 
     // when, then
     mockMvc.perform(
             get("/api/books")
-                .param("cursor", "자바")
-                .param("after", "2024-01-01T00:00:00Z")
+                .param("cursor", cursor)
                 .param("orderBy", "title")
                 .param("direction", "ASC")
                 .param("limit", "2")
@@ -323,8 +369,11 @@ class BookControllerTest {
 
     BookSearchRequest request = captor.getValue();
 
-    assertThat(request.cursor()).isEqualTo("자바");
-    assertThat(request.after()).isEqualTo(after);
+    assertThat(request.cursor()).isNotNull();
+    assertThat(request.cursor().value()).isEqualTo("자바");
+    assertThat(request.cursor().createdAt()).isEqualTo(Instant.parse("2024-01-01T00:00:00Z"));
+    assertThat(request.cursor().id())
+        .isEqualTo(UUID.fromString("00000000-0000-0000-0000-000000000001"));
     assertThat(request.limit()).isEqualTo(2);
     assertThat(request.orderBy()).isEqualTo(BookOrderBy.TITLE);
     assertThat(request.direction()).isEqualTo(Sort.Direction.ASC);
@@ -335,6 +384,7 @@ class BookControllerTest {
   void updateBook() throws Exception {
     // given
     UUID bookId = UUID.randomUUID();
+    UUID requestUserId = UUID.randomUUID();
     Instant now = Instant.parse("2026-05-28T00:00:00Z");
 
     BookUpdateRequest request =
@@ -379,7 +429,7 @@ class BookControllerTest {
             "thumbnail-image".getBytes()
         );
 
-    when(bookService.update(eq(bookId), any(BookUpdateRequest.class)))
+    when(bookService.update(eq(bookId), eq(requestUserId), any(BookUpdateRequest.class)))
         .thenReturn(response);
 
     // when, then
@@ -387,6 +437,7 @@ class BookControllerTest {
             multipart("/api/books/{bookId}", bookId)
                 .file(bookData)
                 .file(thumbnailImage)
+                .header(REQUEST_USER_ID_HEADER, requestUserId.toString())
                 .with(requestBuilder -> {
                   requestBuilder.setMethod("PATCH");
                   return requestBuilder;
@@ -404,10 +455,11 @@ class BookControllerTest {
   }
 
   @Test
-  @DisplayName("도서 수정은 thumbnamilImage 없이도 가능함")
-  void updateBookWithoutTumbnailImage() throws Exception {
+  @DisplayName("도서 수정은 thumbnailImage 없이도 가능함")
+  void updateBookWithoutThumbnailImage() throws Exception {
     // given
     UUID bookId = UUID.randomUUID();
+    UUID requestUserId = UUID.randomUUID();
     Instant now = Instant.parse("2026-05-28T00:00:00Z");
 
     BookUpdateRequest request =
@@ -415,7 +467,7 @@ class BookControllerTest {
             "수정 후 제목",
             "수정 후 작가",
             "수정 후 설명",
-            "수정 후 출파사",
+            "수정 후 출판사",
             LocalDate.of(2026, 5, 28),
             "https://example.com/after.jpg"
         );
@@ -444,13 +496,14 @@ class BookControllerTest {
             objectMapper.writeValueAsBytes(request)
         );
 
-    when(bookService.update(eq(bookId), any(BookUpdateRequest.class)))
+    when(bookService.update(eq(bookId), eq(requestUserId), any(BookUpdateRequest.class)))
         .thenReturn(response);
 
     // when, then
     mockMvc.perform(
             multipart("/api/books/{bookId}", bookId)
                 .file(bookData)
+                .header(REQUEST_USER_ID_HEADER, requestUserId.toString())
                 .with(requestBuilder -> {
                   requestBuilder.setMethod("PATCH");
                   return requestBuilder;
@@ -469,6 +522,7 @@ class BookControllerTest {
   void updateBookWithNotFoundBook() throws Exception {
     // given
     UUID bookId = UUID.randomUUID();
+    UUID requestUserId = UUID.randomUUID();
 
     BookUpdateRequest request =
         new BookUpdateRequest(
@@ -488,13 +542,14 @@ class BookControllerTest {
             objectMapper.writeValueAsBytes(request)
         );
 
-    when(bookService.update(eq(bookId), any(BookUpdateRequest.class)))
+    when(bookService.update(eq(bookId), eq(requestUserId), any(BookUpdateRequest.class)))
         .thenThrow(new BookNotFoundException());
 
     // when, then
     mockMvc.perform(
             multipart("/api/books/{bookId}", bookId)
                 .file(bookData)
+                .header(REQUEST_USER_ID_HEADER, requestUserId.toString())
                 .with(requestBuilder -> {
                   requestBuilder.setMethod("PATCH");
                   return requestBuilder;
@@ -506,16 +561,63 @@ class BookControllerTest {
   }
 
   @Test
+  @DisplayName("등록자가 아닌 사용자가 도서를 수정하면 403을 반환")
+  void updateBookWithForbiddenUser() throws Exception {
+    // given
+    UUID bookId = UUID.randomUUID();
+    UUID requestUserId = UUID.randomUUID();
+
+    BookUpdateRequest request =
+        new BookUpdateRequest(
+            "수정 후 제목",
+            "수정 후 저자",
+            "수정 후 설명",
+            "수정 후 출판사",
+            LocalDate.of(2026, 5, 28),
+            "https://example.com/after.jpg"
+        );
+
+    MockMultipartFile bookData =
+        new MockMultipartFile(
+            "bookData",
+            "bookData.json",
+            MediaType.APPLICATION_JSON_VALUE,
+            objectMapper.writeValueAsBytes(request)
+        );
+
+    when(bookService.update(eq(bookId), eq(requestUserId), any(BookUpdateRequest.class)))
+        .thenThrow(new BookForbiddenException());
+
+    // when, then
+    mockMvc.perform(
+            multipart("/api/books/{bookId}", bookId)
+                .file(bookData)
+                .header(REQUEST_USER_ID_HEADER, requestUserId.toString())
+                .with(requestBuilder -> {
+                  requestBuilder.setMethod("PATCH");
+                  return requestBuilder;
+                })
+        )
+        .andExpect(status().isForbidden())
+        .andExpect(jsonPath("$.code").value("BOOK_FORBIDDEN"))
+        .andExpect(jsonPath("$.status").value(403));
+  }
+
+  @Test
   @DisplayName("도서를 논리 삭제하면 204를 반환")
   void deleteBook() throws Exception {
     // given
     UUID bookId = UUID.randomUUID();
+    UUID requestUserId = UUID.randomUUID();
 
     // when, then
-    mockMvc.perform(delete("/api/books/{bookId}", bookId))
+    mockMvc.perform(
+            delete("/api/books/{bookId}", bookId)
+                .header(REQUEST_USER_ID_HEADER, requestUserId.toString())
+        )
         .andExpect(status().isNoContent());
 
-    verify(bookService).delete(bookId);
+    verify(bookService).delete(bookId, requestUserId);
   }
 
   @Test
@@ -523,16 +625,41 @@ class BookControllerTest {
   void deleteBookWithNotFoundBook() throws Exception {
     // given
     UUID bookId = UUID.randomUUID();
+    UUID requestUserId = UUID.randomUUID();
 
-    doThrow(new BookNotFoundException()).when(bookService).delete(bookId);
+    doThrow(new BookNotFoundException()).when(bookService).delete(bookId, requestUserId);
 
     // when, then
-    mockMvc.perform(delete("/api/books/{bookId}", bookId))
+    mockMvc.perform(
+            delete("/api/books/{bookId}", bookId)
+                .header(REQUEST_USER_ID_HEADER, requestUserId.toString())
+        )
         .andExpect(status().isNotFound())
         .andExpect(jsonPath("$.code").value("BOOK_NOT_FOUND"))
         .andExpect(jsonPath("$.status").value(404));
 
-    verify(bookService).delete(bookId);
+    verify(bookService).delete(bookId, requestUserId);
+  }
+
+  @Test
+  @DisplayName("등록자가 아닌 사용자가 도서를 논리 삭제하면 403을 반환")
+  void deleteBookWithForbiddenUser() throws Exception {
+    // given
+    UUID bookId = UUID.randomUUID();
+    UUID requestUserId = UUID.randomUUID();
+
+    doThrow(new BookForbiddenException()).when(bookService).delete(bookId, requestUserId);
+
+    // when, then
+    mockMvc.perform(
+            delete("/api/books/{bookId}", bookId)
+                .header(REQUEST_USER_ID_HEADER, requestUserId.toString())
+        )
+        .andExpect(status().isForbidden())
+        .andExpect(jsonPath("$.code").value("BOOK_FORBIDDEN"))
+        .andExpect(jsonPath("$.status").value(403));
+
+    verify(bookService).delete(bookId, requestUserId);
   }
 
   @Test
@@ -540,12 +667,16 @@ class BookControllerTest {
   void hardDeleteBook() throws Exception {
     // given
     UUID bookId = UUID.randomUUID();
+    UUID requestUserId = UUID.randomUUID();
 
     // when, then
-    mockMvc.perform(delete("/api/books/{bookId}/hard", bookId))
+    mockMvc.perform(
+            delete("/api/books/{bookId}/hard", bookId)
+                .header(REQUEST_USER_ID_HEADER, requestUserId.toString())
+        )
         .andExpect(status().isNoContent());
 
-    verify(bookService).hardDelete(bookId);
+    verify(bookService).hardDelete(bookId, requestUserId);
   }
 
   @Test
@@ -553,17 +684,41 @@ class BookControllerTest {
   void hardDeleteBookWithNotFoundBook() throws Exception {
     // given
     UUID bookId = UUID.randomUUID();
+    UUID requestUserId = UUID.randomUUID();
 
-    doThrow(new BookNotFoundException())
-        .when(bookService).hardDelete(bookId);
+    doThrow(new BookNotFoundException()).when(bookService).hardDelete(bookId, requestUserId);
 
     // when, then
-    mockMvc.perform(delete("/api/books/{bookId}/hard", bookId))
+    mockMvc.perform(
+            delete("/api/books/{bookId}/hard", bookId)
+                .header(REQUEST_USER_ID_HEADER, requestUserId.toString())
+        )
         .andExpect(status().isNotFound())
         .andExpect(jsonPath("$.code").value("BOOK_NOT_FOUND"))
         .andExpect(jsonPath("$.status").value(404));
 
-    verify(bookService).hardDelete(bookId);
+    verify(bookService).hardDelete(bookId, requestUserId);
+  }
+
+  @Test
+  @DisplayName("등록자가 아닌 사용자가 도서를 물리 삭제하면 403을 반환")
+  void hardDeleteBookWithForbiddenUser() throws Exception {
+    // given
+    UUID bookId = UUID.randomUUID();
+    UUID requestUserId = UUID.randomUUID();
+
+    doThrow(new BookForbiddenException()).when(bookService).hardDelete(bookId, requestUserId);
+
+    // when, then
+    mockMvc.perform(
+            delete("/api/books/{bookId}/hard", bookId)
+                .header(REQUEST_USER_ID_HEADER, requestUserId.toString())
+        )
+        .andExpect(status().isForbidden())
+        .andExpect(jsonPath("$.code").value("BOOK_FORBIDDEN"))
+        .andExpect(jsonPath("$.status").value(403));
+
+    verify(bookService).hardDelete(bookId, requestUserId);
   }
 
   @Test
@@ -571,6 +726,7 @@ class BookControllerTest {
   void updateBookWithNullPublishedDate() throws Exception {
     // given
     UUID bookId = UUID.randomUUID();
+    UUID requestUserId = UUID.randomUUID();
 
     BookUpdateRequest request =
         new BookUpdateRequest(
@@ -594,6 +750,7 @@ class BookControllerTest {
     mockMvc.perform(
             multipart("/api/books/{bookId}", bookId)
                 .file(bookData)
+                .header(REQUEST_USER_ID_HEADER, requestUserId.toString())
                 .with(requestBuilder -> {
                   requestBuilder.setMethod("PATCH");
                   return requestBuilder;
