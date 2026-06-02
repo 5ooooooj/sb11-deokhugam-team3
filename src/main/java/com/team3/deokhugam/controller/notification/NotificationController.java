@@ -23,12 +23,14 @@ public class NotificationController {
 
   @GetMapping
   public ResponseEntity<CursorPageResponse<NotificationDto>> findAll(
+      @RequestParam(defaultValue = "DESC") String direction,
+      @RequestParam(required = false) String cursor,
       @RequestParam(required = false) Instant after,
-      @RequestParam(defaultValue = "10") @Min(1) @Max(100) int size,
+      @RequestParam(defaultValue = "10") @Min(1) @Max(100) int limit,
       @RequestHeader("Deokhugam-Request-User-ID") UUID requestUserId
   ) {
     CursorPageResponse<NotificationDto> response =
-        notificationService.findAll(requestUserId, after, size);
+        notificationService.findAll(requestUserId, after, limit);
     return ResponseEntity.ok(response);
   }
 

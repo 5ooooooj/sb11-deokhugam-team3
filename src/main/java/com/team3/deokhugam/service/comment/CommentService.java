@@ -20,5 +20,5 @@ public interface CommentService {
 
   CommentDto findById(UUID commentId);
 
-  CursorPageResponse<CommentDto> findAll(UUID reviewId, Instant after, int size);
+  CursorPageResponse<CommentDto> findAll(UUID reviewId, Instant after, int limit);
 }
