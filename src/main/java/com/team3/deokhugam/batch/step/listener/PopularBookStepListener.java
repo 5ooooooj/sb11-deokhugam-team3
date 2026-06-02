@@ -10,18 +10,12 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 
-@Component
 @RequiredArgsConstructor
 public class PopularBookStepListener implements StepExecutionListener {
 
   private final PopularBookRepository popularBookRepository;
   private final PlatformTransactionManager transactionManager;
-  private Period period;
-
-  public PopularBookStepListener forPeriod(Period period) {
-    this.period = period;
-    return this;
-  }
+  private final Period period;
 
   @Override
   public void beforeStep(@Nullable StepExecution stepExecution) {

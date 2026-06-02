@@ -20,6 +20,8 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.batch.core.BatchStatus;
+import org.springframework.batch.core.ExitStatus;
 import org.springframework.batch.core.StepExecution;
 
 @ExtendWith(MockitoExtension.class)
@@ -39,12 +41,16 @@ public class PopularBookRankingListenerTest {
         createPopularBook(UUID.randomUUID(), BigDecimal.valueOf(5.0)),
         createPopularBook(UUID.randomUUID(), BigDecimal.valueOf(1.0))
     );
+
+    StepExecution stepExecution = mock(StepExecution.class);
+    when(stepExecution.getStatus()).thenReturn(BatchStatus.COMPLETED);
+    when(stepExecution.getExitStatus()).thenReturn(ExitStatus.COMPLETED);
     when(popularBookRepository.findByPeriodOrderByScoreDesc(Period.DAILY))
         .thenReturn(books);
 
     PopularBookRankingListener listener =
-        new PopularBookRankingListener(popularBookRepository).forPeriod(Period.DAILY);
-    listener.afterStep(mock(StepExecution.class));
+        new PopularBookRankingListener(popularBookRepository, Period.DAILY);
+    listener.afterStep(stepExecution);
 
     verify(popularBookRepository).saveAll(captor.capture());
     List<PopularBook> saved = captor.getValue();
@@ -56,12 +62,15 @@ public class PopularBookRankingListenerTest {
   @Test
   @DisplayName("성공: 결과가 없으면 저장 수행하지 않음")
   void afterStep_doesNotSaveWhenEmpty() {
+    StepExecution stepExecution = mock(StepExecution.class);
+    when(stepExecution.getStatus()).thenReturn(BatchStatus.COMPLETED);
+    when(stepExecution.getExitStatus()).thenReturn(ExitStatus.COMPLETED);
     when(popularBookRepository.findByPeriodOrderByScoreDesc(Period.DAILY))
         .thenReturn(List.of());
 
     PopularBookRankingListener listener =
-        new PopularBookRankingListener(popularBookRepository).forPeriod(Period.DAILY);
-    listener.afterStep(mock(StepExecution.class));
+        new PopularBookRankingListener(popularBookRepository, Period.DAILY);
+    listener.afterStep(stepExecution);
 
     verify(popularBookRepository).saveAll(List.of());
   }
@@ -74,12 +83,16 @@ public class PopularBookRankingListenerTest {
     for (int i = 550; i >= 1; i--) {
       books.add(createPopularBook(UUID.randomUUID(), BigDecimal.valueOf(i)));
     }
+
+    StepExecution stepExecution = mock(StepExecution.class);
+    when(stepExecution.getStatus()).thenReturn(BatchStatus.COMPLETED);
+    when(stepExecution.getExitStatus()).thenReturn(ExitStatus.COMPLETED);
     when(popularBookRepository.findByPeriodOrderByScoreDesc(Period.DAILY))
         .thenReturn(books);
 
     PopularBookRankingListener listener =
-        new PopularBookRankingListener(popularBookRepository).forPeriod(Period.DAILY);
-    listener.afterStep(mock(StepExecution.class));
+        new PopularBookRankingListener(popularBookRepository, Period.DAILY);
+    listener.afterStep(stepExecution);
 
     verify(popularBookRepository).saveAll(captor.capture());
     List<PopularBook> saved = captor.getValue();

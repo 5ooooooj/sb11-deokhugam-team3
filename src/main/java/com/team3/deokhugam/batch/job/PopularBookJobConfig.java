@@ -49,8 +49,8 @@ public class PopularBookJobConfig {
         .reader(popularBookReader.create(period))
         .processor(popularBookProcessor.create(period))
         .writer(popularBookWriter.create(period))
-        .listener(new PopularBookStepListener(popularBookRepository, transactionManager).forPeriod(period))
-        .listener(new PopularBookRankingListener(popularBookRepository).forPeriod(period))
+        .listener(new PopularBookStepListener(popularBookRepository, transactionManager, period))
+        .listener(new PopularBookRankingListener(popularBookRepository, period))
         .faultTolerant()
         .retryLimit(3)
         .retry(TransientDataAccessException.class) // 일시적 db 오류

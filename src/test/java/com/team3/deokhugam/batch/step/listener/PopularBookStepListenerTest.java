@@ -6,6 +6,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import com.team3.deokhugam.batch.global.Period;
 import com.team3.deokhugam.repository.dashboard.PopularBookRepository;
@@ -34,7 +35,7 @@ public class PopularBookStepListenerTest {
         .willReturn(mock(TransactionStatus.class));
 
     PopularBookStepListener listener =
-        new PopularBookStepListener(popularBookRepository, transactionManager).forPeriod(Period.DAILY);
+        new PopularBookStepListener(popularBookRepository, transactionManager, Period.DAILY);
 
     listener.beforeStep(mock(StepExecution.class));
 
@@ -48,7 +49,7 @@ public class PopularBookStepListenerTest {
         .willReturn(mock(TransactionStatus.class));
 
     PopularBookStepListener listener =
-        new PopularBookStepListener(popularBookRepository, transactionManager).forPeriod(Period.WEEKLY);
+        new PopularBookStepListener(popularBookRepository, transactionManager, Period.WEEKLY);
 
     listener.beforeStep(mock(StepExecution.class));
 
@@ -56,6 +57,29 @@ public class PopularBookStepListenerTest {
     verify(popularBookRepository, never()).deleteByPeriod(Period.DAILY);
     verify(popularBookRepository, never()).deleteByPeriod(Period.MONTHLY);
     verify(popularBookRepository, never()).deleteByPeriod(Period.ALL_TIME);
+  }
+
+  // 트랜잭션 커밋 검증
+  @Test
+  void beforeStep_deleteByPeriod_and_commit() {
+    Period period = Period.DAILY;
+    // given
+    PlatformTransactionManager transactionManager = mock(PlatformTransactionManager.class);
+    TransactionStatus transactionStatus = mock(TransactionStatus.class);
+    when(transactionManager.getTransaction(any())).thenReturn(transactionStatus);
+
+    PopularBookStepListener listener = new PopularBookStepListener(
+        popularBookRepository,
+        transactionManager,
+        Period.DAILY
+    );
+
+    // when
+    listener.beforeStep(mock(StepExecution.class));
+
+    // then
+    verify(popularBookRepository).deleteByPeriod(period);
+    verify(transactionManager).commit(transactionStatus);
   }
 
 }

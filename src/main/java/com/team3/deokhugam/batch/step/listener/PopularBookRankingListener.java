@@ -5,26 +5,25 @@ import com.team3.deokhugam.domain.dashboard.PopularBook;
 import com.team3.deokhugam.repository.dashboard.PopularBookRepository;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.springframework.batch.core.BatchStatus;
 import org.springframework.batch.core.ExitStatus;
 import org.springframework.batch.core.StepExecution;
 import org.springframework.batch.core.StepExecutionListener;
 import org.springframework.lang.Nullable;
-import org.springframework.stereotype.Component;
 
-@Component
 @RequiredArgsConstructor
 public class PopularBookRankingListener implements StepExecutionListener {
 
   private final PopularBookRepository popularBookRepository;
-  private Period period;
-
-  public PopularBookRankingListener forPeriod(Period period) {
-    this.period = period;
-    return this;
-  }
+  private final Period period;
 
   @Override
   public ExitStatus afterStep(@Nullable StepExecution stepExecution) {
+
+    if (stepExecution == null || stepExecution.getStatus() != BatchStatus.COMPLETED) {
+      return stepExecution != null ? stepExecution.getExitStatus() : ExitStatus.FAILED;
+    }
+
     List<PopularBook> all = popularBookRepository.findByPeriodOrderByScoreDesc(period);
 
     int rank = 1;
