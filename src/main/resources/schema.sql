@@ -103,7 +103,6 @@ CREATE TABLE IF NOT EXISTS popular_books (
                                              calculated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 
                                              CONSTRAINT ck_popular_books_period CHECK ( period IN ('DAILY', 'WEEKLY', 'MONTHLY', 'ALL_TIME') ),
-                                             CONSTRAINT uk_popular_books_period_rank UNIQUE (period, rank),
                                              CONSTRAINT uk_popular_books_period_book UNIQUE (period, book_id),
                                              CONSTRAINT fk_popular_books_book FOREIGN KEY (book_id) REFERENCES books(id) ON DELETE CASCADE
 );
@@ -120,7 +119,6 @@ CREATE TABLE IF NOT EXISTS popular_reviews (
                                                calculated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 
                                                CONSTRAINT ck_popular_reviews_period CHECK ( period IN ('DAILY', 'WEEKLY', 'MONTHLY', 'ALL_TIME') ),
-                                               CONSTRAINT uk_popular_reviews_period_rank UNIQUE (period, rank),
                                                CONSTRAINT uk_popular_reviews_period_review UNIQUE (period, review_id),
                                                CONSTRAINT fk_popular_reviews_review FOREIGN KEY (review_id) REFERENCES reviews(id) ON DELETE CASCADE
 );
@@ -138,7 +136,6 @@ CREATE TABLE IF NOT EXISTS power_users (
                                            calculated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 
                                            CONSTRAINT ck_power_users_period CHECK (period IN ('DAILY', 'WEEKLY', 'MONTHLY', 'ALL_TIME')),
-                                           CONSTRAINT uk_power_users_period_rank UNIQUE (period, rank),
                                            CONSTRAINT uk_power_users_period_user UNIQUE (period, user_id),
                                            CONSTRAINT fk_power_users_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
