@@ -1,18 +1,30 @@
 package com.team3.deokhugam.service.review;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatNoException;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 import com.team3.deokhugam.domain.review.Review;
 import com.team3.deokhugam.dto.review.ReviewCreateRequest;
 import com.team3.deokhugam.dto.review.ReviewDto;
+import com.team3.deokhugam.dto.review.ReviewOrderBy;
+import com.team3.deokhugam.dto.review.ReviewSearchRequest;
 import com.team3.deokhugam.dto.review.ReviewUpdateRequest;
-import com.team3.deokhugam.exception.global.DeokhugamException;
+import com.team3.deokhugam.exception.review.ReviewAlreadyExistsException;
+import com.team3.deokhugam.exception.review.ReviewForbiddenException;
+import com.team3.deokhugam.exception.review.ReviewNotFoundException;
+import com.team3.deokhugam.global.dto.CursorPageResponse;
 import com.team3.deokhugam.repository.review.ReviewRepository;
+import java.nio.charset.StandardCharsets;
+import java.time.Instant;
+import java.util.Base64;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
@@ -21,6 +33,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Sort;
 
 @ExtendWith(MockitoExtension.class)
 class ReviewServiceTest {
@@ -30,6 +43,8 @@ class ReviewServiceTest {
 
   @InjectMocks
   private ReviewService reviewService;
+
+
 
   @Test
   @DisplayName("리뷰 등록 성공 - 중복이 없으면 저장하고 ReviewDto를 반환한다")
@@ -53,7 +68,7 @@ class ReviewServiceTest {
   }
 
   @Test
-  @DisplayName("리뷰 등록 실패 - 이미 작성한 리뷰가 있으면 예외가 발생한다")
+  @DisplayName("리뷰 등록 실패 - 이미 작성한 리뷰가 있으면 ReviewAlreadyExistsException이 발생한다")
   void createReview_duplicate_throws() {
     UUID userId = UUID.randomUUID();
     UUID bookId = UUID.randomUUID();
@@ -62,7 +77,7 @@ class ReviewServiceTest {
     given(reviewRepository.existsByUserIdAndBookId(userId, bookId)).willReturn(true);
 
     assertThatThrownBy(() -> reviewService.createReview(request))
-        .isInstanceOf(DeokhugamException.class);
+        .isInstanceOf(ReviewAlreadyExistsException.class);
 
     verify(reviewRepository, never()).save(any(Review.class));
   }
@@ -84,7 +99,7 @@ class ReviewServiceTest {
   }
 
   @Test
-  @DisplayName("리뷰 수정 실패 - 본인이 아니면 예외가 발생한다")
+  @DisplayName("리뷰 수정 실패 - 본인이 아니면 ReviewForbiddenException이 발생한다")
   void updateReview_notOwner_throws() {
     UUID reviewId = UUID.randomUUID();
     UUID ownerId = UUID.randomUUID();
@@ -95,18 +110,18 @@ class ReviewServiceTest {
 
     assertThatThrownBy(() -> reviewService.updateReview(
         reviewId, otherUserId, new ReviewUpdateRequest("수정", 4)))
-        .isInstanceOf(DeokhugamException.class);
+        .isInstanceOf(ReviewForbiddenException.class);
   }
 
   @Test
-  @DisplayName("리뷰 수정 실패 - 리뷰가 없으면 예외가 발생한다")
+  @DisplayName("리뷰 수정 실패 - 리뷰가 없으면 ReviewNotFoundException이 발생한다")
   void updateReview_notFound_throws() {
     UUID reviewId = UUID.randomUUID();
     given(reviewRepository.findById(reviewId)).willReturn(Optional.empty());
 
     assertThatThrownBy(() -> reviewService.updateReview(
         reviewId, UUID.randomUUID(), new ReviewUpdateRequest("수정", 4)))
-        .isInstanceOf(DeokhugamException.class);
+        .isInstanceOf(ReviewNotFoundException.class);
   }
 
   @Test
@@ -138,18 +153,18 @@ class ReviewServiceTest {
   }
 
   @Test
-  @DisplayName("리뷰 수정 실패 - 이미 삭제된 리뷰면 예외가 발생한다")
+  @DisplayName("리뷰 수정 실패 - 이미 삭제된 리뷰면 ReviewNotFoundException이 발생한다")
   void updateReview_deleted_throws() {
     UUID reviewId = UUID.randomUUID();
     UUID userId = UUID.randomUUID();
     Review review = Review.create(userId, UUID.randomUUID(), 3, "내용");
-    review.softDelete();  // 미리 삭제 처리
+    review.softDelete();
 
     given(reviewRepository.findById(reviewId)).willReturn(Optional.of(review));
 
     assertThatThrownBy(() -> reviewService.updateReview(
         reviewId, userId, new ReviewUpdateRequest("수정", 4)))
-        .isInstanceOf(DeokhugamException.class);
+        .isInstanceOf(ReviewNotFoundException.class);
   }
 
   @Test
@@ -172,26 +187,158 @@ class ReviewServiceTest {
   }
 
   @Test
-  @DisplayName("리뷰 상세 조회 실패 - 리뷰가 없으면 예외가 발생한다")
+  @DisplayName("리뷰 상세 조회 실패 - 리뷰가 없으면 ReviewNotFoundException이 발생한다")
   void getReview_notFound_throws() {
     UUID reviewId = UUID.randomUUID();
     given(reviewRepository.findById(reviewId)).willReturn(Optional.empty());
 
     assertThatThrownBy(() -> reviewService.getReview(reviewId, UUID.randomUUID()))
-        .isInstanceOf(DeokhugamException.class);
+        .isInstanceOf(ReviewNotFoundException.class);
   }
 
   @Test
-  @DisplayName("리뷰 상세 조회 실패 - 논리 삭제된 리뷰면 예외가 발생한다")
+  @DisplayName("리뷰 상세 조회 실패 - 논리 삭제된 리뷰면 ReviewNotFoundException이 발생한다")
   void getReview_deleted_throws() {
     UUID reviewId = UUID.randomUUID();
     UUID userId = UUID.randomUUID();
     Review review = Review.create(userId, UUID.randomUUID(), 5, "삭제될 리뷰");
-    review.softDelete();  // 미리 삭제 처리
+    review.softDelete();
 
     given(reviewRepository.findById(reviewId)).willReturn(Optional.of(review));
 
     assertThatThrownBy(() -> reviewService.getReview(reviewId, userId))
-        .isInstanceOf(DeokhugamException.class);
+        .isInstanceOf(ReviewNotFoundException.class);
+  }
+
+
+
+  @Test
+  @DisplayName("리뷰 목록 조회 성공 - 검색 결과를 CursorPageResponse로 반환한다")
+  void searchReviews_success() {
+    UUID requestUserId = UUID.randomUUID();
+    ReviewSearchRequest request = new ReviewSearchRequest(
+        null, null, null,
+        ReviewOrderBy.CREATED_AT, Sort.Direction.DESC,
+        null, 10, requestUserId
+    );
+
+    Review r1 = mockReview(Instant.now(), UUID.randomUUID(), 5);
+    Review r2 = mockReview(Instant.now(), UUID.randomUUID(), 4);
+
+    given(reviewRepository.search(any(ReviewSearchRequest.class)))
+        .willReturn(List.of(r1, r2));
+    given(reviewRepository.count(any(ReviewSearchRequest.class))).willReturn(2L);
+
+    CursorPageResponse<ReviewDto> result = reviewService.searchReviews(request);
+
+    assertThat(result).isNotNull();
+    assertThat(result.content()).hasSize(2);
+    assertThat(result.totalElements()).isEqualTo(2);
+    assertThat(result.hasNext()).isFalse();
+    assertThat(result.nextCursor()).isNull();
+  }
+
+  @Test
+  @DisplayName("리뷰 목록 조회 - limit보다 많이 조회되면 hasNext=true 이고 nextCursor가 Base64로 생성된다")
+  void searchReviews_hasNext_buildsCursor() {
+    UUID requestUserId = UUID.randomUUID();
+    int limit = 2;
+    ReviewSearchRequest request = new ReviewSearchRequest(
+        null, null, null,
+        ReviewOrderBy.CREATED_AT, Sort.Direction.DESC,
+        null, limit, requestUserId
+    );
+
+    List<Review> reviews = List.of(
+        mockReview(Instant.parse("2025-01-15T10:00:00Z"), UUID.randomUUID(), 5),
+        mockReview(Instant.parse("2025-01-15T09:00:00Z"), UUID.randomUUID(), 4),
+        mockReview(Instant.parse("2025-01-15T08:00:00Z"), UUID.randomUUID(), 3)
+    );
+
+    given(reviewRepository.search(any())).willReturn(reviews);
+    given(reviewRepository.count(any(ReviewSearchRequest.class))).willReturn(3L);
+
+    CursorPageResponse<ReviewDto> result = reviewService.searchReviews(request);
+
+    assertThat(result.content()).hasSize(limit);
+    assertThat(result.hasNext()).isTrue();
+    assertThat(result.nextCursor()).isNotNull();
+    assertThatNoException().isThrownBy(
+        () -> Base64.getUrlDecoder().decode(result.nextCursor()));
+  }
+
+  @Test
+  @DisplayName("리뷰 목록 조회 - RATING 정렬에서는 nextCursor가 (rating|createdAt|id) 3-part 토큰")
+  void searchReviews_ratingOrder_buildsThreePartCursor() {
+    UUID requestUserId = UUID.randomUUID();
+    ReviewSearchRequest request = new ReviewSearchRequest(
+        null, null, null,
+        ReviewOrderBy.RATING, Sort.Direction.DESC,
+        null, 1, requestUserId
+    );
+
+    Review r1 = mockReview(Instant.now(), UUID.randomUUID(), 5);
+    Review r2 = mockReview(Instant.now(), UUID.randomUUID(), 4);
+
+    given(reviewRepository.search(any())).willReturn(List.of(r1, r2));
+    given(reviewRepository.count(any(ReviewSearchRequest.class))).willReturn(2L);
+
+    CursorPageResponse<ReviewDto> result = reviewService.searchReviews(request);
+
+    assertThat(result.hasNext()).isTrue();
+    assertThat(result.nextCursor()).isNotNull();
+    String decoded = new String(
+        Base64.getUrlDecoder().decode(result.nextCursor()),
+        StandardCharsets.UTF_8);
+    assertThat(decoded.split("\\|")).hasSize(3);
+  }
+
+  @Test
+  @DisplayName("리뷰 목록 조회 - 커서가 있으면(첫 페이지가 아니면) count는 호출되지 않는다")
+  void searchReviews_withCursor_skipsCount() {
+    UUID requestUserId = UUID.randomUUID();
+    ReviewSearchRequest request = new ReviewSearchRequest(
+        null, null, null,
+        ReviewOrderBy.CREATED_AT, Sort.Direction.DESC,
+        "someCursor", 10, requestUserId
+    );
+
+    Review r1 = mockReview(Instant.now(), UUID.randomUUID(), 5);
+
+    given(reviewRepository.search(any())).willReturn(List.of(r1));
+
+    CursorPageResponse<ReviewDto> result = reviewService.searchReviews(request);
+
+    assertThat(result.totalElements()).isEqualTo(0L);
+    verify(reviewRepository, never()).count(any(ReviewSearchRequest.class));
+  }
+
+  @Test
+  @DisplayName("리뷰 목록 조회 - 결과가 비어 있으면 nextCursor=null, hasNext=false")
+  void searchReviews_empty() {
+    UUID requestUserId = UUID.randomUUID();
+    ReviewSearchRequest request = new ReviewSearchRequest(
+        null, null, null,
+        ReviewOrderBy.CREATED_AT, Sort.Direction.DESC,
+        null, 10, requestUserId
+    );
+
+    given(reviewRepository.search(any())).willReturn(List.of());
+    given(reviewRepository.count(any(ReviewSearchRequest.class))).willReturn(0L);
+
+    CursorPageResponse<ReviewDto> result = reviewService.searchReviews(request);
+
+    assertThat(result.content()).isEmpty();
+    assertThat(result.hasNext()).isFalse();
+    assertThat(result.nextCursor()).isNull();
+    assertThat(result.totalElements()).isEqualTo(0L);
+  }
+
+  private Review mockReview(Instant createdAt, UUID id, int rating) {
+    Review review = mock(Review.class);
+    lenient().when(review.getCreatedAt()).thenReturn(createdAt);
+    lenient().when(review.getId()).thenReturn(id);
+    lenient().when(review.getRating()).thenReturn(rating);
+    return review;
   }
 }

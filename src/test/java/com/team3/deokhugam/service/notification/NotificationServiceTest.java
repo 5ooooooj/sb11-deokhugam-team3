@@ -3,11 +3,13 @@ package com.team3.deokhugam.service.notification;
 import com.team3.deokhugam.domain.notification.Notification;
 import com.team3.deokhugam.domain.notification.NotificationType;
 import com.team3.deokhugam.domain.review.Review;
+import com.team3.deokhugam.domain.user.User;
 import com.team3.deokhugam.dto.notification.NotificationDto;
 import com.team3.deokhugam.exception.notification.NotificationForbiddenException;
 import com.team3.deokhugam.global.dto.CursorPageResponse;
 import com.team3.deokhugam.repository.notification.NotificationRepository;
 import com.team3.deokhugam.repository.review.ReviewRepository;
+import com.team3.deokhugam.repository.user.UserRepository;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -32,12 +34,10 @@ public class NotificationServiceTest {
   private NotificationRepository notificationRepository;
   @Mock
   private ReviewRepository reviewRepository;
+  @Mock
+  private UserRepository userRepository;
   @InjectMocks
   private NotificationServiceImpl notificationService;
-
-  // ───────────────────────────────────────────
-  // createCommentNotification()
-  // ───────────────────────────────────────────
 
   @Test
   @DisplayName("댓글 알림 생성 성공")
@@ -45,10 +45,13 @@ public class NotificationServiceTest {
     // given
     UUID reviewId = UUID.randomUUID();
     UUID commenterUserId = UUID.randomUUID();
+    UUID reviewOwnerId = UUID.randomUUID();
 
     Review review = mock(Review.class);
-    given(review.getUserId()).willReturn(UUID.randomUUID());
+    User user = mock(User.class);
+    given(review.getUserId()).willReturn(reviewOwnerId);
     given(reviewRepository.findById(reviewId)).willReturn(Optional.of(review));
+    given(userRepository.findById(reviewOwnerId)).willReturn(Optional.of(user));
 
     // when
     notificationService.createCommentNotification(reviewId, commenterUserId);
@@ -57,20 +60,19 @@ public class NotificationServiceTest {
     verify(notificationRepository).save(any(Notification.class));
   }
 
-  // ───────────────────────────────────────────
-  // createLikeNotification()
-  // ───────────────────────────────────────────
-
   @Test
   @DisplayName("좋아요 알림 생성 성공")
   void createLikeNotification_success() {
     // given
     UUID reviewId = UUID.randomUUID();
     UUID likerUserId = UUID.randomUUID();
+    UUID reviewOwnerId = UUID.randomUUID();
 
     Review review = mock(Review.class);
-    given(review.getUserId()).willReturn(UUID.randomUUID());
+    User user = mock(User.class);
+    given(review.getUserId()).willReturn(reviewOwnerId);
     given(reviewRepository.findById(reviewId)).willReturn(Optional.of(review));
+    given(userRepository.findById(reviewOwnerId)).willReturn(Optional.of(user));
 
     // when
     notificationService.createLikeNotification(reviewId, likerUserId);
@@ -79,20 +81,19 @@ public class NotificationServiceTest {
     verify(notificationRepository).save(any(Notification.class));
   }
 
-  // ───────────────────────────────────────────
-  // createRankingNotification()
-  // ───────────────────────────────────────────
-
   @Test
   @DisplayName("랭킹 알림 생성 성공")
   void createRankingNotification_success() {
     // given
     UUID reviewId = UUID.randomUUID();
     String period = "DAILY";
+    UUID reviewOwnerId = UUID.randomUUID();
 
     Review review = mock(Review.class);
-    given(review.getUserId()).willReturn(UUID.randomUUID());
+    User user = mock(User.class);
+    given(review.getUserId()).willReturn(reviewOwnerId);
     given(reviewRepository.findById(reviewId)).willReturn(Optional.of(review));
+    given(userRepository.findById(reviewOwnerId)).willReturn(Optional.of(user));
 
     // when
     notificationService.createRankingNotification(reviewId, period);
@@ -101,10 +102,6 @@ public class NotificationServiceTest {
     verify(notificationRepository).save(any(Notification.class));
   }
 
-  // ───────────────────────────────────────────
-  // confirm()
-  // ───────────────────────────────────────────
-
   @Test
   @DisplayName("단건 읽음 처리 성공")
   void confirm_success() {
@@ -112,8 +109,14 @@ public class NotificationServiceTest {
     UUID notificationId = UUID.randomUUID();
     UUID userId = UUID.randomUUID();
 
+    User mockUser = mock(User.class);
+    Review mockReview = mock(Review.class);
+    given(mockUser.getId()).willReturn(userId);
+    given(mockReview.getId()).willReturn(UUID.randomUUID());
+
     Notification notification = mock(Notification.class);
-    given(notification.getUserId()).willReturn(userId);
+    given(notification.getUser()).willReturn(mockUser);
+    given(notification.getReview()).willReturn(mockReview);
     given(notificationRepository.findById(notificationId))
         .willReturn(Optional.of(notification));
 
@@ -143,10 +146,6 @@ public class NotificationServiceTest {
         .isInstanceOf(NotificationForbiddenException.class);
   }
 
-  // ───────────────────────────────────────────
-  // confirmAll()
-  // ───────────────────────────────────────────
-
   @Test
   @DisplayName("전체 읽음 처리 성공")
   void confirmAll_success() {
@@ -160,20 +159,25 @@ public class NotificationServiceTest {
     verify(notificationRepository).confirmAllByUserId(userId);
   }
 
-  // ───────────────────────────────────────────
-  // findAll()
-  // ───────────────────────────────────────────
-
   @Test
   @DisplayName("알림 목록 조회 성공")
   void findAll_success() {
     // given
     UUID userId = UUID.randomUUID();
 
-    List<Notification> notifications = List.of(
-        mock(Notification.class),
-        mock(Notification.class)
-    );
+    User mockUser = mock(User.class);
+    Review mockReview = mock(Review.class);
+    given(mockUser.getId()).willReturn(UUID.randomUUID());
+    given(mockReview.getId()).willReturn(UUID.randomUUID());
+
+    Notification notification1 = mock(Notification.class);
+    Notification notification2 = mock(Notification.class);
+    given(notification1.getUser()).willReturn(mockUser);
+    given(notification1.getReview()).willReturn(mockReview);
+    given(notification2.getUser()).willReturn(mockUser);
+    given(notification2.getReview()).willReturn(mockReview);
+
+    List<Notification> notifications = List.of(notification1, notification2);
     given(notificationRepository.findByUserIdWithCursor(
         eq(userId), isNull(), any())
     ).willReturn(notifications);
@@ -185,5 +189,79 @@ public class NotificationServiceTest {
     // then
     assertThat(result.hasNext()).isFalse();
     assertThat(result.content()).hasSize(2);
+  }
+  @Test
+  @DisplayName("존재하지 않는 리뷰 알림 생성 시 저장 안 함")
+  void createCommentNotification_reviewNotFound() {
+    // given
+    UUID reviewId = UUID.randomUUID();
+    UUID commenterUserId = UUID.randomUUID();
+
+    given(reviewRepository.findById(reviewId)).willReturn(Optional.empty());
+
+    // when
+    notificationService.createCommentNotification(reviewId, commenterUserId);
+
+    // then
+    verify(notificationRepository, never()).save(any());
+  }
+  @Test
+  @DisplayName("Notification create() null 검증 - user null")
+  void create_nullUser() {
+    assertThatThrownBy(() ->
+        Notification.create(null, mock(Review.class),
+            NotificationType.COMMENT, "메시지"))
+        .isInstanceOf(IllegalArgumentException.class);
+  }
+
+  @Test
+  @DisplayName("Notification create() null 검증 - type null")
+  void create_nullType() {
+    assertThatThrownBy(() ->
+        Notification.create(mock(User.class), mock(Review.class),
+            null, "메시지"))
+        .isInstanceOf(IllegalArgumentException.class);
+  }
+
+  @Test
+  @DisplayName("Notification create() null 검증 - message blank")
+  void create_blankMessage() {
+    assertThatThrownBy(() ->
+        Notification.create(mock(User.class), mock(Review.class),
+            NotificationType.COMMENT, ""))
+        .isInstanceOf(IllegalArgumentException.class);
+  }
+
+  @Test
+  @DisplayName("알림 목록 조회 - 다음 페이지 존재 (hasNext=true)")
+  void findAll_hasNext() {
+    // given
+    UUID userId = UUID.randomUUID();
+    int limit = 2;
+
+    User mockUser = mock(User.class);
+    Review mockReview = mock(Review.class);
+    given(mockUser.getId()).willReturn(UUID.randomUUID());
+    given(mockReview.getId()).willReturn(UUID.randomUUID());
+
+    Notification n1 = mock(Notification.class);
+    Notification n2 = mock(Notification.class);
+    Notification n3 = mock(Notification.class);
+    given(n1.getUser()).willReturn(mockUser);
+    given(n1.getReview()).willReturn(mockReview);
+    given(n2.getUser()).willReturn(mockUser);
+    given(n2.getReview()).willReturn(mockReview);
+    
+    given(notificationRepository.findByUserIdWithCursor(
+        eq(userId), isNull(), any())
+    ).willReturn(List.of(n1, n2, n3));
+
+    // when
+    CursorPageResponse<NotificationDto> result =
+        notificationService.findAll(userId, null, limit);
+
+    // then
+    assertThat(result.hasNext()).isTrue();
+    assertThat(result.content()).hasSize(limit);
   }
 }

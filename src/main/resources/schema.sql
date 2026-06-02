@@ -103,7 +103,6 @@ CREATE TABLE IF NOT EXISTS popular_books (
                                              calculated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 
                                              CONSTRAINT ck_popular_books_period CHECK ( period IN ('DAILY', 'WEEKLY', 'MONTHLY', 'ALL_TIME') ),
-                                             CONSTRAINT uk_popular_books_period_rank UNIQUE (period, rank),
                                              CONSTRAINT uk_popular_books_period_book UNIQUE (period, book_id),
                                              CONSTRAINT fk_popular_books_book FOREIGN KEY (book_id) REFERENCES books(id) ON DELETE CASCADE
 );
@@ -120,7 +119,6 @@ CREATE TABLE IF NOT EXISTS popular_reviews (
                                                calculated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 
                                                CONSTRAINT ck_popular_reviews_period CHECK ( period IN ('DAILY', 'WEEKLY', 'MONTHLY', 'ALL_TIME') ),
-                                               CONSTRAINT uk_popular_reviews_period_rank UNIQUE (period, rank),
                                                CONSTRAINT uk_popular_reviews_period_review UNIQUE (period, review_id),
                                                CONSTRAINT fk_popular_reviews_review FOREIGN KEY (review_id) REFERENCES reviews(id) ON DELETE CASCADE
 );
@@ -138,7 +136,6 @@ CREATE TABLE IF NOT EXISTS power_users (
                                            calculated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 
                                            CONSTRAINT ck_power_users_period CHECK (period IN ('DAILY', 'WEEKLY', 'MONTHLY', 'ALL_TIME')),
-                                           CONSTRAINT uk_power_users_period_rank UNIQUE (period, rank),
                                            CONSTRAINT uk_power_users_period_user UNIQUE (period, user_id),
                                            CONSTRAINT fk_power_users_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
@@ -161,10 +158,10 @@ CREATE INDEX IF NOT EXISTS idx_books_rating ON books(rating, created_at, id);
 CREATE INDEX IF NOT EXISTS idx_books_review_count ON books(review_count, created_at, id);
 -- 키워드 검색
 -- LIKE '%keyword%' 검색에 인덱스 적용
-CREATE INDEX IF NOT EXISTS idx_books_title_trgm  ON books USING GIN (title  gin_trgm_ops);
-CREATE INDEX IF NOT EXISTS idx_books_author_trgm ON books USING GIN (author gin_trgm_ops);
+CREATE INDEX IF NOT EXISTS idx_books_lower_title_trgm  ON books USING GIN (lower(title) gin_trgm_ops);
+CREATE INDEX IF NOT EXISTS idx_books_lower_author_trgm ON books USING GIN (lower(author) gin_trgm_ops);
 -- 키워드 부분 문자열 검색
-CREATE INDEX IF NOT EXISTS idx_books_isbn_trgm   ON books USING GIN (isbn gin_trgm_ops) WHERE isbn IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_books_lower_isbn_trgm   ON books USING GIN (lower(isbn) gin_trgm_ops) WHERE isbn IS NOT NULL;
 
 -- reviews --
 -- 논리 삭제 필터링
