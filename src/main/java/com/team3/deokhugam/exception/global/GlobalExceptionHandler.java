@@ -4,8 +4,11 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingRequestHeaderException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 @Slf4j
 @RestControllerAdvice
@@ -46,6 +49,30 @@ public class GlobalExceptionHandler {
     return ResponseEntity.status(ErrorCode.INVALID_INPUT.getStatus()).body(response);
   }
 
+
+  @ExceptionHandler(MissingServletRequestParameterException.class)
+  public ResponseEntity<ErrorResponse> handleMissingServletRequestParameter(
+      MissingServletRequestParameterException e) {
+    log.warn("Missing request parameter: {}", e.getParameterName());
+    return invalidInput(e.getParameterName() + " 파라미터가 필요합니다.");
+  }
+
+
+  @ExceptionHandler(MissingRequestHeaderException.class)
+  public ResponseEntity<ErrorResponse> handleMissingRequestHeader(
+      MissingRequestHeaderException e) {
+    log.warn("Missing request header: {}", e.getHeaderName());
+    return invalidInput(e.getHeaderName() + " 헤더가 필요합니다.");
+  }
+
+
+  @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+  public ResponseEntity<ErrorResponse> handleMethodArgumentTypeMismatch(
+      MethodArgumentTypeMismatchException e) {
+    log.warn("Type mismatch for parameter: {}", e.getName());
+    return invalidInput(e.getName() + " 값이 올바르지 않습니다.");
+  }
+
   @ExceptionHandler(DataIntegrityViolationException.class)
   public ResponseEntity<ErrorResponse> handleDataIntegrityViolationException(
       DataIntegrityViolationException e) {
@@ -73,5 +100,17 @@ public class GlobalExceptionHandler {
         .build();
 
     return ResponseEntity.status(ErrorCode.INTERNAL_SERVER_ERROR.getStatus()).body(response);
+  }
+
+
+  private ResponseEntity<ErrorResponse> invalidInput(String details) {
+    ErrorResponse response = ErrorResponse.builder()
+        .code(ErrorCode.INVALID_INPUT.name())
+        .status(ErrorCode.INVALID_INPUT.getStatus().value())
+        .message(ErrorCode.INVALID_INPUT.getMessage())
+        .details(details)
+        .build();
+
+    return ResponseEntity.status(ErrorCode.INVALID_INPUT.getStatus()).body(response);
   }
 }

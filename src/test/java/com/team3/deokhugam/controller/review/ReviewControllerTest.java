@@ -5,6 +5,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verify;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -14,8 +15,12 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.team3.deokhugam.dto.review.ReviewCreateRequest;
 import com.team3.deokhugam.dto.review.ReviewDto;
 import com.team3.deokhugam.dto.review.ReviewUpdateRequest;
+import com.team3.deokhugam.exception.global.DeokhugamException;
+import com.team3.deokhugam.exception.global.ErrorCode;
+import com.team3.deokhugam.global.dto.CursorPageResponse;
 import com.team3.deokhugam.service.review.ReviewService;
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -24,9 +29,6 @@ import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import com.team3.deokhugam.exception.global.DeokhugamException;
-import com.team3.deokhugam.exception.global.ErrorCode;
 
 @WebMvcTest(ReviewController.class)
 class ReviewControllerTest {
@@ -156,5 +158,61 @@ class ReviewControllerTest {
     mockMvc.perform(get("/api/reviews/{reviewId}", reviewId)
             .header("Deokhugam-Request-User-ID", userId.toString()))
         .andExpect(status().isNotFound());
+  }
+
+  @Test
+  @DisplayName("GET /api/reviews - 리뷰 목록 조회 성공 시 200과 CursorPageResponse를 반환한다")
+  void searchReviews_returns200() throws Exception {
+    UUID requestUserId = UUID.randomUUID();
+    UUID reviewId = UUID.randomUUID();
+    UUID bookId = UUID.randomUUID();
+
+    ReviewDto reviewDto = new ReviewDto(
+        reviewId, bookId, null, null, requestUserId, null,
+        "재밌어요", 5, 0, 0, false, Instant.now(), Instant.now()
+    );
+    CursorPageResponse<ReviewDto> response = new CursorPageResponse<>(
+        List.of(reviewDto), null, null, 1, 1L, false
+    );
+
+    given(reviewService.searchReviews(any())).willReturn(response);
+
+
+    mockMvc.perform(get("/api/reviews")
+            .header("Deokhugam-Request-User-ID", requestUserId.toString()))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.content").isArray())
+        .andExpect(jsonPath("$.content[0].id").value(reviewId.toString()))
+        .andExpect(jsonPath("$.totalElements").value(1))
+        .andExpect(jsonPath("$.hasNext").value(false));
+  }
+
+
+
+  @Test
+  @DisplayName("GET /api/reviews - 필수 헤더 누락 시 400을 반환한다 (수정 5)")
+  void searchReviews_missingHeader_returns400() throws Exception {
+    mockMvc.perform(get("/api/reviews"))
+        .andExpect(status().isBadRequest());
+  }
+
+  @Test
+  @DisplayName("GET /api/reviews - 잘못된 orderBy 값이면 400을 반환한다 (수정 3)")
+  void searchReviews_invalidOrderBy_returns400() throws Exception {
+    UUID userId = UUID.randomUUID();
+    mockMvc.perform(get("/api/reviews")
+            .param("orderBy", "garbage")
+            .header("Deokhugam-Request-User-ID", userId.toString()))
+        .andExpect(status().isBadRequest());
+  }
+
+  @Test
+  @DisplayName("GET /api/reviews - 잘못된 direction 값이면 400을 반환한다 (수정 3)")
+  void searchReviews_invalidDirection_returns400() throws Exception {
+    UUID userId = UUID.randomUUID();
+    mockMvc.perform(get("/api/reviews")
+            .param("direction", "WRONG_VALUE")
+            .header("Deokhugam-Request-User-ID", userId.toString()))
+        .andExpect(status().isBadRequest());
   }
 }
