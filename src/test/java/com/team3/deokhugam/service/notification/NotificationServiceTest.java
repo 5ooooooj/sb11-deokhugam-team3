@@ -231,4 +231,37 @@ public class NotificationServiceTest {
             NotificationType.COMMENT, ""))
         .isInstanceOf(IllegalArgumentException.class);
   }
+
+  @Test
+  @DisplayName("알림 목록 조회 - 다음 페이지 존재 (hasNext=true)")
+  void findAll_hasNext() {
+    // given
+    UUID userId = UUID.randomUUID();
+    int limit = 2;
+
+    User mockUser = mock(User.class);
+    Review mockReview = mock(Review.class);
+    given(mockUser.getId()).willReturn(UUID.randomUUID());
+    given(mockReview.getId()).willReturn(UUID.randomUUID());
+
+    Notification n1 = mock(Notification.class);
+    Notification n2 = mock(Notification.class);
+    Notification n3 = mock(Notification.class);
+    given(n1.getUser()).willReturn(mockUser);
+    given(n1.getReview()).willReturn(mockReview);
+    given(n2.getUser()).willReturn(mockUser);
+    given(n2.getReview()).willReturn(mockReview);
+    
+    given(notificationRepository.findByUserIdWithCursor(
+        eq(userId), isNull(), any())
+    ).willReturn(List.of(n1, n2, n3));
+
+    // when
+    CursorPageResponse<NotificationDto> result =
+        notificationService.findAll(userId, null, limit);
+
+    // then
+    assertThat(result.hasNext()).isTrue();
+    assertThat(result.content()).hasSize(limit);
+  }
 }
