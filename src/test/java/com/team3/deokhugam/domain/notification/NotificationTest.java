@@ -102,5 +102,10 @@ public class NotificationTest {
         Notification.create(mock(User.class), mock(Review.class),
             NotificationType.COMMENT, ""))
         .isInstanceOf(IllegalArgumentException.class);
+
+    assertThatThrownBy(() ->
+        Notification.create(mock(User.class), mock(Review.class),
+            NotificationType.COMMENT, "   "))
+        .isInstanceOf(IllegalArgumentException.class);
   }
 }
