@@ -28,7 +28,7 @@ import org.springframework.test.context.jdbc.Sql;
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @Import(JpaAuditingConfig.class)
 @DirtiesContext(classMode = DirtiesContext.ClassMode.BEFORE_CLASS)
-@Sql(scripts = "classpath:schema.sql", executionPhase = Sql.ExecutionPhase.BEFORE_TEST_CLASS)
+@Sql(scripts = "classpath:schema.sql", executionPhase = Sql.ExecutionPhase.BEFORE_TEST_METHOD)
 class CommentRepositoryTest {
 
   @Autowired
