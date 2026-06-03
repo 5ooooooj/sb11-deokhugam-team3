@@ -1,6 +1,5 @@
 package com.team3.deokhugam.repository.comment;
 
-import static com.team3.deokhugam.domain.comment.CommentTestFactory.comment;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.team3.deokhugam.domain.comment.Comment;
@@ -10,6 +9,7 @@ import com.team3.deokhugam.domain.user.User;
 import com.team3.deokhugam.global.config.JpaAuditingConfig;
 import java.time.Instant;
 import java.util.List;
+import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -29,15 +29,40 @@ class CommentRepositoryTest {
   @Autowired
   private CommentRepository commentRepository;
 
+  @Autowired
+  private TestEntityManager entityManager;
+
+  @Test
+  @DisplayName("댓글을 저장하고 ID로 조회할 수 있습니다.")
+  void saveAndFindById() {
+    User user = new User("test1@test.com", "테스터1", "Password1!");
+    entityManager.persist(user);
+    Review review = ReviewTestFactory.review().userId(user.getId()).build();
+    entityManager.persist(review);
+    entityManager.flush();
+
+    Comment comment = Comment.create(review, user, "좋은 리뷰네요");
+    Comment saved = commentRepository.save(comment);
+
+    assertThat(commentRepository.findById(saved.getId())).isPresent();
+  }
+
   @Test
   @DisplayName("reviewId로 댓글 목록을 조회할 수 있습니다.")
   void findByReviewIdWithCursor_success() {
-    Comment comment1 = comment().content("첫 번째 댓글").build();
-    Comment comment2 = comment().content("두 번째 댓글").build();
+    User user = new User("test2@test.com", "테스터2", "Password1!");
+    entityManager.persist(user);
+    Review review = ReviewTestFactory.review().userId(user.getId()).build();
+    entityManager.persist(review);
+    entityManager.flush();
+
+    Comment comment1 = Comment.create(review, user, "첫 번째 댓글");
+    Comment comment2 = Comment.create(review, user, "두 번째 댓글");
     commentRepository.saveAll(List.of(comment1, comment2));
+    entityManager.flush();
 
     List<Comment> result = commentRepository.findByReviewIdWithCursor(
-        comment1.getReview().getId(), null, PageRequest.of(0, 10)
+        review.getId(), null, PageRequest.of(0, 10)
     );
 
     assertThat(result).hasSize(2);
@@ -46,17 +71,22 @@ class CommentRepositoryTest {
   @Test
   @DisplayName("논리 삭제된 댓글은 조회에서 제외됩니다.")
   void findByReviewIdWithCursor_excludesDeleted() {
-    Comment activeComment = comment().content("활성 댓글").build();
-    Comment deletedComment = comment()
-        .review(activeComment.getReview())
-        .content("삭제된 댓글").build();
+    User user = new User("test3@test.com", "테스터3", "Password1!");
+    entityManager.persist(user);
+    Review review = ReviewTestFactory.review().userId(user.getId()).build();
+    entityManager.persist(review);
+    entityManager.flush();
+
+    Comment activeComment = Comment.create(review, user, "활성 댓글");
+    Comment deletedComment = Comment.create(review, user, "삭제된 댓글");
     commentRepository.saveAll(List.of(activeComment, deletedComment));
 
     deletedComment.softDelete();
     commentRepository.save(deletedComment);
+    entityManager.flush();
 
     List<Comment> result = commentRepository.findByReviewIdWithCursor(
-        activeComment.getReview().getId(), null, PageRequest.of(0, 10)
+        review.getId(), null, PageRequest.of(0, 10)
     );
 
     assertThat(result).hasSize(1);
@@ -66,18 +96,26 @@ class CommentRepositoryTest {
   @Test
   @DisplayName("after 파라미터로 커서 페이지네이션이 동작합니다.")
   void findByReviewIdWithCursor_withAfter() {
-    Comment comment1 = comment().content("첫 번째 댓글").build();
+    User user = new User("test4@test.com", "테스터4", "Password1!");
+    entityManager.persist(user);
+    Review review = ReviewTestFactory.review().userId(user.getId()).build();
+    entityManager.persist(review);
+    entityManager.flush();
+
+    Comment comment1 = Comment.create(review, user, "첫 번째 댓글");
     commentRepository.save(comment1);
+    entityManager.flush();
+    entityManager.clear();
 
-    Instant after = comment1.getCreatedAt().plusNanos(1);
+    Comment savedComment1 = commentRepository.findById(comment1.getId()).orElseThrow();
+    Instant after = savedComment1.getCreatedAt().plusNanos(1);
 
-    Comment comment2 = comment()
-        .review(comment1.getReview())
-        .content("두 번째 댓글").build();
+    Comment comment2 = Comment.create(review, user, "두 번째 댓글");
     commentRepository.save(comment2);
+    entityManager.flush();
 
     List<Comment> result = commentRepository.findByReviewIdWithCursor(
-        comment1.getReview().getId(), after, PageRequest.of(0, 10)
+        review.getId(), after, PageRequest.of(0, 10)
     );
 
     assertThat(result).hasSize(1);
@@ -87,32 +125,23 @@ class CommentRepositoryTest {
   @Test
   @DisplayName("limit 조건이 적용됩니다.")
   void findByReviewIdWithCursor_withLimit() {
-    Comment c1 = comment().content("댓글 1").build();
-    Comment c2 = comment().review(c1.getReview()).content("댓글 2").build();
-    Comment c3 = comment().review(c1.getReview()).content("댓글 3").build();
-    commentRepository.saveAll(List.of(c1, c2, c3));
-
-    List<Comment> result = commentRepository.findByReviewIdWithCursor(
-        c1.getReview().getId(), null, PageRequest.of(0, 2)
-    );
-
-    assertThat(result).hasSize(2);
-  }
-
-  @Autowired
-  private TestEntityManager entityManager;
-
-  @Test
-  void saveAndFindById() {
-    User user = new User("test1@test.com", "테스터1", "Password1!");
+    User user = new User("test5@test.com", "테스터5", "Password1!");
     entityManager.persist(user);
     Review review = ReviewTestFactory.review().userId(user.getId()).build();
     entityManager.persist(review);
     entityManager.flush();
 
-    Comment comment = comment().review(review).user(user).content("좋은 리뷰네요").build();
-    Comment saved = commentRepository.save(comment);
+    commentRepository.saveAll(List.of(
+        Comment.create(review, user, "댓글 1"),
+        Comment.create(review, user, "댓글 2"),
+        Comment.create(review, user, "댓글 3")
+    ));
+    entityManager.flush();
 
-    assertThat(commentRepository.findById(saved.getId())).isPresent();
+    List<Comment> result = commentRepository.findByReviewIdWithCursor(
+        review.getId(), null, PageRequest.of(0, 2)
+    );
+
+    assertThat(result).hasSize(2);
   }
 }
