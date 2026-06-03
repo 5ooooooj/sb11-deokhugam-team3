@@ -9,6 +9,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.mockito.BDDMockito.willThrow;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.team3.deokhugam.dto.user.UserRegisterRequest;
@@ -289,4 +291,74 @@ class UserControllerTest {
 
     verify(userService).updateUser(any(UUID.class), any(UUID.class), any(UserUpdateRequest.class));
   }
+
+  @Test
+  void deleteUser_success() throws Exception {
+    // given
+    UUID userId = UUID.randomUUID();
+
+    // when, then
+    mockMvc.perform(delete("/api/users/{userId}", userId)
+            .header("Deokhugam-Request-User-ID", userId.toString()))
+        .andExpect(status().isNoContent());
+
+    verify(userService).deleteUser(userId, userId);
+  }
+
+  @Test
+  void deleteUser_fail_forbidden() throws Exception {
+    // given
+    UUID userId = UUID.randomUUID();
+    UUID loginUserId = UUID.randomUUID();
+
+    willThrow(new UserForbiddenException())
+        .given(userService)
+        .deleteUser(userId, loginUserId);
+
+    // when, then
+    mockMvc.perform(delete("/api/users/{userId}", userId)
+            .header("Deokhugam-Request-User-ID", loginUserId.toString()))
+        .andExpect(status().isForbidden());
+
+    verify(userService).deleteUser(userId, loginUserId);
+  }
+
+  @Test
+  void deleteUser_fail_notFound() throws Exception {
+    // given
+    UUID userId = UUID.randomUUID();
+
+    willThrow(new UserNotFoundException())
+        .given(userService)
+        .deleteUser(userId, userId);
+
+    // when, then
+    mockMvc.perform(delete("/api/users/{userId}", userId)
+            .header("Deokhugam-Request-User-ID", userId.toString()))
+        .andExpect(status().isNotFound())
+        .andExpect(jsonPath("$.code").value("USER_NOT_FOUND"))
+        .andExpect(jsonPath("$.status").value(404));
+
+    verify(userService).deleteUser(userId, userId);
+  }
+
+  @Test
+  void deleteUser_fail_internalServerError() throws Exception {
+    // given
+    UUID userId = UUID.randomUUID();
+
+    willThrow(new RuntimeException("unexpected error"))
+        .given(userService)
+        .deleteUser(userId, userId);
+
+    // when, then
+    mockMvc.perform(delete("/api/users/{userId}", userId)
+            .header("Deokhugam-Request-User-ID", userId.toString()))
+        .andExpect(status().isInternalServerError())
+        .andExpect(jsonPath("$.code").value("INTERNAL_SERVER_ERROR"))
+        .andExpect(jsonPath("$.status").value(500));
+
+    verify(userService).deleteUser(userId, userId);
+  }
+
 }
