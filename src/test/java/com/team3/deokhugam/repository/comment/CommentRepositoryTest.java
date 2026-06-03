@@ -1,5 +1,6 @@
 package com.team3.deokhugam.repository.comment;
 
+import static com.team3.deokhugam.domain.comment.CommentTestFactory.comment;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.team3.deokhugam.domain.comment.Comment;
@@ -43,8 +44,9 @@ class CommentRepositoryTest {
     User user = userRepository.save(new User("test1@test.com", "테스터1", "Password1!"));
     Review review = reviewRepository.save(ReviewTestFactory.review().userId(user.getId()).build());
 
-    Comment comment = Comment.create(review, user, "좋은 리뷰네요");
-    Comment saved = commentRepository.save(comment);
+    Comment saved = commentRepository.save(
+        comment().user(user).review(review).content("좋은 리뷰네요").build()
+    );
 
     assertThat(commentRepository.findById(saved.getId())).isPresent();
   }
@@ -55,9 +57,10 @@ class CommentRepositoryTest {
     User user = userRepository.save(new User("test2@test.com", "테스터2", "Password1!"));
     Review review = reviewRepository.save(ReviewTestFactory.review().userId(user.getId()).build());
 
-    Comment comment1 = Comment.create(review, user, "첫 번째 댓글");
-    Comment comment2 = Comment.create(review, user, "두 번째 댓글");
-    commentRepository.saveAll(List.of(comment1, comment2));
+    commentRepository.saveAll(List.of(
+        comment().user(user).review(review).content("첫 번째 댓글").build(),
+        comment().user(user).review(review).content("두 번째 댓글").build()
+    ));
 
     List<Comment> result = commentRepository.findByReviewIdWithCursor(
         review.getId(), null, PageRequest.of(0, 10)
@@ -72,9 +75,12 @@ class CommentRepositoryTest {
     User user = userRepository.save(new User("test3@test.com", "테스터3", "Password1!"));
     Review review = reviewRepository.save(ReviewTestFactory.review().userId(user.getId()).build());
 
-    Comment activeComment = Comment.create(review, user, "활성 댓글");
-    Comment deletedComment = Comment.create(review, user, "삭제된 댓글");
-    commentRepository.saveAll(List.of(activeComment, deletedComment));
+    Comment activeComment = commentRepository.save(
+        comment().user(user).review(review).content("활성 댓글").build()
+    );
+    Comment deletedComment = commentRepository.save(
+        comment().user(user).review(review).content("삭제된 댓글").build()
+    );
 
     deletedComment.softDelete();
     commentRepository.save(deletedComment);
@@ -93,13 +99,15 @@ class CommentRepositoryTest {
     User user = userRepository.save(new User("test4@test.com", "테스터4", "Password1!"));
     Review review = reviewRepository.save(ReviewTestFactory.review().userId(user.getId()).build());
 
-    Comment comment1 = Comment.create(review, user, "첫 번째 댓글");
-    commentRepository.save(comment1);
+    Comment comment1 = commentRepository.save(
+        comment().user(user).review(review).content("첫 번째 댓글").build()
+    );
 
     Instant after = comment1.getCreatedAt().plusNanos(1);
 
-    Comment comment2 = Comment.create(review, user, "두 번째 댓글");
-    commentRepository.save(comment2);
+    commentRepository.save(
+        comment().user(user).review(review).content("두 번째 댓글").build()
+    );
 
     List<Comment> result = commentRepository.findByReviewIdWithCursor(
         review.getId(), after, PageRequest.of(0, 10)
@@ -116,9 +124,9 @@ class CommentRepositoryTest {
     Review review = reviewRepository.save(ReviewTestFactory.review().userId(user.getId()).build());
 
     commentRepository.saveAll(List.of(
-        Comment.create(review, user, "댓글 1"),
-        Comment.create(review, user, "댓글 2"),
-        Comment.create(review, user, "댓글 3")
+        comment().user(user).review(review).content("댓글 1").build(),
+        comment().user(user).review(review).content("댓글 2").build(),
+        comment().user(user).review(review).content("댓글 3").build()
     ));
 
     List<Comment> result = commentRepository.findByReviewIdWithCursor(

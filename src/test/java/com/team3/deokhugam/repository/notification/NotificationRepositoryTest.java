@@ -1,5 +1,6 @@
 package com.team3.deokhugam.repository.notification;
 
+import static com.team3.deokhugam.domain.notification.NotificationTestFactory.notification;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.team3.deokhugam.domain.notification.Notification;
@@ -44,10 +45,9 @@ class NotificationRepositoryTest {
     User user = userRepository.save(new User("test1@test.com", "테스터1", "Password1!"));
     Review review = reviewRepository.save(ReviewTestFactory.review().userId(user.getId()).build());
 
-    Notification notification = Notification.create(
-        user, review, NotificationType.COMMENT, "댓글이 달렸습니다."
+    Notification saved = notificationRepository.save(
+        notification().user(user).review(review).message("댓글이 달렸습니다.").build()
     );
-    Notification saved = notificationRepository.save(notification);
 
     assertThat(notificationRepository.findById(saved.getId())).isPresent();
   }
@@ -58,9 +58,10 @@ class NotificationRepositoryTest {
     User user = userRepository.save(new User("test2@test.com", "테스터2", "Password1!"));
     Review review = reviewRepository.save(ReviewTestFactory.review().userId(user.getId()).build());
 
-    Notification n1 = Notification.create(user, review, NotificationType.COMMENT, "댓글1");
-    Notification n2 = Notification.create(user, review, NotificationType.LIKE, "좋아요1");
-    notificationRepository.saveAll(List.of(n1, n2));
+    notificationRepository.saveAll(List.of(
+        notification().user(user).review(review).type(NotificationType.COMMENT).message("댓글1").build(),
+        notification().user(user).review(review).type(NotificationType.LIKE).message("좋아요1").build()
+    ));
 
     List<Notification> result = notificationRepository.findByUserIdWithCursor(
         user.getId(), null, PageRequest.of(0, 10)
@@ -76,9 +77,9 @@ class NotificationRepositoryTest {
     Review review = reviewRepository.save(ReviewTestFactory.review().userId(user.getId()).build());
 
     notificationRepository.saveAll(List.of(
-        Notification.create(user, review, NotificationType.COMMENT, "댓글1"),
-        Notification.create(user, review, NotificationType.COMMENT, "댓글2"),
-        Notification.create(user, review, NotificationType.COMMENT, "댓글3")
+        notification().user(user).review(review).message("댓글1").build(),
+        notification().user(user).review(review).message("댓글2").build(),
+        notification().user(user).review(review).message("댓글3").build()
     ));
 
     List<Notification> result = notificationRepository.findByUserIdWithCursor(
@@ -94,9 +95,10 @@ class NotificationRepositoryTest {
     User user = userRepository.save(new User("test4@test.com", "테스터4", "Password1!"));
     Review review = reviewRepository.save(ReviewTestFactory.review().userId(user.getId()).build());
 
-    Notification n1 = Notification.create(user, review, NotificationType.COMMENT, "댓글1");
-    Notification n2 = Notification.create(user, review, NotificationType.LIKE, "좋아요1");
-    notificationRepository.saveAll(List.of(n1, n2));
+    notificationRepository.saveAll(List.of(
+        notification().user(user).review(review).type(NotificationType.COMMENT).message("댓글1").build(),
+        notification().user(user).review(review).type(NotificationType.LIKE).message("좋아요1").build()
+    ));
 
     notificationRepository.confirmAllByUserId(user.getId());
 
@@ -112,8 +114,9 @@ class NotificationRepositoryTest {
     User user = userRepository.save(new User("test5@test.com", "테스터5", "Password1!"));
     Review review = reviewRepository.save(ReviewTestFactory.review().userId(user.getId()).build());
 
-    Notification n1 = Notification.create(user, review, NotificationType.COMMENT, "댓글1");
-    notificationRepository.save(n1);
+    Notification n1 = notificationRepository.save(
+        notification().user(user).review(review).message("댓글1").build()
+    );
     n1.confirm();
     notificationRepository.save(n1);
 
