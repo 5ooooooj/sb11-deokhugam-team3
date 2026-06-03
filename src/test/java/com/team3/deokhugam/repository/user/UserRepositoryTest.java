@@ -3,6 +3,7 @@ package com.team3.deokhugam.repository.user;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.team3.deokhugam.domain.user.User;
+import com.team3.deokhugam.repository.BaseRepositoryTest;
 import jakarta.persistence.EntityManager;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
@@ -10,23 +11,12 @@ import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
-import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Import;
 import org.springframework.data.auditing.DateTimeProvider;
 import org.springframework.data.jpa.repository.config.EnableJpaAuditing;
-import org.springframework.test.context.ActiveProfiles;
 
-@DataJpaTest
-@ActiveProfiles("test")
-@AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
-@Import(
-    {UserRepositoryTest.JpaAuditingTestConfig.class,
-    UserRepositoryCustomImpl.class}
-)
-class UserRepositoryTest {
+class UserRepositoryTest extends BaseRepositoryTest {
 
   @Autowired
   private UserRepository userRepository;

@@ -9,7 +9,7 @@ import com.team3.deokhugam.dto.book.BookCursor;
 import com.team3.deokhugam.dto.book.BookSearchRequest;
 import com.team3.deokhugam.dto.book.BookOrderBy;
 import com.team3.deokhugam.exception.book.InvalidBookSearchConditionException;
-import com.team3.deokhugam.global.config.JpaAuditingConfig;
+import com.team3.deokhugam.repository.BaseRepositoryTest;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -17,18 +17,10 @@ import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.springframework.data.domain.Sort;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
-import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
-import org.springframework.context.annotation.Import;
-import org.springframework.test.context.ActiveProfiles;
+import org.springframework.data.domain.Sort;
 
-@DataJpaTest
-@ActiveProfiles("test")
-@AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
-@Import(JpaAuditingConfig.class)
-class BookRepositoryTest {
+class BookRepositoryTest extends BaseRepositoryTest {
 
   @Autowired
   private BookRepository bookRepository;

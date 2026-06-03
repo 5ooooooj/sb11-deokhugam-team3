@@ -7,7 +7,7 @@ import com.team3.deokhugam.domain.comment.Comment;
 import com.team3.deokhugam.domain.review.Review;
 import com.team3.deokhugam.domain.review.ReviewTestFactory;
 import com.team3.deokhugam.domain.user.User;
-import com.team3.deokhugam.global.config.JpaAuditingConfig;
+import com.team3.deokhugam.repository.BaseRepositoryTest;
 import com.team3.deokhugam.repository.review.ReviewRepository;
 import com.team3.deokhugam.repository.user.UserRepository;
 import java.time.Instant;
@@ -15,21 +15,9 @@ import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
-import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.context.annotation.Import;
 import org.springframework.data.domain.PageRequest;
-import org.springframework.test.context.ActiveProfiles;
-import org.springframework.test.context.jdbc.Sql;
-import org.springframework.test.context.jdbc.SqlConfig;
-import org.springframework.transaction.annotation.Transactional;
 
-@DataJpaTest
-@ActiveProfiles("test")
-@AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
-@Import(JpaAuditingConfig.class)
-class CommentRepositoryTest {
+class CommentRepositoryTest extends BaseRepositoryTest {
 
   @Autowired
   private CommentRepository commentRepository;
