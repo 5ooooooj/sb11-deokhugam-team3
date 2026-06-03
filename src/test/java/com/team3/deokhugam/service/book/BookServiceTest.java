@@ -12,10 +12,11 @@ import com.team3.deokhugam.domain.book.Book;
 import com.team3.deokhugam.dto.book.BookCreateRequest;
 import com.team3.deokhugam.dto.book.BookCursor;
 import com.team3.deokhugam.dto.book.BookDto;
-import com.team3.deokhugam.dto.book.BookSearchRequest;
 import com.team3.deokhugam.dto.book.BookOrderBy;
+import com.team3.deokhugam.dto.book.BookSearchRequest;
 import com.team3.deokhugam.dto.book.BookUpdateRequest;
 import com.team3.deokhugam.exception.book.BookAlreadyExistsException;
+import com.team3.deokhugam.exception.book.BookForbiddenException;
 import com.team3.deokhugam.exception.book.BookNotFoundException;
 import com.team3.deokhugam.global.dto.CursorPageResponse;
 import com.team3.deokhugam.repository.book.BookRepository;
@@ -24,14 +25,14 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
-import org.springframework.data.domain.Sort;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.data.domain.Sort.Direction;
+import org.springframework.data.domain.Sort;
 
 @ExtendWith(MockitoExtension.class)
 class BookServiceTest {
@@ -46,6 +47,8 @@ class BookServiceTest {
   @DisplayName("도서 생성")
   void createBook() {
     // given
+    UUID requestUserId = UUID.randomUUID();
+
     BookCreateRequest request =
         new BookCreateRequest(
             "그리고 아무도 없었다",
@@ -56,33 +59,33 @@ class BookServiceTest {
             "9788960177758",
             "https://example.com/book.jpg"
         );
-
-    Book savedBook =
-        new Book(
-            request.title(),
-            request.author(),
-            request.description(),
-            request.publisher(),
-            request.publishedDate(),
-            request.isbn(),
-            request.thumbnailUrl()
-        );
-
-    when(bookRepository.save(any(Book.class))).thenReturn(savedBook);
+    
+    when(bookRepository.save(any(Book.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
     // when
-    BookDto result = bookService.create(request);
+    BookDto result = bookService.create(requestUserId, request);
 
     // then
     assertThat(result.title()).isEqualTo(request.title());
     assertThat(result.author()).isEqualTo(request.author());
     assertThat(result.isbn()).isEqualTo(request.isbn());
+
+    ArgumentCaptor<Book> bookCaptor = ArgumentCaptor.forClass(Book.class);
+    verify(bookRepository).save(bookCaptor.capture());
+
+    Book savedBook = bookCaptor.getValue();
+    assertThat(savedBook.getUserId()).isEqualTo(requestUserId);
+    assertThat(savedBook.getTitle()).isEqualTo(request.title());
+    assertThat(savedBook.getAuthor()).isEqualTo(request.author());
+    assertThat(savedBook.getIsbn()).isEqualTo(request.isbn());
   }
 
   @Test
   @DisplayName("ISBN 중복되면 도서 생성 불가")
-  void createBookWithDuplicateISbn() {
+  void createBookWithDuplicateIsbn() {
     // given
+    UUID requestUserId = UUID.randomUUID();
+
     BookCreateRequest request =
         new BookCreateRequest(
             "그리고 아무도 없었다",
@@ -97,7 +100,7 @@ class BookServiceTest {
     when(bookRepository.existsByIsbn(request.isbn())).thenReturn(true);
 
     // when, then
-    assertThatThrownBy(() -> bookService.create(request))
+    assertThatThrownBy(() -> bookService.create(requestUserId, request))
         .isInstanceOf(BookAlreadyExistsException.class);
   }
 
@@ -184,7 +187,7 @@ class BookServiceTest {
         .publisher("테스트출판사")
         .publishedDate(LocalDate.of(2026, 1, 2))
         .isbn("9780000002102")
-        .thumbnailUrl("https://example.com/codeit-spring.jpg")
+        .thumbnailUrl("https://example.com/codeit-spring2.jpg")
         .createdAt(secondCreatedAt)
         .build();
 
@@ -213,7 +216,11 @@ class BookServiceTest {
     assertThat(result.content())
         .extracting(BookDto::title)
         .containsExactly("코드잇 스프링", "코드잇 스프링2");
+    assertThat(result.nextCursor()).isNotNull();
     BookCursor nextCursor = BookCursor.decode(result.nextCursor());
+    assertThat(nextCursor.value()).isEqualTo("코드잇 스프링2");
+    assertThat(nextCursor.createdAt()).isEqualTo(secondCreatedAt);
+    assertThat(nextCursor.id()).isEqualTo(secondBook.getId());
     assertThat(result.nextAfter()).isEqualTo(secondCreatedAt);
     assertThat(result.size()).isEqualTo(2);
     assertThat(result.totalElements()).isEqualTo(3L);
@@ -261,9 +268,11 @@ class BookServiceTest {
   void update() {
     // given
     UUID bookId = UUID.randomUUID();
+    UUID requestUserId = UUID.randomUUID();
 
     Book book = book()
         .id(bookId)
+        .userId(requestUserId)
         .title("수정 전 제목")
         .author("수정 전 작가")
         .description("수정 전 설명")
@@ -286,7 +295,7 @@ class BookServiceTest {
     when(bookRepository.findByIdAndDeletedAtIsNull(bookId)).thenReturn(Optional.of(book));
 
     // when
-    BookDto result = bookService.update(bookId, request);
+    BookDto result = bookService.update(bookId, requestUserId, request);
 
     // then
     assertThat(result.id()).isEqualTo(bookId);
@@ -306,6 +315,7 @@ class BookServiceTest {
   void updateBookWithNotFound() {
     // given
     UUID bookId = UUID.randomUUID();
+    UUID requestUserId = UUID.randomUUID();
 
     BookUpdateRequest request =
         new BookUpdateRequest(
@@ -320,8 +330,47 @@ class BookServiceTest {
     when(bookRepository.findByIdAndDeletedAtIsNull(bookId)).thenReturn(Optional.empty());
 
     // when, then
-    assertThatThrownBy(() -> bookService.update(bookId, request))
+    assertThatThrownBy(() -> bookService.update(bookId, requestUserId, request))
         .isInstanceOf(BookNotFoundException.class);
+
+    verify(bookRepository).findByIdAndDeletedAtIsNull(bookId);
+  }
+
+  @Test
+  @DisplayName("등록자가 아닌 사용자가 도서를 수정하면 예외 발생")
+  void updateBookWithForbiddenUser() {
+    // given
+    UUID bookId = UUID.randomUUID();
+    UUID ownerId = UUID.randomUUID();
+    UUID requestUserId = UUID.randomUUID();
+
+    Book book = book()
+        .id(bookId)
+        .userId(ownerId)
+        .title("수정 전 제목")
+        .author("수정 전 작가")
+        .description("수정 전 설명")
+        .publisher("수정 전 출판사")
+        .publishedDate(LocalDate.of(2026, 1, 1))
+        .isbn("9788960177758")
+        .thumbnailUrl("https://example.com/before.jpg")
+        .build();
+
+    BookUpdateRequest request =
+        new BookUpdateRequest(
+            "수정 후 제목",
+            "수정 후 저자",
+            "수정 후 설명",
+            "수정 후 출판사",
+            LocalDate.of(2026, 5, 28),
+            "https://example.com/new.jpg"
+        );
+
+    when(bookRepository.findByIdAndDeletedAtIsNull(bookId)).thenReturn(Optional.of(book));
+
+    // when, then
+    assertThatThrownBy(() -> bookService.update(bookId, requestUserId, request))
+        .isInstanceOf(BookForbiddenException.class);
 
     verify(bookRepository).findByIdAndDeletedAtIsNull(bookId);
   }
@@ -331,9 +380,11 @@ class BookServiceTest {
   void deleteBook() {
     // given
     UUID bookId = UUID.randomUUID();
+    UUID requestUserId = UUID.randomUUID();
 
     Book book = book()
         .id(bookId)
+        .userId(requestUserId)
         .title("삭제할 도서")
         .author("삭제할 작가")
         .description("삭제할 설명")
@@ -346,7 +397,7 @@ class BookServiceTest {
     when(bookRepository.findByIdAndDeletedAtIsNull(bookId)).thenReturn(Optional.of(book));
 
     // when
-    bookService.delete(bookId);
+    bookService.delete(bookId, requestUserId);
 
     // then
     assertThat(book.isDeleted()).isTrue();
@@ -360,12 +411,42 @@ class BookServiceTest {
   void deleteBookWithNotFound() {
     // given
     UUID bookId = UUID.randomUUID();
+    UUID requestUserId = UUID.randomUUID();
 
     when(bookRepository.findByIdAndDeletedAtIsNull(bookId)).thenReturn(Optional.empty());
 
     // when, then
-    assertThatThrownBy(() -> bookService.delete(bookId))
+    assertThatThrownBy(() -> bookService.delete(bookId, requestUserId))
         .isInstanceOf(BookNotFoundException.class);
+
+    verify(bookRepository).findByIdAndDeletedAtIsNull(bookId);
+  }
+
+  @Test
+  @DisplayName("등록자가 아닌 사용자가 도서를 논리 삭제하면 예외 발생")
+  void deleteBookWithForbiddenUser() {
+    // given
+    UUID bookId = UUID.randomUUID();
+    UUID ownerId = UUID.randomUUID();
+    UUID requestUserId = UUID.randomUUID();
+
+    Book book = book()
+        .id(bookId)
+        .userId(ownerId)
+        .title("삭제할 도서")
+        .author("삭제할 작가")
+        .description("삭제할 설명")
+        .publisher("삭제할 출판사")
+        .publishedDate(LocalDate.of(2026, 1, 1))
+        .isbn("9780000004302")
+        .thumbnailUrl("https://example.com/delete-forbidden.jpg")
+        .build();
+
+    when(bookRepository.findByIdAndDeletedAtIsNull(bookId)).thenReturn(Optional.of(book));
+
+    // when, then
+    assertThatThrownBy(() -> bookService.delete(bookId, requestUserId))
+        .isInstanceOf(BookForbiddenException.class);
 
     verify(bookRepository).findByIdAndDeletedAtIsNull(bookId);
   }
@@ -375,9 +456,11 @@ class BookServiceTest {
   void hardDeleteBook() {
     // given
     UUID bookId = UUID.randomUUID();
+    UUID requestUserId = UUID.randomUUID();
 
     Book book = book()
         .id(bookId)
+        .userId(requestUserId)
         .title("물리 삭제할 도서")
         .author("물리 삭제할 작가")
         .description("물리 삭제할 설명")
@@ -390,7 +473,7 @@ class BookServiceTest {
     when(bookRepository.findById(bookId)).thenReturn(Optional.of(book));
 
     // when
-    bookService.hardDelete(bookId);
+    bookService.hardDelete(bookId, requestUserId);
 
     // then
     verify(bookRepository).findById(bookId);
@@ -402,12 +485,43 @@ class BookServiceTest {
   void hardDeleteBookWithNotFound() {
     // given
     UUID bookId = UUID.randomUUID();
+    UUID requestUserId = UUID.randomUUID();
 
     when(bookRepository.findById(bookId)).thenReturn(Optional.empty());
 
     // when, then
-    assertThatThrownBy(() -> bookService.hardDelete(bookId))
+    assertThatThrownBy(() -> bookService.hardDelete(bookId, requestUserId))
         .isInstanceOf(BookNotFoundException.class);
+
+    verify(bookRepository).findById(bookId);
+    verify(bookRepository, never()).delete(any(Book.class));
+  }
+
+  @Test
+  @DisplayName("등록자가 아닌 사용자가 도서를 물리 삭제하면 예외 발생")
+  void hardDeleteBookWithForbiddenUser() {
+    // given
+    UUID bookId = UUID.randomUUID();
+    UUID ownerId = UUID.randomUUID();
+    UUID requestUserId = UUID.randomUUID();
+
+    Book book = book()
+        .id(bookId)
+        .userId(ownerId)
+        .title("물리 삭제할 도서")
+        .author("물리 삭제할 작가")
+        .description("물리 삭제할 설명")
+        .publisher("물리 삭제할 출판사")
+        .publishedDate(LocalDate.of(2026, 1, 1))
+        .isbn("9780000004402")
+        .thumbnailUrl("https://example.com/hard-delete-forbidden.jpg")
+        .build();
+
+    when(bookRepository.findById(bookId)).thenReturn(Optional.of(book));
+
+    // when, then
+    assertThatThrownBy(() -> bookService.hardDelete(bookId, requestUserId))
+        .isInstanceOf(BookForbiddenException.class);
 
     verify(bookRepository).findById(bookId);
     verify(bookRepository, never()).delete(any(Book.class));

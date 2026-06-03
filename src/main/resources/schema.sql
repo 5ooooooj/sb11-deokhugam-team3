@@ -16,6 +16,7 @@ CREATE TABLE IF NOT EXISTS users (
 -- books 테이블 생성 --
 CREATE TABLE IF NOT EXISTS books (
                                      id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
+                                     user_id UUID NOT NULL,
                                      title VARCHAR(255) NOT NULL,
                                      author VARCHAR(255) NOT NULL,
                                      description TEXT NOT NULL,
@@ -27,7 +28,8 @@ CREATE TABLE IF NOT EXISTS books (
                                      rating DECIMAL(3,2) NOT NULL DEFAULT 0.0,
                                      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
                                      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-                                     deleted_at TIMESTAMPTZ
+                                     deleted_at TIMESTAMPTZ,
+                                     CONSTRAINT fk_books_user FOREIGN KEY (user_id) REFERENCES users(id)
 );
 
 -- reviews 테이블 생성 --
@@ -151,6 +153,7 @@ CREATE INDEX IF NOT EXISTS idx_users_nickname_trgm ON users USING GIN (nickname 
 -- books --
 -- 논리 삭제 필터링
 CREATE INDEX IF NOT EXISTS idx_books_deleted_at ON books(deleted_at);
+CREATE INDEX IF NOT EXISTS idx_books_user_id ON books(user_id);
 -- 커서 페이지네이션 정렬 기준
 CREATE INDEX IF NOT EXISTS idx_books_title ON books(title, created_at, id);
 CREATE INDEX IF NOT EXISTS idx_books_published_date ON books(published_date, created_at, id);

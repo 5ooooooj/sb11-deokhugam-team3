@@ -25,13 +25,14 @@ public class BookService {
   private final BookRepository bookRepository;
 
   @Transactional
-  public BookDto create(BookCreateRequest request) {
+  public BookDto create(UUID requestUserId, BookCreateRequest request) {
     if (request.isbn() != null && bookRepository.existsByIsbn(request.isbn())) {
       throw new BookAlreadyExistsException();
     }
 
     Book book =
         new Book(
+            requestUserId,
             request.title(),
             request.author(),
             request.description(),
@@ -78,8 +79,9 @@ public class BookService {
   }
 
   @Transactional
-  public BookDto update(UUID bookId, BookUpdateRequest request) {
+  public BookDto update(UUID bookId, UUID requestUserId, BookUpdateRequest request) {
     Book book = getActiveBook(bookId);
+    book.validateOwner(requestUserId);
 
     book.update(
         request.title(),
@@ -94,15 +96,17 @@ public class BookService {
   }
 
   @Transactional
-  public void delete(UUID bookId) {
+  public void delete(UUID bookId, UUID requestUserId) {
     Book book = getActiveBook(bookId);
+    book.validateOwner(requestUserId);
 
     book.softDelete();
   }
 
   @Transactional
-  public void hardDelete(UUID bookId) {
+  public void hardDelete(UUID bookId, UUID requestUserId) {
     Book book = bookRepository.findById(bookId).orElseThrow(BookNotFoundException::new);
+    book.validateOwner(requestUserId);
 
     bookRepository.delete(book);
   }
@@ -129,7 +133,8 @@ public class BookService {
   private String resolveCursorValue(Book book, BookOrderBy orderBy) {
     return switch (orderBy) {
       case TITLE -> book.getTitle();
-      case PUBLISHED_DATE -> book.getPublishedDate() == null ? null : book.getPublishedDate().toString();
+      case PUBLISHED_DATE ->
+          book.getPublishedDate() == null ? null : book.getPublishedDate().toString();
       case RATING -> book.getRating() == null ? null : book.getRating().toString();
       case REVIEW_COUNT -> String.valueOf(book.getReviewCount());
     };
