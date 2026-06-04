@@ -35,3 +35,6 @@ batch:
 user:
   cleanup:
     cron: "0 50 23 * * *"
+notification:
+  cleanup:
+    cron: "0 0 2 * * *"
