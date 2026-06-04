@@ -2,8 +2,10 @@ package com.team3.deokhugam.service.book;
 
 import static com.team3.deokhugam.domain.book.BookTestFactory.book;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -952,5 +954,155 @@ class BookServiceTest {
 
     assertThat(keyCaptor.getValue()).startsWith("books/" + requestUserId + "/");
     assertThat(keyCaptor.getValue()).contains("my_thumbnail__2026_.jpg");
+  }
+
+  @Test
+  @DisplayName("트랜잭션 동기화가 없으면 S3 롤백 보상 삭제를 등록하지 않는다")
+  void createBookWithThumbnailImageWithoutTransactionSynchronizationDoesNotRegisterRollbackCleanup() {
+    // given
+    UUID requestUserId = UUID.randomUUID();
+
+    BookCreateRequest request =
+        new BookCreateRequest(
+            "그리고 아무도 없었다",
+            "애거서 크리스티",
+            "외딴 섬에서 벌어지는 연쇄 살인 사건",
+            "황금가지",
+            LocalDate.of(2013, 12, 31),
+            "9788960177758",
+            null
+        );
+
+    MultipartFile thumbnailImage =
+        new MockMultipartFile(
+            "thumbnailImage",
+            "thumbnail.jpg",
+            "image/jpeg",
+            "test-image".getBytes()
+        );
+
+    String uploadedUrl = "https://s3.example.com/books/thumbnail.jpg";
+
+    when(s3Service.upload(any(MultipartFile.class), any(String.class))).thenReturn(uploadedUrl);
+    when(bookRepository.save(any(Book.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+    // when
+    BookDto result = bookService.create(requestUserId, request, thumbnailImage);
+
+    // then
+    assertThat(result.thumbnailUrl()).isEqualTo(uploadedUrl);
+
+    verify(s3Service).upload(any(MultipartFile.class), any(String.class));
+    verify(s3Service, never()).delete(any(String.class));
+  }
+
+  @Test
+  @DisplayName("도서 생성 트랜잭션이 커밋되면 업로드한 S3 객체를 삭제하지 않는다")
+  void createBookWithThumbnailImageCommittedTransactionDoesNotDeleteUploadedS3Object() {
+    // given
+    TransactionSynchronizationManager.initSynchronization();
+
+    try {
+      UUID requestUserId = UUID.randomUUID();
+
+      BookCreateRequest request =
+          new BookCreateRequest(
+              "그리고 아무도 없었다",
+              "애거서 크리스티",
+              "외딴 섬에서 벌어지는 연쇄 살인 사건",
+              "황금가지",
+              LocalDate.of(2013, 12, 31),
+              "9788960177758",
+              null
+          );
+
+      MultipartFile thumbnailImage =
+          new MockMultipartFile(
+              "thumbnailImage",
+              "thumbnail.jpg",
+              "image/jpeg",
+              "test-image".getBytes()
+          );
+
+      String uploadedUrl = "https://s3.example.com/books/thumbnail.jpg";
+
+      when(s3Service.upload(any(MultipartFile.class), any(String.class))).thenReturn(uploadedUrl);
+      when(bookRepository.save(any(Book.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+      // when
+      bookService.create(requestUserId, request, thumbnailImage);
+
+      List<TransactionSynchronization> synchronizations =
+          TransactionSynchronizationManager.getSynchronizations();
+
+      synchronizations.forEach(
+          synchronization ->
+              synchronization.afterCompletion(TransactionSynchronization.STATUS_COMMITTED)
+      );
+
+      // then
+      verify(s3Service).upload(any(MultipartFile.class), any(String.class));
+      verify(s3Service, never()).delete(any(String.class));
+    } finally {
+      TransactionSynchronizationManager.clearSynchronization();
+    }
+  }
+
+  @Test
+  @DisplayName("트랜잭션 롤백 후 S3 보상 삭제가 실패해도 예외가 전파되지 않는다")
+  void createBookWithThumbnailImageRollbackCleanupFailureDoesNotThrowException() {
+    // given
+    TransactionSynchronizationManager.initSynchronization();
+
+    try {
+      UUID requestUserId = UUID.randomUUID();
+
+      BookCreateRequest request =
+          new BookCreateRequest(
+              "그리고 아무도 없었다",
+              "애거서 크리스티",
+              "외딴 섬에서 벌어지는 연쇄 살인 사건",
+              "황금가지",
+              LocalDate.of(2013, 12, 31),
+              "9788960177758",
+              null
+          );
+
+      MultipartFile thumbnailImage =
+          new MockMultipartFile(
+              "thumbnailImage",
+              "thumbnail.jpg",
+              "image/jpeg",
+              "test-image".getBytes()
+          );
+
+      String uploadedUrl = "https://s3.example.com/books/thumbnail.jpg";
+
+      when(s3Service.upload(any(MultipartFile.class), any(String.class))).thenReturn(uploadedUrl);
+      when(bookRepository.save(any(Book.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+      doThrow(new RuntimeException("S3 delete failed"))
+          .when(s3Service)
+          .delete(any(String.class));
+
+      // when
+      bookService.create(requestUserId, request, thumbnailImage);
+
+      List<TransactionSynchronization> synchronizations =
+          TransactionSynchronizationManager.getSynchronizations();
+
+      // then
+      assertThatCode(() ->
+          synchronizations.forEach(
+              synchronization ->
+                  synchronization.afterCompletion(TransactionSynchronization.STATUS_ROLLED_BACK)
+          )
+      ).doesNotThrowAnyException();
+
+      verify(s3Service).upload(any(MultipartFile.class), any(String.class));
+      verify(s3Service).delete(any(String.class));
+    } finally {
+      TransactionSynchronizationManager.clearSynchronization();
+    }
   }
 }
