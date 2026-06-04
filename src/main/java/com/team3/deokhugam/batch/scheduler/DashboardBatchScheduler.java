@@ -23,7 +23,7 @@ public class DashboardBatchScheduler {
   private final Job popularBookJob;
 // 미구현 job, 구현 후 주석 해제
 //  private final Job popularReviewJob;
-//  private final Job powerUserJob;
+  private final Job powerUserJob;
 
   @Scheduled(cron = "0 0 0 * * *")
   public void runDashboardBatch() {
@@ -33,7 +33,7 @@ public class DashboardBatchScheduler {
 
       runJob(popularBookJob, params); // 실패시 이후 중단
 //      runJob(popularReviewJob, params); // 실패시 이후 중단
-//      runJob(powerUserJob, params);
+      runJob(powerUserJob, params);
   }
 
   private void runJob(Job job, JobParameters params) {
