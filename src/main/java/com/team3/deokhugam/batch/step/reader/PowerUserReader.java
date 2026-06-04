@@ -38,7 +38,7 @@ public class PowerUserReader {
                 LEFT JOIN Review r ON r.userId = u.id
                 LEFT JOIN PopularReview pr ON pr.reviewId= r.id
                                            AND pr.period = :period
-                LEFT JOIN ReviewLike rl ON rl.userId = u.id
+                LEFT JOIN ReviewLike rl ON rl.user.id = u.id
                 LEFT JOIN Comment c ON c.user.id = u.id
                 WHERE u.deletedAt IS NULL
                 GROUP BY u.id
@@ -61,7 +61,7 @@ public class PowerUserReader {
                                    AND r.createdAt >= :startDate
                 LEFT JOIN PopularReview pr ON pr.reviewId = r.id
                                            AND pr.period = :period
-                LEFT JOIN ReviewLike rl ON rl.userId = u.id
+                LEFT JOIN ReviewLike rl ON rl.user.id = u.id
                                         AND rl.createdAt >= :startDate
                 LEFT JOIN Comment c ON c.user.id = u.id
                                     AND c.createdAt >= :startDate
