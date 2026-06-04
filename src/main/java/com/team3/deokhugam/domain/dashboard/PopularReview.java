@@ -28,7 +28,7 @@ public class PopularReview {
   private UUID id;
 
   @Column(name = "review_id", nullable = false)
-  private UUID reviewID;
+  private UUID reviewId;
 
   @Enumerated(EnumType.STRING)
   @Column(name = "period", nullable = false)

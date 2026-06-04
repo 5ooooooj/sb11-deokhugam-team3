@@ -13,6 +13,8 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.UUID;
 import lombok.AccessLevel;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
@@ -20,6 +22,8 @@ import lombok.NoArgsConstructor;
 @Table(name = "power_users")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
+@AllArgsConstructor
+@Builder
 public class PowerUser {
 
   @Id
@@ -52,7 +56,8 @@ public class PowerUser {
   @Column(name = "calculated_at", nullable = false)
   private Instant calculatedAt;
 
-  public void updateRank(int rank) {
+  // PopularBook이랑 메서드 이름 통일
+  public void assignRank(int rank) {
     this.rank = rank;
   }
 }

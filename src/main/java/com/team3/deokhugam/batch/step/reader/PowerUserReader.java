@@ -28,66 +28,51 @@ public class PowerUserReader {
 
     if (startDate == null) {
       builder.queryString("""
-        SELECT new com.team3.deokhugam.batch.dto.PowerUserRawData(
-          u.userId,
-          COALESCE(SUM(pr.score), 0),
-          COALESCE(SUM(rl.likeCount), 0),
-          COALESCE(SUM(c.commentCount), 0) 
-        )
-        FROM (SELECT DISTINCT r.userId FROM Review r) u
-        LEFT JOIN (
-          SELECT r.userId AS userId, SUM(pr.score) AS score
-          FROM Review r
-          JOIN PopularReview pr ON pr.reviewID = r.id
-                                AND pr.period = :period
-          GROUP BY r.userId
-        ) pr ON pr.userId = u.userId
-        LEFT JOIN (
-          SELECT rl.userId AS userId, COUNT(rl.id) AS likeCount
-          FROM ReviewLike rl
-          GROUP BY rl.userId
-        ) rl ON rl.userId = u.userId
-        LEFT JOIN (
-          SELECT c.user.id AS userId, COUNT(c.id) AS commentCount
-          FROM Comment c
-          GROUP BY c.user.id
-        ) c ON c.userId = u.userId
-        GROUP BY u.userId
-        ORDER BY u.userId
-        """)
+                SELECT new com.team3.deokhugam.batch.dto.PowerUserRawData(
+                    u.id,
+                    CAST(COALESCE(SUM(pr.score), 0) AS bigdecimal),
+                    CAST(COUNT(DISTINCT rl.id) AS int),
+                    CAST(COUNT(DISTINCT c.id) AS int)
+                )
+                FROM User u
+                LEFT JOIN Review r ON r.userId = u.id
+                LEFT JOIN PopularReview pr ON pr.reviewId= r.id
+                                           AND pr.period = :period
+                LEFT JOIN ReviewLike rl ON rl.userId = u.id
+                LEFT JOIN Comment c ON c.user.id = u.id
+                WHERE u.deletedAt IS NULL
+                GROUP BY u.id
+                HAVING COALESCE(SUM(pr.score), 0) > 0
+                    OR COUNT(DISTINCT rl.id) > 0
+                    OR COUNT(DISTINCT c.id) > 0
+                ORDER BY u.id
+                """)
           .parameterValues(Map.of("period", period));
     } else {
-        builder.queryString("""
-          SELECT new com.team3.deokhugam.batch.dto.PowerUserRawData(
-            u.userId,
-            COALESCE(SUM(pr.score), 0),
-            COALESCE(SUM(rl.likeCount), 0),
-            COALESCE(SUM(c.commentCount), 0)
-          )
-          FROM (SELECT DISTINCT r.userId FROM Review r
-                WHERE r.createdAt >= :startDate) u
-          LEFT JOIN (
-          SELECT r.userId AS userId, SUM(pr.score) AS score
-          FROM Review r
-          JOIN PopularReview pr ON pr.reviewID = r.id
-                                AND pr.period = :period
-          GROUP BY r.userId
-        ) pr ON pr.userId = u.userId
-        LEFT JOIN (
-          SELECT rl.userId AS userId, COUNT(rl.id) AS likeCount
-          FROM ReviewLike rl
-          WHERE rl.createAt >= :startDate
-          GROUP BY rl.userId
-        ) rl ON rl.userId = u.userId
-        LEFT JOIN (
-          SELECT c.user.id AS userId, COUNT(c.id) AS commentCount
-          FROM Comment c
-          GROUP BY c.createdAt >= :startDate
-        ) c ON c.userId = u.userId
-        GROUP BY u.userId
-        ORDER BY u.userId
-        """)
-            .parameterValues(Map.of("period", period, "startDate", startDate));
+      builder.queryString("""
+                SELECT new com.team3.deokhugam.batch.dto.PowerUserRawData(
+                    u.id,
+                    CAST(COALESCE(SUM(pr.score), 0) AS bigdecimal ),
+                    CAST(COUNT(DISTINCT rl.id) AS int),
+                    CAST(COUNT(DISTINCT c.id) AS int)
+                )
+                FROM User u
+                LEFT JOIN Review r ON r.userId = u.id
+                                   AND r.createdAt >= :startDate
+                LEFT JOIN PopularReview pr ON pr.reviewId = r.id
+                                           AND pr.period = :period
+                LEFT JOIN ReviewLike rl ON rl.userId = u.id
+                                        AND rl.createdAt >= :startDate
+                LEFT JOIN Comment c ON c.user.id = u.id
+                                    AND c.createdAt >= :startDate
+                WHERE u.deletedAt IS NULL
+                GROUP BY u.id
+                HAVING COALESCE(SUM(pr.score), 0) > 0
+                    OR COUNT(DISTINCT rl.id) > 0
+                    OR COUNT(DISTINCT c.id) > 0
+                ORDER BY u.id
+                """)
+          .parameterValues(Map.of("period", period, "startDate", startDate));
     }
     return builder.build();
   }
