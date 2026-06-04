@@ -36,6 +36,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.Sort;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 @ExtendWith(MockitoExtension.class)
 class BookServiceTest {
@@ -781,5 +783,174 @@ class BookServiceTest {
 
     verify(bookRepository).findByIdAndDeletedAtIsNull(bookId);
     verify(s3Service, never()).upload(any(MultipartFile.class), any(String.class));
+  }
+
+  @Test
+  @DisplayName("도서 생성 중 트랜잭션이 롤백되면 업로드한 S3 객체를 삭제한다")
+  void createBookWithThumbnailImageRollbackDeletesUploadedS3Object() {
+    // given
+    TransactionSynchronizationManager.initSynchronization();
+
+    try {
+      UUID requestUserId = UUID.randomUUID();
+
+      BookCreateRequest request =
+          new BookCreateRequest(
+              "그리고 아무도 없었다",
+              "애거서 크리스티",
+              "외딴 섬에서 벌어지는 연쇄 살인 사건",
+              "황금가지",
+              LocalDate.of(2013, 12, 31),
+              "9788960177758",
+              null
+          );
+
+      MultipartFile thumbnailImage =
+          new MockMultipartFile(
+              "thumbnailImage",
+              "thumbnail.jpg",
+              "image/jpeg",
+              "test-image".getBytes()
+          );
+
+      String uploadedUrl = "https://s3.example.com/books/thumbnail.jpg";
+
+      when(s3Service.upload(any(MultipartFile.class), any(String.class))).thenReturn(uploadedUrl);
+      when(bookRepository.save(any(Book.class))).thenAnswer(
+          invocation -> invocation.getArgument(0));
+
+      // when
+      bookService.create(requestUserId, request, thumbnailImage);
+
+      List<TransactionSynchronization> synchronizations =
+          TransactionSynchronizationManager.getSynchronizations();
+
+      synchronizations.forEach(
+          synchronization ->
+              synchronization.afterCompletion(TransactionSynchronization.STATUS_ROLLED_BACK)
+      );
+
+      // then
+      ArgumentCaptor<String> keyCaptor = ArgumentCaptor.forClass(String.class);
+
+      verify(s3Service).upload(any(MultipartFile.class), keyCaptor.capture());
+      verify(s3Service).delete(keyCaptor.getValue());
+
+      assertThat(keyCaptor.getValue()).startsWith("books/" + requestUserId + "/");
+      assertThat(keyCaptor.getValue()).contains("thumbnail.jpg");
+    } finally {
+      TransactionSynchronizationManager.clearSynchronization();
+    }
+  }
+
+  @Test
+  @DisplayName("도서 수정 중 트랜잭션이 롤백되면 업로드한 S3 객체를 삭제한다")
+  void updateBookWithThumbnailImageRollbackDeletesUploadedS3Object() {
+    // given
+    TransactionSynchronizationManager.initSynchronization();
+
+    try {
+      UUID bookId = UUID.randomUUID();
+      UUID requestUserId = UUID.randomUUID();
+
+      Book book = book()
+          .id(bookId)
+          .userId(requestUserId)
+          .title("수정 전 제목")
+          .author("수정 전 작가")
+          .description("수정 전 설명")
+          .publisher("수정 전 출판사")
+          .publishedDate(LocalDate.of(2026, 1, 1))
+          .isbn("9788960177758")
+          .thumbnailUrl("https://example.com/before.jpg")
+          .build();
+
+      BookUpdateRequest request =
+          new BookUpdateRequest(
+              "수정 후 제목",
+              "수정 후 작가",
+              "수정 후 설명",
+              "수정 후 출판사",
+              LocalDate.of(2026, 5, 28),
+              null
+          );
+
+      MultipartFile thumbnailImage =
+          new MockMultipartFile(
+              "thumbnailImage",
+              "updated thumbnail.jpg",
+              "image/jpeg",
+              "updated-image".getBytes()
+          );
+
+      String uploadedUrl = "https://s3.example.com/books/updated-thumbnail.jpg";
+
+      when(bookRepository.findByIdAndDeletedAtIsNull(bookId)).thenReturn(Optional.of(book));
+      when(s3Service.upload(any(MultipartFile.class), any(String.class))).thenReturn(uploadedUrl);
+
+      // when
+      bookService.update(bookId, requestUserId, request, thumbnailImage);
+
+      List<TransactionSynchronization> synchronizations =
+          TransactionSynchronizationManager.getSynchronizations();
+
+      synchronizations.forEach(
+          synchronization ->
+              synchronization.afterCompletion(TransactionSynchronization.STATUS_ROLLED_BACK)
+      );
+
+      // then
+      ArgumentCaptor<String> keyCaptor = ArgumentCaptor.forClass(String.class);
+
+      verify(s3Service).upload(any(MultipartFile.class), keyCaptor.capture());
+      verify(s3Service).delete(keyCaptor.getValue());
+
+      assertThat(keyCaptor.getValue()).startsWith("books/" + requestUserId + "/");
+      assertThat(keyCaptor.getValue()).contains("updated_thumbnail.jpg");
+    } finally {
+      TransactionSynchronizationManager.clearSynchronization();
+    }
+  }
+
+  @Test
+  @DisplayName("썸네일 이미지 원본 파일명의 특수문자는 S3 key에서 안전하게 치환된다")
+  void createBookWithUnsafeOriginalFilenameThumbnailImage() {
+    // given
+    UUID requestUserId = UUID.randomUUID();
+
+    BookCreateRequest request =
+        new BookCreateRequest(
+            "그리고 아무도 없었다",
+            "애거서 크리스티",
+            "외딴 섬에서 벌어지는 연쇄 살인 사건",
+            "황금가지",
+            LocalDate.of(2013, 12, 31),
+            "9788960177758",
+            null
+        );
+
+    MultipartFile thumbnailImage =
+        new MockMultipartFile(
+            "thumbnailImage",
+            "my thumbnail @2026!.jpg",
+            "image/jpeg",
+            "test-image".getBytes()
+        );
+
+    String uploadedUrl = "https://s3.example.com/books/thumbnail.jpg";
+
+    when(s3Service.upload(any(MultipartFile.class), any(String.class))).thenReturn(uploadedUrl);
+    when(bookRepository.save(any(Book.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+    // when
+    bookService.create(requestUserId, request, thumbnailImage);
+
+    // then
+    ArgumentCaptor<String> keyCaptor = ArgumentCaptor.forClass(String.class);
+
+    verify(s3Service).upload(any(MultipartFile.class), keyCaptor.capture());
+
+    assertThat(keyCaptor.getValue()).startsWith("books/" + requestUserId + "/");
+    assertThat(keyCaptor.getValue()).contains("my_thumbnail__2026_.jpg");
   }
 }
