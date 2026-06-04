@@ -137,4 +137,43 @@ class NotificationRepositoryTest {
     );
     assertThat(result).isEmpty();
   }
+
+  @Test
+  @DisplayName("after 파라미터로 커서 페이지네이션이 동작합니다.")
+  void findByUserIdWithCursor_withAfter() {
+    User user = userRepository.save(new User("test6@test.com", "테스터6", "Password1!"));
+    Review review = reviewRepository.save(ReviewTestFactory.review().userId(user.getId()).build());
+
+    Notification n1 = notificationRepository.save(
+        Notification.create(user, review, NotificationType.COMMENT, "첫 번째 알림")
+    );
+    Notification n2 = notificationRepository.save(
+        Notification.create(user, review, NotificationType.COMMENT, "두 번째 알림")
+    );
+
+    // createdAt 직접 업데이트
+    entityManager.createQuery(
+            "UPDATE Notification n SET n.createdAt = :createdAt WHERE n.id = :id")
+        .setParameter("createdAt", Instant.parse("2024-01-01T00:00:00Z"))
+        .setParameter("id", n1.getId())
+        .executeUpdate();
+
+    entityManager.createQuery(
+            "UPDATE Notification n SET n.createdAt = :createdAt WHERE n.id = :id")
+        .setParameter("createdAt", Instant.parse("2024-01-02T00:00:00Z"))
+        .setParameter("id", n2.getId())
+        .executeUpdate();
+
+    entityManager.flush();
+    entityManager.clear();
+
+    Instant after = Instant.parse("2024-01-01T12:00:00Z");
+
+    List<Notification> result = notificationRepository.findByUserIdWithCursor(
+        user.getId(), after, PageRequest.of(0, 10)
+    );
+
+    assertThat(result).hasSize(1);
+    assertThat(result.get(0).getMessage()).isEqualTo("첫 번째 알림");
+  }
 }
