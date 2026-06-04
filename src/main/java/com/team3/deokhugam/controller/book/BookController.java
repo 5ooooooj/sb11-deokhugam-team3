@@ -50,7 +50,7 @@ public class BookController {
       @Valid @RequestPart("bookData") BookCreateRequest request,
       @RequestPart(value = "thumbnailImage", required = false) MultipartFile thumbnailImage
   ) {
-    return bookService.create(requestUserId, request);
+    return bookService.create(requestUserId, request, thumbnailImage);
   }
 
   @BookSearchApi
@@ -93,7 +93,7 @@ public class BookController {
       @Valid @RequestPart("bookData") BookUpdateRequest request,
       @RequestPart(value = "thumbnailImage", required = false) MultipartFile thumbnailImage
   ) {
-    return bookService.update(bookId, requestUserId, request);
+    return bookService.update(bookId, requestUserId, request, thumbnailImage);
   }
 
   @BookDeleteApi

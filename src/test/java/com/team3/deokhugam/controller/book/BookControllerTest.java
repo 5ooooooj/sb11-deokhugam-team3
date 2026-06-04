@@ -3,6 +3,7 @@ package com.team3.deokhugam.controller.book;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -39,6 +40,7 @@ import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.web.multipart.MultipartFile;
 
 @WebMvcTest(BookController.class)
 class BookControllerTest {
@@ -89,7 +91,8 @@ class BookControllerTest {
             now
         );
 
-    when(bookService.create(eq(requestUserId), any(BookCreateRequest.class))).thenReturn(response);
+    when(bookService.create(eq(requestUserId), any(BookCreateRequest.class),
+        nullable(MultipartFile.class))).thenReturn(response);
 
     MockMultipartFile bookData =
         new MockMultipartFile(
@@ -109,6 +112,87 @@ class BookControllerTest {
         .andExpect(jsonPath("$.title").value(request.title()))
         .andExpect(jsonPath("$.author").value(request.author()))
         .andExpect(jsonPath("$.isbn").value(request.isbn()));
+
+    verify(bookService).create(eq(requestUserId), any(BookCreateRequest.class),
+        nullable(MultipartFile.class));
+  }
+
+  @Test
+  @DisplayName("도서 생성 시 썸네일 이미지를 함께 전달")
+  void createBookWithThumbnailImage() throws Exception {
+    // given
+    UUID requestUserId = UUID.randomUUID();
+
+    BookCreateRequest request =
+        new BookCreateRequest(
+            "그리고 아무도 없었다",
+            "애거서 크리스티",
+            "외딴 섬에서 벌어지는 연쇄 살인 사건",
+            "황금가지",
+            LocalDate.of(2013, 12, 31),
+            "9788960177758",
+            null
+        );
+
+    Instant now = Instant.parse("2026-05-26T02:03:32.227Z");
+    String uploadedThumbnailUrl = "https://s3.example.com/books/thumbnail.jpg";
+
+    BookDto response =
+        new BookDto(
+            UUID.randomUUID(),
+            request.title(),
+            request.author(),
+            request.description(),
+            request.publisher(),
+            request.publishedDate(),
+            request.isbn(),
+            uploadedThumbnailUrl,
+            0,
+            BigDecimal.ZERO,
+            now,
+            now
+        );
+
+    when(bookService.create(
+        eq(requestUserId),
+        any(BookCreateRequest.class),
+        any(MultipartFile.class)
+    )).thenReturn(response);
+
+    MockMultipartFile bookData =
+        new MockMultipartFile(
+            "bookData",
+            "bookData.json",
+            MediaType.APPLICATION_JSON_VALUE,
+            objectMapper.writeValueAsBytes(request)
+        );
+
+    MockMultipartFile thumbnailImage =
+        new MockMultipartFile(
+            "thumbnailImage",
+            "thumbnail.jpg",
+            MediaType.IMAGE_JPEG_VALUE,
+            "thumbnail-image".getBytes()
+        );
+
+    // when, then
+    mockMvc.perform(
+            multipart("/api/books")
+                .file(bookData)
+                .file(thumbnailImage)
+                .header(REQUEST_USER_ID_HEADER, requestUserId.toString())
+        )
+        .andExpect(status().isCreated())
+        .andExpect(jsonPath("$.title").value(request.title()))
+        .andExpect(jsonPath("$.author").value(request.author()))
+        .andExpect(jsonPath("$.isbn").value(request.isbn()))
+        .andExpect(jsonPath("$.thumbnailUrl").value(uploadedThumbnailUrl));
+
+    verify(bookService).create(
+        eq(requestUserId),
+        any(BookCreateRequest.class),
+        any(MultipartFile.class)
+    );
   }
 
   @Test
@@ -171,7 +255,8 @@ class BookControllerTest {
             objectMapper.writeValueAsBytes(request)
         );
 
-    when(bookService.create(eq(requestUserId), any(BookCreateRequest.class)))
+    when(bookService.create(eq(requestUserId), any(BookCreateRequest.class),
+        nullable(MultipartFile.class)))
         .thenThrow(new BookAlreadyExistsException());
 
     // when, then
@@ -429,7 +514,8 @@ class BookControllerTest {
             "thumbnail-image".getBytes()
         );
 
-    when(bookService.update(eq(bookId), eq(requestUserId), any(BookUpdateRequest.class)))
+    when(bookService.update(eq(bookId), eq(requestUserId), any(BookUpdateRequest.class),
+        nullable(MultipartFile.class)))
         .thenReturn(response);
 
     // when, then
@@ -452,6 +538,9 @@ class BookControllerTest {
         .andExpect(jsonPath("$.publishedDate").value(request.publishedDate().toString()))
         .andExpect(jsonPath("$.isbn").value("9788960177758"))
         .andExpect(jsonPath("$.thumbnailUrl").value(request.thumbnailUrl()));
+
+    verify(bookService).update(eq(bookId), eq(requestUserId), any(BookUpdateRequest.class),
+        any(MultipartFile.class));
   }
 
   @Test
@@ -496,7 +585,8 @@ class BookControllerTest {
             objectMapper.writeValueAsBytes(request)
         );
 
-    when(bookService.update(eq(bookId), eq(requestUserId), any(BookUpdateRequest.class)))
+    when(bookService.update(eq(bookId), eq(requestUserId), any(BookUpdateRequest.class),
+        nullable(MultipartFile.class)))
         .thenReturn(response);
 
     // when, then
@@ -515,6 +605,13 @@ class BookControllerTest {
         .andExpect(jsonPath("$.author").value(request.author()))
         .andExpect(jsonPath("$.isbn").value("9788960177758"))
         .andExpect(jsonPath("$.thumbnailUrl").value(request.thumbnailUrl()));
+
+    verify(bookService).update(
+        eq(bookId),
+        eq(requestUserId),
+        any(BookUpdateRequest.class),
+        nullable(MultipartFile.class)
+    );
   }
 
   @Test
@@ -542,7 +639,8 @@ class BookControllerTest {
             objectMapper.writeValueAsBytes(request)
         );
 
-    when(bookService.update(eq(bookId), eq(requestUserId), any(BookUpdateRequest.class)))
+    when(bookService.update(eq(bookId), eq(requestUserId), any(BookUpdateRequest.class),
+        nullable(MultipartFile.class)))
         .thenThrow(new BookNotFoundException());
 
     // when, then
@@ -585,7 +683,8 @@ class BookControllerTest {
             objectMapper.writeValueAsBytes(request)
         );
 
-    when(bookService.update(eq(bookId), eq(requestUserId), any(BookUpdateRequest.class)))
+    when(bookService.update(eq(bookId), eq(requestUserId), any(BookUpdateRequest.class),
+        nullable(MultipartFile.class)))
         .thenThrow(new BookForbiddenException());
 
     // when, then

@@ -20,6 +20,7 @@ import com.team3.deokhugam.exception.book.BookForbiddenException;
 import com.team3.deokhugam.exception.book.BookNotFoundException;
 import com.team3.deokhugam.global.dto.CursorPageResponse;
 import com.team3.deokhugam.repository.book.BookRepository;
+import com.team3.deokhugam.service.s3.S3Service;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
@@ -33,12 +34,17 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.Sort;
+import org.springframework.mock.web.MockMultipartFile;
+import org.springframework.web.multipart.MultipartFile;
 
 @ExtendWith(MockitoExtension.class)
 class BookServiceTest {
 
   @Mock
   private BookRepository bookRepository;
+
+  @Mock
+  private S3Service s3Service;
 
   @InjectMocks
   private BookService bookService;
@@ -59,16 +65,17 @@ class BookServiceTest {
             "9788960177758",
             "https://example.com/book.jpg"
         );
-    
+
     when(bookRepository.save(any(Book.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
     // when
-    BookDto result = bookService.create(requestUserId, request);
+    BookDto result = bookService.create(requestUserId, request, null);
 
     // then
     assertThat(result.title()).isEqualTo(request.title());
     assertThat(result.author()).isEqualTo(request.author());
     assertThat(result.isbn()).isEqualTo(request.isbn());
+    assertThat(result.thumbnailUrl()).isEqualTo(request.thumbnailUrl());
 
     ArgumentCaptor<Book> bookCaptor = ArgumentCaptor.forClass(Book.class);
     verify(bookRepository).save(bookCaptor.capture());
@@ -78,6 +85,53 @@ class BookServiceTest {
     assertThat(savedBook.getTitle()).isEqualTo(request.title());
     assertThat(savedBook.getAuthor()).isEqualTo(request.author());
     assertThat(savedBook.getIsbn()).isEqualTo(request.isbn());
+    assertThat(savedBook.getThumbnailUrl()).isEqualTo(request.thumbnailUrl());
+
+    verify(s3Service, never()).upload(any(MultipartFile.class), any(String.class));
+  }
+
+  @Test
+  @DisplayName("썸네일 이미지가 있으면 S3에 업로드하고 업로드 URL을 저장")
+  void createBookWithThumbnailImage() {
+    // given
+    UUID requestUserId = UUID.randomUUID();
+
+    BookCreateRequest request =
+        new BookCreateRequest(
+            "그리고 아무도 없었다",
+            "애거서 크리스티",
+            "외딴 섬에서 벌어지는 연쇄 살인 사건",
+            "황금가지",
+            LocalDate.of(2013, 12, 31),
+            "9788960177758",
+            null
+        );
+
+    MultipartFile thumbnailImage =
+        new MockMultipartFile(
+            "thumbnailImage",
+            "thumbnail.jpg",
+            "image/jpeg",
+            "test-image".getBytes()
+        );
+
+    String uploadedUrl = "https://example.com/uploaded-thumbnail.jpg";
+    when(s3Service.upload(any(MultipartFile.class), any(String.class))).thenReturn(uploadedUrl);
+    when(bookRepository.save(any(Book.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+    // when
+    BookDto result = bookService.create(requestUserId, request, thumbnailImage);
+
+    // then
+    assertThat(result.thumbnailUrl()).isEqualTo(uploadedUrl);
+
+    ArgumentCaptor<Book> bookCaptor = ArgumentCaptor.forClass(Book.class);
+    verify(bookRepository).save(bookCaptor.capture());
+
+    Book savedBook = bookCaptor.getValue();
+    assertThat(savedBook.getThumbnailUrl()).isEqualTo(uploadedUrl);
+
+    verify(s3Service).upload(any(MultipartFile.class), any(String.class));
   }
 
   @Test
@@ -100,8 +154,11 @@ class BookServiceTest {
     when(bookRepository.existsByIsbn(request.isbn())).thenReturn(true);
 
     // when, then
-    assertThatThrownBy(() -> bookService.create(requestUserId, request))
+    assertThatThrownBy(() -> bookService.create(requestUserId, request, null))
         .isInstanceOf(BookAlreadyExistsException.class);
+
+    verify(bookRepository, never()).save(any(Book.class));
+    verify(s3Service, never()).upload(any(MultipartFile.class), any(String.class));
   }
 
   @Test
@@ -295,7 +352,7 @@ class BookServiceTest {
     when(bookRepository.findByIdAndDeletedAtIsNull(bookId)).thenReturn(Optional.of(book));
 
     // when
-    BookDto result = bookService.update(bookId, requestUserId, request);
+    BookDto result = bookService.update(bookId, requestUserId, request, null);
 
     // then
     assertThat(result.id()).isEqualTo(bookId);
@@ -308,6 +365,67 @@ class BookServiceTest {
     assertThat(result.thumbnailUrl()).isEqualTo(request.thumbnailUrl());
 
     verify(bookRepository).findByIdAndDeletedAtIsNull(bookId);
+    verify(s3Service, never()).upload(any(MultipartFile.class), any(String.class));
+  }
+
+  @Test
+  @DisplayName("도서 수정 시 썸네일 이미지가 있으면 S3 업로드 URL을 저장")
+  void updateBookWithThumbnailImage() {
+    // given
+    UUID bookId = UUID.randomUUID();
+    UUID requestUserId = UUID.randomUUID();
+
+    Book book = book()
+        .id(bookId)
+        .userId(requestUserId)
+        .title("수정 전 제목")
+        .author("수정 전 작가")
+        .description("수정 전 설명")
+        .publisher("수정 전 출판사")
+        .publishedDate(LocalDate.of(2026, 1, 1))
+        .isbn("9788960177758")
+        .thumbnailUrl("https://example.com/before.jpg")
+        .build();
+
+    BookUpdateRequest request =
+        new BookUpdateRequest(
+            "수정 후 제목",
+            "수정 후 작가",
+            "수정 후 설명",
+            "수정 후 출판사",
+            LocalDate.of(2026, 5, 28),
+            null
+        );
+
+    MultipartFile thumbnailImage =
+        new MockMultipartFile(
+            "thumbnailImage",
+            "updated-thumbnail.jpg",
+            "image/jpeg",
+            "updated-image".getBytes()
+        );
+
+    String uploadedUrl = "https://s3.example.com/books/updated-thumbnail.jpg";
+
+    when(bookRepository.findByIdAndDeletedAtIsNull(bookId)).thenReturn(Optional.of(book));
+    when(s3Service.upload(any(MultipartFile.class), any(String.class))).thenReturn(uploadedUrl);
+
+    // when
+    BookDto result = bookService.update(bookId, requestUserId, request, thumbnailImage);
+
+    // then
+    assertThat(result.id()).isEqualTo(bookId);
+    assertThat(result.title()).isEqualTo(request.title());
+    assertThat(result.author()).isEqualTo(request.author());
+    assertThat(result.description()).isEqualTo(request.description());
+    assertThat(result.publisher()).isEqualTo(request.publisher());
+    assertThat(result.publishedDate()).isEqualTo(request.publishedDate());
+    assertThat(result.isbn()).isEqualTo("9788960177758");
+    assertThat(result.thumbnailUrl()).isEqualTo(uploadedUrl);
+    assertThat(book.getThumbnailUrl()).isEqualTo(uploadedUrl);
+
+    verify(bookRepository).findByIdAndDeletedAtIsNull(bookId);
+    verify(s3Service).upload(any(MultipartFile.class), any(String.class));
   }
 
   @Test
@@ -330,10 +448,11 @@ class BookServiceTest {
     when(bookRepository.findByIdAndDeletedAtIsNull(bookId)).thenReturn(Optional.empty());
 
     // when, then
-    assertThatThrownBy(() -> bookService.update(bookId, requestUserId, request))
+    assertThatThrownBy(() -> bookService.update(bookId, requestUserId, request, null))
         .isInstanceOf(BookNotFoundException.class);
 
     verify(bookRepository).findByIdAndDeletedAtIsNull(bookId);
+    verify(s3Service, never()).upload(any(MultipartFile.class), any(String.class));
   }
 
   @Test
@@ -369,10 +488,11 @@ class BookServiceTest {
     when(bookRepository.findByIdAndDeletedAtIsNull(bookId)).thenReturn(Optional.of(book));
 
     // when, then
-    assertThatThrownBy(() -> bookService.update(bookId, requestUserId, request))
+    assertThatThrownBy(() -> bookService.update(bookId, requestUserId, request, null))
         .isInstanceOf(BookForbiddenException.class);
 
     verify(bookRepository).findByIdAndDeletedAtIsNull(bookId);
+    verify(s3Service, never()).upload(any(MultipartFile.class), any(String.class));
   }
 
   @Test
