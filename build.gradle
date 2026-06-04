@@ -91,3 +91,7 @@ jacocoTestCoverageVerification {
 //	}
 //}
 //check.dependsOn jacocoTestCoverageVerification
+
+test {
+    maxParallelForks = 1
+}
