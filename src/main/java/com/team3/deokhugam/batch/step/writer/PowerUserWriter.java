@@ -5,7 +5,9 @@ import com.team3.deokhugam.domain.dashboard.PowerUser;
 import com.team3.deokhugam.repository.dashboard.PowerUserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.batch.item.ItemWriter;
+import org.springframework.stereotype.Component;
 
+@Component
 @RequiredArgsConstructor
 public class PowerUserWriter {
 

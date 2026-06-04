@@ -4,7 +4,6 @@ import com.team3.deokhugam.batch.global.Period;
 import com.team3.deokhugam.batch.global.RankCalculateUtil;
 import com.team3.deokhugam.domain.dashboard.PowerUser;
 import com.team3.deokhugam.repository.dashboard.PowerUserRepository;
-import java.math.BigDecimal;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.batch.core.BatchStatus;
