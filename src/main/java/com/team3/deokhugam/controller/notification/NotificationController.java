@@ -1,5 +1,8 @@
 package com.team3.deokhugam.controller.notification;
 
+import com.team3.deokhugam.controller.notification.docs.NotificationConfirmAllApi;
+import com.team3.deokhugam.controller.notification.docs.NotificationConfirmApi;
+import com.team3.deokhugam.controller.notification.docs.NotificationFindAllApi;
 import com.team3.deokhugam.dto.notification.NotificationDto;
 import com.team3.deokhugam.global.dto.CursorPageResponse;
 import com.team3.deokhugam.service.notification.NotificationService;
@@ -21,6 +24,7 @@ public class NotificationController {
 
   private final NotificationService notificationService;
 
+  @NotificationFindAllApi
   @GetMapping
   public ResponseEntity<CursorPageResponse<NotificationDto>> findAll(
       @RequestParam(defaultValue = "DESC") String direction,
@@ -34,6 +38,7 @@ public class NotificationController {
     return ResponseEntity.ok(response);
   }
 
+  @NotificationConfirmApi
   @PatchMapping("/{notificationId}")
   public ResponseEntity<NotificationDto> confirm(
       @PathVariable UUID notificationId,
@@ -44,6 +49,7 @@ public class NotificationController {
     return ResponseEntity.ok(response);
   }
 
+  @NotificationConfirmAllApi
   @PatchMapping("/read-all")
   public ResponseEntity<Void> confirmAll(
       @RequestHeader("Deokhugam-Request-User-ID") UUID requestUserId

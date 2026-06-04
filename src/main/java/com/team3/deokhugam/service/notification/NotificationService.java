@@ -12,5 +12,5 @@ public interface NotificationService {
 
   NotificationDto confirm(UUID notificationId, UUID requestUserId);
   void confirmAll(UUID requestUserId);
-  CursorPageResponse<NotificationDto> findAll(UUID userId, Instant after, int size);
+  CursorPageResponse<NotificationDto> findAll(UUID userId, Instant after, int limit);
 }
