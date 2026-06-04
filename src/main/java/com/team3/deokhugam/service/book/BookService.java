@@ -11,12 +11,18 @@ import com.team3.deokhugam.exception.book.BookAlreadyExistsException;
 import com.team3.deokhugam.exception.book.BookNotFoundException;
 import com.team3.deokhugam.global.dto.CursorPageResponse;
 import com.team3.deokhugam.repository.book.BookRepository;
+import com.team3.deokhugam.service.s3.S3Service;
 import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.web.multipart.MultipartFile;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
@@ -24,11 +30,20 @@ public class BookService {
 
   private final BookRepository bookRepository;
 
+  private final S3Service s3Service;
+
   @Transactional
-  public BookDto create(UUID requestUserId, BookCreateRequest request) {
+  public BookDto create(UUID requestUserId, BookCreateRequest request,
+      MultipartFile thumbnailImage) {
     if (request.isbn() != null && bookRepository.existsByIsbn(request.isbn())) {
       throw new BookAlreadyExistsException();
     }
+
+    String thumbnailUrl = uploadThumbnailIfPresent(
+        thumbnailImage,
+        request.thumbnailUrl(),
+        requestUserId
+    );
 
     Book book =
         new Book(
@@ -39,7 +54,7 @@ public class BookService {
             request.publisher(),
             request.publishedDate(),
             request.isbn(),
-            request.thumbnailUrl()
+            thumbnailUrl
         );
     Book savedBook = bookRepository.save(book);
 
@@ -79,9 +94,16 @@ public class BookService {
   }
 
   @Transactional
-  public BookDto update(UUID bookId, UUID requestUserId, BookUpdateRequest request) {
+  public BookDto update(UUID bookId, UUID requestUserId, BookUpdateRequest request,
+      MultipartFile thumbnailImage) {
     Book book = getActiveBook(bookId);
     book.validateOwner(requestUserId);
+
+    String thumbnailUrl = uploadThumbnailIfPresent(
+        thumbnailImage,
+        request.thumbnailUrl(),
+        requestUserId
+    );
 
     book.update(
         request.title(),
@@ -89,7 +111,7 @@ public class BookService {
         request.description(),
         request.publisher(),
         request.publishedDate(),
-        request.thumbnailUrl()
+        thumbnailUrl
     );
 
     return BookDto.from(book);
@@ -138,5 +160,52 @@ public class BookService {
       case RATING -> book.getRating() == null ? null : book.getRating().toString();
       case REVIEW_COUNT -> String.valueOf(book.getReviewCount());
     };
+  }
+
+  private String uploadThumbnailIfPresent(
+      MultipartFile thumbnailImage,
+      String fallbackThumbnailUrl,
+      UUID requestUserId
+  ) {
+    if (thumbnailImage == null || thumbnailImage.isEmpty()) {
+      return fallbackThumbnailUrl;
+    }
+
+    String key = genarateThumbnailKey(requestUserId, thumbnailImage.getOriginalFilename());
+    String uploadedUrl = s3Service.upload(thumbnailImage, key);
+
+    registerS3RollbackCleanup(key);
+
+    return uploadedUrl;
+  }
+
+  private String genarateThumbnailKey(UUID requestUserId, String originalFilename) {
+    String safeOriginalFilename =
+        originalFilename == null || originalFilename.isBlank()
+            ? "thumbnail"
+            : originalFilename.replaceAll("[^a-zA-Z0-9._-]", "_");
+
+    return "books/" + requestUserId + "/" + UUID.randomUUID() + "_" + safeOriginalFilename;
+  }
+
+  private void registerS3RollbackCleanup(String key) {
+    if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+      return;
+    }
+
+    TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+      @Override
+      public void afterCompletion(int status) {
+        if (status != STATUS_ROLLED_BACK) {
+          return;
+        }
+
+        try {
+          s3Service.delete(key);
+        } catch (RuntimeException e) {
+          log.warn("트랜잭션 롤백 후 S3 업로드 보상 삭제 실패 - key : {}", key, e);
+        }
+      }
+    });
   }
 }
