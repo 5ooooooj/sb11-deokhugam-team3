@@ -3,7 +3,6 @@ package com.team3.deokhugam.batch.job;
 import com.team3.deokhugam.batch.dto.PopularBookRawData;
 import com.team3.deokhugam.batch.global.Period;
 import com.team3.deokhugam.batch.step.listener.PopularBookRankingListener;
-import com.team3.deokhugam.batch.step.listener.PopularBookStepListener;
 import com.team3.deokhugam.batch.step.processor.PopularBookProcessor;
 import com.team3.deokhugam.batch.step.reader.PopularBookReader;
 import com.team3.deokhugam.batch.step.writer.PopularBookWriter;
@@ -21,6 +20,7 @@ import org.springframework.dao.CannotAcquireLockException;
 import org.springframework.dao.TransientDataAccessException;
 import org.springframework.retry.backoff.FixedBackOffPolicy;
 import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 
 @Configuration
 @RequiredArgsConstructor
@@ -28,6 +28,7 @@ public class PopularBookJobConfig {
 
   private final JobRepository jobRepository;
   private final PlatformTransactionManager transactionManager;
+  private final TransactionTemplate transactionTemplate;
   private final PopularBookReader popularBookReader;
   private final PopularBookProcessor popularBookProcessor;
   private final PopularBookWriter popularBookWriter;
@@ -48,9 +49,9 @@ public class PopularBookJobConfig {
         .<PopularBookRawData, PopularBook>chunk(500, transactionManager)
         .reader(popularBookReader.create(period))
         .processor(popularBookProcessor.create(period))
-        .writer(popularBookWriter.create(period))
-        .listener(new PopularBookStepListener(popularBookRepository, transactionManager, period))
-        .listener(new PopularBookRankingListener(popularBookRepository, period))
+        .writer(popularBookWriter.create())
+        .listener(popularBookWriter)
+        .listener(new PopularBookRankingListener(popularBookRepository, period, transactionTemplate, popularBookWriter))
         .faultTolerant()
         .retryLimit(3)
         .retry(TransientDataAccessException.class) // 일시적 db 오류
