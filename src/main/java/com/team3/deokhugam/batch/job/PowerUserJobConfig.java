@@ -47,9 +47,10 @@ public class PowerUserJobConfig {
         .<PowerUserRawData, PowerUser>chunk(500, transactionManager)
         .reader(powerUserReader.create(period))
         .processor(powerUserProcessor.create(period))
-        .writer(powerUserWriter.create(period))
+        .writer(powerUserWriter.create())
+        .listener(powerUserWriter)
         .listener(new PowerUserRankingListener(
-            powerUserRepository, transactionTemplate, period))
+            powerUserRepository, transactionTemplate, period, powerUserWriter))
         .faultTolerant()
         .retryLimit(3)
         .retry(TransientDataAccessException.class) // 일시적 db 오류
