@@ -10,10 +10,13 @@ import com.team3.deokhugam.exception.review.ReviewAlreadyExistsException;
 import com.team3.deokhugam.exception.review.ReviewForbiddenException;
 import com.team3.deokhugam.exception.review.ReviewNotFoundException;
 import com.team3.deokhugam.global.dto.CursorPageResponse;
+import com.team3.deokhugam.repository.review.ReviewLikeRepository;
 import com.team3.deokhugam.repository.review.ReviewRepository;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -27,6 +30,7 @@ public class ReviewService {
   private static final int PAGE_FETCH_OVER = 1;
 
   private final ReviewRepository reviewRepository;
+  private final ReviewLikeRepository reviewLikeRepository;
 
   @Transactional
   public ReviewDto createReview(ReviewCreateRequest request) {
@@ -43,7 +47,7 @@ public class ReviewService {
         request.content());
 
     Review saved = reviewRepository.save(review);
-    return ReviewDto.from(saved);
+    return ReviewDto.from(saved); // 신규 리뷰 → likedByMe=false
   }
 
   @Transactional
@@ -51,7 +55,9 @@ public class ReviewService {
       ReviewUpdateRequest request) {
     Review review = findOwnedReview(reviewId, requestUserId);
     review.update(request.rating(), request.content());
-    return ReviewDto.from(review);
+    boolean likedByMe =
+        reviewLikeRepository.existsByReview_IdAndUser_Id(reviewId, requestUserId);
+    return ReviewDto.from(review, likedByMe);
   }
 
   @Transactional
@@ -73,7 +79,9 @@ public class ReviewService {
     if (review.isDeleted()) {
       throw new ReviewNotFoundException();
     }
-    return ReviewDto.from(review);
+    boolean likedByMe =
+        reviewLikeRepository.existsByReview_IdAndUser_Id(reviewId, requestUserId);
+    return ReviewDto.from(review, likedByMe);
   }
 
   @Transactional(readOnly = true)
@@ -85,15 +93,20 @@ public class ReviewService {
     boolean hasNext = reviews.size() > request.limit();
     List<Review> pageReviews = hasNext ? reviews.subList(0, request.limit()) : reviews;
 
-    List<ReviewDto> content = pageReviews.stream()
-        .map(ReviewDto::from)
-        .toList();
+    // 현재 페이지 리뷰들 중 요청자가 좋아요한 리뷰 ID를 한 번에 조회 (N+1 방지)
+    List<UUID> reviewIds = pageReviews.stream().map(Review::getId).toList();
+    Set<UUID> likedIds = reviewIds.isEmpty()
+        ? Set.of()
+        : new HashSet<>(
+            reviewLikeRepository.findLikedReviewIds(request.requestUserId(), reviewIds));
 
+    List<ReviewDto> content = pageReviews.stream()
+        .map(r -> ReviewDto.from(r, likedIds.contains(r.getId())))
+        .toList();
 
     String nextCursor = hasNext
         ? buildNextCursor(pageReviews.get(pageReviews.size() - 1), request.orderBy())
         : null;
-
 
     long totalElements = request.hasCursor() ? 0L : reviewRepository.count(request);
 

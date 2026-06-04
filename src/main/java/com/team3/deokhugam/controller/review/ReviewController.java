@@ -2,10 +2,12 @@ package com.team3.deokhugam.controller.review;
 
 import com.team3.deokhugam.dto.review.ReviewCreateRequest;
 import com.team3.deokhugam.dto.review.ReviewDto;
+import com.team3.deokhugam.dto.review.ReviewLikeDto;
 import com.team3.deokhugam.dto.review.ReviewOrderBy;
 import com.team3.deokhugam.dto.review.ReviewSearchRequest;
 import com.team3.deokhugam.dto.review.ReviewUpdateRequest;
 import com.team3.deokhugam.global.dto.CursorPageResponse;
+import com.team3.deokhugam.service.review.ReviewLikeService;
 import com.team3.deokhugam.service.review.ReviewService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -38,6 +40,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class ReviewController {
 
   private final ReviewService reviewService;
+  private final ReviewLikeService reviewLikeService;
 
   @Operation(summary = "리뷰 등록", description = "새로운 리뷰를 등록합니다.")
   @ApiResponses({
@@ -81,31 +84,18 @@ public class ReviewController {
   public CursorPageResponse<ReviewDto> searchReviews(
       @Parameter(description = "작성자 ID", example = "123e4567-e89b-12d3-a456-426614174000")
       @RequestParam(required = false) UUID userId,
-
       @Parameter(description = "도서 ID", example = "123e4567-e89b-12d3-a456-426614174000")
       @RequestParam(required = false) UUID bookId,
-
-
       @Parameter(description = "검색 키워드 (내용)", example = "재밌어요")
       @RequestParam(required = false) String keyword,
-
-
       @Parameter(description = "정렬 기준 (createdAt | rating)", example = "createdAt")
       @RequestParam(required = false, defaultValue = "createdAt") ReviewOrderBy orderBy,
-
-
       @Parameter(description = "정렬 방향 (ASC | DESC)", example = "DESC")
       @RequestParam(required = false, defaultValue = "DESC") Sort.Direction direction,
-
-
       @Parameter(description = "다음 페이지 커서 (이전 응답의 nextCursor 값을 그대로 사용)")
       @RequestParam(required = false) String cursor,
-
-
       @Parameter(description = "페이지 크기 (미지정 시 50)", example = "50")
       @RequestParam(required = false) Integer limit,
-
-
       @RequestHeader("Deokhugam-Request-User-ID") UUID requestUserId) {
     ReviewSearchRequest request = ReviewSearchRequest.of(
         userId, bookId, keyword, orderBy, direction, cursor, limit, requestUserId);
@@ -158,5 +148,21 @@ public class ReviewController {
       @RequestHeader("Deokhugam-Request-User-ID") UUID requestUserId) {
     reviewService.hardDeleteReview(reviewId, requestUserId);
     return ResponseEntity.noContent().build();
+  }
+
+  @Operation(summary = "리뷰 좋아요", description = "리뷰에 좋아요를 추가하거나 취소합니다.")
+  @ApiResponses({
+      @ApiResponse(responseCode = "200", description = "리뷰 좋아요 성공",
+          content = @Content(schema = @Schema(implementation = ReviewLikeDto.class))),
+      @ApiResponse(responseCode = "400", description = "잘못된 요청 (요청자 ID 누락)"),
+      @ApiResponse(responseCode = "404", description = "리뷰 정보 없음"),
+      @ApiResponse(responseCode = "500", description = "서버 내부 오류")
+  })
+  @PostMapping("/{reviewId}/like")
+  public ResponseEntity<ReviewLikeDto> likeReview(
+      @PathVariable UUID reviewId,
+      @RequestHeader("Deokhugam-Request-User-ID") UUID requestUserId) {
+    ReviewLikeDto response = reviewLikeService.toggleLike(reviewId, requestUserId);
+    return ResponseEntity.ok(response);
   }
 }
