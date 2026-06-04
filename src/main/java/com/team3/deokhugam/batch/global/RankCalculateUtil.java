@@ -14,14 +14,22 @@ public class RankCalculateUtil {
       Function<T, BigDecimal> scoreExtractor,
       BiConsumer<T, Integer> rankSetter)
   {
+    if (items == null || items.isEmpty()) {
+      return;
+    }
     int rank = 1;
+    BigDecimal prevScore = null;
     for (int i = 0; i < items.size(); i++) {
-      if (i > 0 && scoreExtractor.apply(items.get(i))
-          .compareTo(scoreExtractor.apply(items.get(i - 1))) == 0) {
+      BigDecimal currentScore = scoreExtractor.apply(items.get(i));
+      if (currentScore == null) {
+        throw new IllegalArgumentException("점수는 비어있을 수 없습니다.");
+      }
+      if (i > 0 && currentScore.compareTo(prevScore) == 0) {
         rankSetter.accept(items.get(i), rank - 1);
       } else {
         rankSetter.accept(items.get(i), rank);
       }
+      prevScore = currentScore;
       rank++;
     }
 

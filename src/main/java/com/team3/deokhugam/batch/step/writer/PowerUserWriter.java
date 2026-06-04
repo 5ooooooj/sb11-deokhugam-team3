@@ -1,6 +1,7 @@
 package com.team3.deokhugam.batch.step.writer;
 
 import com.team3.deokhugam.domain.dashboard.PowerUser;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import lombok.Getter;
@@ -16,12 +17,10 @@ import org.springframework.stereotype.Component;
 @NoArgsConstructor
 public class PowerUserWriter implements StepExecutionListener {
 
-  private StepExecution stepExecution;
   private final List<PowerUser> accumulated = new ArrayList<>();
 
   @Override
   public void beforeStep(@Nullable StepExecution stepExecution) {
-    this.stepExecution = stepExecution;
     accumulated.clear();
   }
 

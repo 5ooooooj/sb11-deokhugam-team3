@@ -2,6 +2,7 @@ package com.team3.deokhugam.batch.job;
 
 import com.team3.deokhugam.batch.dto.PowerUserRawData;
 import com.team3.deokhugam.batch.global.Period;
+import com.team3.deokhugam.batch.persistenceService.PowerUserRankingPersistenceService;
 import com.team3.deokhugam.batch.step.listener.PowerUserRankingListener;
 import com.team3.deokhugam.batch.step.processor.PowerUserProcessor;
 import com.team3.deokhugam.batch.step.reader.PowerUserReader;
@@ -14,6 +15,7 @@ import org.springframework.batch.core.Step;
 import org.springframework.batch.core.job.builder.JobBuilder;
 import org.springframework.batch.core.repository.JobRepository;
 import org.springframework.batch.core.step.builder.StepBuilder;
+import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.dao.CannotAcquireLockException;
 import org.springframework.dao.TransientDataAccessException;
@@ -27,12 +29,12 @@ public class PowerUserJobConfig {
 
   private final JobRepository jobRepository;
   private final PlatformTransactionManager transactionManager;
-  private final TransactionTemplate transactionTemplate;
+  private final PowerUserRankingPersistenceService persistenceService;
   private final PowerUserReader powerUserReader;
   private final PowerUserProcessor powerUserProcessor;
   private final PowerUserWriter powerUserWriter;
-  private final PowerUserRepository powerUserRepository;
 
+  @Bean
   public Job powerUserJob() {
     return new JobBuilder("powerUserJob", jobRepository)
         .start(powerUserStep(Period.DAILY))
@@ -50,15 +52,19 @@ public class PowerUserJobConfig {
         .writer(powerUserWriter.create())
         .listener(powerUserWriter)
         .listener(new PowerUserRankingListener(
-            powerUserRepository, transactionTemplate, period, powerUserWriter))
+            persistenceService, period, powerUserWriter))
         .faultTolerant()
         .retryLimit(3)
         .retry(TransientDataAccessException.class) // 일시적 db 오류
         .retry(CannotAcquireLockException.class) // DB 락 경합
-        .backOffPolicy(new FixedBackOffPolicy() {{
-          setBackOffPeriod(2000L);
-        }})
+        .backOffPolicy(createBackOffPolicy())
         .build();
+  }
+
+  private FixedBackOffPolicy createBackOffPolicy() {
+    FixedBackOffPolicy policy = new FixedBackOffPolicy();
+    policy.setBackOffPeriod(2000L);
+    return policy;
   }
 
 }
