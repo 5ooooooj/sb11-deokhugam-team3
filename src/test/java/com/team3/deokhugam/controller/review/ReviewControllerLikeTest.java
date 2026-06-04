@@ -15,7 +15,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 @WebMvcTest(ReviewController.class)
@@ -24,16 +24,16 @@ class ReviewControllerLikeTest {
   @Autowired
   MockMvc mockMvc;
 
-  @MockBean
+  @MockitoBean
   ReviewService reviewService;
 
-  @MockBean
+  @MockitoBean
   ReviewLikeService reviewLikeService;
 
   private static final String HEADER = "Deokhugam-Request-User-ID";
 
   @Test
-  @DisplayName("좋아요 성공 시 200과 {reviewId, userId, liked} 반환")
+  @DisplayName("POST /api/reviews/{reviewId}/like - 좋아요 성공 시 200과 {reviewId, userId, liked} 반환")
   void likeReview_success() throws Exception {
     UUID reviewId = UUID.randomUUID();
     UUID userId = UUID.randomUUID();

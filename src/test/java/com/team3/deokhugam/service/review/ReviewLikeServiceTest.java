@@ -65,7 +65,7 @@ class ReviewLikeServiceTest {
     assertThat(result.reviewId()).isEqualTo(reviewId);
     assertThat(result.userId()).isEqualTo(userId);
     assertThat(review.getLikeCount()).isEqualTo(1);
-    verify(reviewLikeRepository).save(any(ReviewLike.class));
+    verify(reviewLikeRepository).saveAndFlush(any(ReviewLike.class));
   }
 
   @Test

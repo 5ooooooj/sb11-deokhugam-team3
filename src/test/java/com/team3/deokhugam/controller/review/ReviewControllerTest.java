@@ -27,8 +27,8 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 @WebMvcTest(ReviewController.class)
@@ -40,10 +40,10 @@ class ReviewControllerTest {
   @Autowired
   private ObjectMapper objectMapper;
 
-  @MockBean
+  @MockitoBean
   private ReviewService reviewService;
 
-  @MockBean
+  @MockitoBean
   private ReviewLikeService reviewLikeService;
 
   @Test
@@ -181,7 +181,6 @@ class ReviewControllerTest {
 
     given(reviewService.searchReviews(any())).willReturn(response);
 
-
     mockMvc.perform(get("/api/reviews")
             .header("Deokhugam-Request-User-ID", requestUserId.toString()))
         .andExpect(status().isOk())
@@ -190,8 +189,6 @@ class ReviewControllerTest {
         .andExpect(jsonPath("$.totalElements").value(1))
         .andExpect(jsonPath("$.hasNext").value(false));
   }
-
-
 
   @Test
   @DisplayName("GET /api/reviews - 필수 헤더 누락 시 400을 반환한다 (수정 5)")

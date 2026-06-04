@@ -11,6 +11,7 @@ import com.team3.deokhugam.repository.user.UserRepository;
 import com.team3.deokhugam.service.notification.NotificationService;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -43,10 +44,14 @@ public class ReviewLikeService {
   }
 
   private ReviewLikeDto addLike(Review review, UUID userId) {
-    User userRef = userRepository.getReferenceById(userId);
-    reviewLikeRepository.save(ReviewLike.create(review, userRef));
-    review.increaseLikeCount();
-    notificationService.createLikeNotification(review.getId(), userId);
-    return new ReviewLikeDto(review.getId(), userId, true);
+    try {
+      User userRef = userRepository.getReferenceById(userId);
+      reviewLikeRepository.saveAndFlush(ReviewLike.create(review, userRef)); // 제약 즉시 검증
+      review.increaseLikeCount();
+      notificationService.createLikeNotification(review.getId(), userId);
+      return new ReviewLikeDto(review.getId(), userId, true);
+    } catch (DataIntegrityViolationException e) {
+      return new ReviewLikeDto(review.getId(), userId, true);
+    }
   }
 }
