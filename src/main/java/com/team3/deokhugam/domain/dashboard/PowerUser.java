@@ -20,7 +20,7 @@ import lombok.NoArgsConstructor;
 @Table(name = "power_users")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-public class PowerUsers {
+public class PowerUser {
 
   @Id
   @GeneratedValue(strategy = GenerationType.UUID)
@@ -51,4 +51,8 @@ public class PowerUsers {
 
   @Column(name = "calculated_at", nullable = false)
   private Instant calculatedAt;
+
+  public void updateRank(int rank) {
+    this.rank = rank;
+  }
 }
