@@ -1,6 +1,5 @@
 package com.team3.deokhugam.repository.notification;
 
-import static com.team3.deokhugam.domain.notification.NotificationTestFactory.notification;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.team3.deokhugam.domain.notification.Notification;
@@ -8,7 +7,7 @@ import com.team3.deokhugam.domain.notification.NotificationType;
 import com.team3.deokhugam.domain.review.Review;
 import com.team3.deokhugam.domain.review.ReviewTestFactory;
 import com.team3.deokhugam.domain.user.User;
-import com.team3.deokhugam.repository.BaseRepositoryTest;
+import com.team3.deokhugam.global.config.JpaAuditingConfig;
 import com.team3.deokhugam.repository.review.ReviewRepository;
 import com.team3.deokhugam.repository.user.UserRepository;
 import java.time.Instant;
@@ -16,9 +15,18 @@ import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
+import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.util.ReflectionTestUtils;
 
-class NotificationRepositoryTest extends BaseRepositoryTest {
+@DataJpaTest
+@ActiveProfiles("test")
+@AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
+@Import(JpaAuditingConfig.class)
+class NotificationRepositoryTest {
 
   @Autowired
   private NotificationRepository notificationRepository;
@@ -29,6 +37,10 @@ class NotificationRepositoryTest extends BaseRepositoryTest {
   @Autowired
   private ReviewRepository reviewRepository;
 
+  @Autowired
+  private jakarta.persistence.EntityManager entityManager;
+
+
   @Test
   @DisplayName("알림을 저장하고 ID로 조회할 수 있습니다.")
   void saveAndFindById() {
@@ -36,7 +48,7 @@ class NotificationRepositoryTest extends BaseRepositoryTest {
     Review review = reviewRepository.save(ReviewTestFactory.review().userId(user.getId()).build());
 
     Notification saved = notificationRepository.save(
-        notification().user(user).review(review).message("댓글이 달렸습니다.").build()
+        Notification.create(user, review, NotificationType.COMMENT, "댓글이 달렸습니다.")
     );
 
     assertThat(notificationRepository.findById(saved.getId())).isPresent();
@@ -49,8 +61,8 @@ class NotificationRepositoryTest extends BaseRepositoryTest {
     Review review = reviewRepository.save(ReviewTestFactory.review().userId(user.getId()).build());
 
     notificationRepository.saveAll(List.of(
-        notification().user(user).review(review).type(NotificationType.COMMENT).message("댓글1").build(),
-        notification().user(user).review(review).type(NotificationType.LIKE).message("좋아요1").build()
+        Notification.create(user, review, NotificationType.COMMENT, "댓글1"),
+        Notification.create(user, review, NotificationType.LIKE, "좋아요1")
     ));
 
     List<Notification> result = notificationRepository.findByUserIdWithCursor(
@@ -67,9 +79,9 @@ class NotificationRepositoryTest extends BaseRepositoryTest {
     Review review = reviewRepository.save(ReviewTestFactory.review().userId(user.getId()).build());
 
     notificationRepository.saveAll(List.of(
-        notification().user(user).review(review).message("댓글1").build(),
-        notification().user(user).review(review).message("댓글2").build(),
-        notification().user(user).review(review).message("댓글3").build()
+        Notification.create(user, review, NotificationType.COMMENT, "댓글1"),
+        Notification.create(user, review, NotificationType.COMMENT, "댓글2"),
+        Notification.create(user, review, NotificationType.COMMENT, "댓글3")
     ));
 
     List<Notification> result = notificationRepository.findByUserIdWithCursor(
@@ -86,8 +98,8 @@ class NotificationRepositoryTest extends BaseRepositoryTest {
     Review review = reviewRepository.save(ReviewTestFactory.review().userId(user.getId()).build());
 
     notificationRepository.saveAll(List.of(
-        notification().user(user).review(review).type(NotificationType.COMMENT).message("댓글1").build(),
-        notification().user(user).review(review).type(NotificationType.LIKE).message("좋아요1").build()
+        Notification.create(user, review, NotificationType.COMMENT, "댓글1"),
+        Notification.create(user, review, NotificationType.LIKE, "좋아요1")
     ));
 
     notificationRepository.confirmAllByUserId(user.getId());
@@ -104,13 +116,21 @@ class NotificationRepositoryTest extends BaseRepositoryTest {
     User user = userRepository.save(new User("test5@test.com", "테스터5", "Password1!"));
     Review review = reviewRepository.save(ReviewTestFactory.review().userId(user.getId()).build());
 
-    Notification n1 = notificationRepository.save(
-        notification().user(user).review(review).message("댓글1").build()
-    );
+    Notification n1 = Notification.create(user, review, NotificationType.COMMENT, "댓글1");
     n1.confirm();
-    notificationRepository.save(n1);
+    Notification saved = notificationRepository.save(n1);
 
-    notificationRepository.deleteExpiredNotifications(Instant.now().plusSeconds(1));
+    // updatedAt 직접 업데이트
+    entityManager.createQuery(
+            "UPDATE Notification n SET n.updatedAt = :updatedAt WHERE n.id = :id")
+        .setParameter("updatedAt", Instant.parse("2024-01-01T00:00:00Z"))
+        .setParameter("id", saved.getId())
+        .executeUpdate();
+
+    entityManager.flush();
+    entityManager.clear();
+
+    notificationRepository.deleteExpiredNotifications(Instant.parse("2024-06-01T00:00:00Z"));
 
     List<Notification> result = notificationRepository.findByUserIdWithCursor(
         user.getId(), null, PageRequest.of(0, 10)

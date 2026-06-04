@@ -1,13 +1,12 @@
 package com.team3.deokhugam.repository.comment;
 
-import static com.team3.deokhugam.domain.comment.CommentTestFactory.comment;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.team3.deokhugam.domain.comment.Comment;
 import com.team3.deokhugam.domain.review.Review;
 import com.team3.deokhugam.domain.review.ReviewTestFactory;
 import com.team3.deokhugam.domain.user.User;
-import com.team3.deokhugam.repository.BaseRepositoryTest;
+import com.team3.deokhugam.global.config.JpaAuditingConfig;
 import com.team3.deokhugam.repository.review.ReviewRepository;
 import com.team3.deokhugam.repository.user.UserRepository;
 import java.time.Instant;
@@ -15,9 +14,18 @@ import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
+import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.util.ReflectionTestUtils;
 
-class CommentRepositoryTest extends BaseRepositoryTest {
+@DataJpaTest
+@ActiveProfiles("test")
+@AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
+@Import(JpaAuditingConfig.class)
+class CommentRepositoryTest {
 
   @Autowired
   private CommentRepository commentRepository;
@@ -28,15 +36,17 @@ class CommentRepositoryTest extends BaseRepositoryTest {
   @Autowired
   private ReviewRepository reviewRepository;
 
+  @Autowired
+  private jakarta.persistence.EntityManager entityManager;
+
   @Test
   @DisplayName("댓글을 저장하고 ID로 조회할 수 있습니다.")
   void saveAndFindById() {
     User user = userRepository.save(new User("test1@test.com", "테스터1", "Password1!"));
     Review review = reviewRepository.save(ReviewTestFactory.review().userId(user.getId()).build());
+    Comment comment = Comment.create(review, user, "좋은 리뷰네요");
 
-    Comment saved = commentRepository.save(
-        comment().user(user).review(review).content("좋은 리뷰네요").build()
-    );
+    Comment saved = commentRepository.save(comment);
 
     assertThat(commentRepository.findById(saved.getId())).isPresent();
   }
@@ -48,8 +58,8 @@ class CommentRepositoryTest extends BaseRepositoryTest {
     Review review = reviewRepository.save(ReviewTestFactory.review().userId(user.getId()).build());
 
     commentRepository.saveAll(List.of(
-        comment().user(user).review(review).content("첫 번째 댓글").build(),
-        comment().user(user).review(review).content("두 번째 댓글").build()
+        Comment.create(review, user, "첫 번째 댓글"),
+        Comment.create(review, user, "두 번째 댓글")
     ));
 
     List<Comment> result = commentRepository.findByReviewIdWithCursor(
@@ -65,12 +75,8 @@ class CommentRepositoryTest extends BaseRepositoryTest {
     User user = userRepository.save(new User("test3@test.com", "테스터3", "Password1!"));
     Review review = reviewRepository.save(ReviewTestFactory.review().userId(user.getId()).build());
 
-    Comment activeComment = commentRepository.save(
-        comment().user(user).review(review).content("활성 댓글").build()
-    );
-    Comment deletedComment = commentRepository.save(
-        comment().user(user).review(review).content("삭제된 댓글").build()
-    );
+    Comment activeComment = commentRepository.save(Comment.create(review, user, "활성 댓글"));
+    Comment deletedComment = commentRepository.save(Comment.create(review, user, "삭제된 댓글"));
 
     deletedComment.softDelete();
     commentRepository.save(deletedComment);
@@ -89,15 +95,26 @@ class CommentRepositoryTest extends BaseRepositoryTest {
     User user = userRepository.save(new User("test4@test.com", "테스터4", "Password1!"));
     Review review = reviewRepository.save(ReviewTestFactory.review().userId(user.getId()).build());
 
-    Comment comment1 = commentRepository.save(
-        comment().user(user).review(review).content("첫 번째 댓글").build()
-    );
+    Comment comment1 = commentRepository.save(Comment.create(review, user, "첫 번째 댓글"));
+    Comment comment2 = commentRepository.save(Comment.create(review, user, "두 번째 댓글"));
 
-    Instant after = comment1.getCreatedAt().plusNanos(1);
+    // createdAt 직접 업데이트
+    entityManager.createQuery(
+            "UPDATE Comment c SET c.createdAt = :createdAt WHERE c.id = :id")
+        .setParameter("createdAt", Instant.parse("2024-01-01T00:00:00Z"))
+        .setParameter("id", comment1.getId())
+        .executeUpdate();
 
-    commentRepository.save(
-        comment().user(user).review(review).content("두 번째 댓글").build()
-    );
+    entityManager.createQuery(
+            "UPDATE Comment c SET c.createdAt = :createdAt WHERE c.id = :id")
+        .setParameter("createdAt", Instant.parse("2024-01-02T00:00:00Z"))
+        .setParameter("id", comment2.getId())
+        .executeUpdate();
+
+    entityManager.flush();
+    entityManager.clear();
+
+    Instant after = Instant.parse("2024-01-01T12:00:00Z");
 
     List<Comment> result = commentRepository.findByReviewIdWithCursor(
         review.getId(), after, PageRequest.of(0, 10)
@@ -114,9 +131,9 @@ class CommentRepositoryTest extends BaseRepositoryTest {
     Review review = reviewRepository.save(ReviewTestFactory.review().userId(user.getId()).build());
 
     commentRepository.saveAll(List.of(
-        comment().user(user).review(review).content("댓글 1").build(),
-        comment().user(user).review(review).content("댓글 2").build(),
-        comment().user(user).review(review).content("댓글 3").build()
+        Comment.create(review, user, "댓글 1"),
+        Comment.create(review, user, "댓글 2"),
+        Comment.create(review, user, "댓글 3")
     ));
 
     List<Comment> result = commentRepository.findByReviewIdWithCursor(

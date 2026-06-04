@@ -8,7 +8,7 @@ import com.team3.deokhugam.domain.review.Review;
 import com.team3.deokhugam.dto.review.ReviewOrderBy;
 import com.team3.deokhugam.dto.review.ReviewSearchRequest;
 import com.team3.deokhugam.exception.global.DeokhugamException;
-import com.team3.deokhugam.repository.BaseRepositoryTest;
+import com.team3.deokhugam.global.config.JpaAuditingConfig;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.Base64;
@@ -17,10 +17,18 @@ import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
+import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager;
+import org.springframework.context.annotation.Import;
 import org.springframework.data.domain.Sort;
+import org.springframework.test.context.ActiveProfiles;
 
-class ReviewRepositoryTest extends BaseRepositoryTest {
+@DataJpaTest
+@ActiveProfiles("test")
+@AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
+@Import({JpaAuditingConfig.class, ReviewRepositoryCustomImpl.class})
+class ReviewRepositoryTest {
 
   @Autowired
   private ReviewRepository reviewRepository;
