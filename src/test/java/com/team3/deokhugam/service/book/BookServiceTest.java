@@ -646,4 +646,140 @@ class BookServiceTest {
     verify(bookRepository).findById(bookId);
     verify(bookRepository, never()).delete(any(Book.class));
   }
+
+  @Test
+  @DisplayName("썸네일 이미지가 비어있으면 S3에 업로드하지 않고 요청 thumbnailUrl을 사용한다")
+  void createBookWithEmptyThumbnailImage() {
+    // given
+    UUID requestUserId = UUID.randomUUID();
+
+    BookCreateRequest request =
+        new BookCreateRequest(
+            "그리고 아무도 없었다",
+            "애거서 크리스티",
+            "외딴 섬에서 벌어지는 연쇄 살인 사건",
+            "황금가지",
+            LocalDate.of(2013, 12, 31),
+            "9788960177758",
+            "https://example.com/fallback.jpg"
+        );
+
+    MultipartFile emptyThumbnailImage =
+        new MockMultipartFile(
+            "thumbnailImage",
+            "empty.jpg",
+            "image/jpeg",
+            new byte[0]
+        );
+
+    when(bookRepository.save(any(Book.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+    // when
+    BookDto result = bookService.create(requestUserId, request, emptyThumbnailImage);
+
+    // then
+    assertThat(result.thumbnailUrl()).isEqualTo(request.thumbnailUrl());
+
+    ArgumentCaptor<Book> bookCaptor = ArgumentCaptor.forClass(Book.class);
+    verify(bookRepository).save(bookCaptor.capture());
+
+    Book savedBook = bookCaptor.getValue();
+    assertThat(savedBook.getThumbnailUrl()).isEqualTo(request.thumbnailUrl());
+
+    verify(s3Service, never()).upload(any(MultipartFile.class), any(String.class));
+  }
+
+  @Test
+  @DisplayName("썸네일 이미지 원본 파일명이 null이어도 S3에 업로드한다")
+  void createBookWithNullOriginalFilenameThumbnailImage() {
+    // given
+    UUID requestUserId = UUID.randomUUID();
+
+    BookCreateRequest request =
+        new BookCreateRequest(
+            "그리고 아무도 없었다",
+            "애거서 크리스티",
+            "외딴 섬에서 벌어지는 연쇄 살인 사건",
+            "황금가지",
+            LocalDate.of(2013, 12, 31),
+            "9788960177758",
+            null
+        );
+
+    MultipartFile thumbnailImage =
+        new MockMultipartFile(
+            "thumbnailImage",
+            null,
+            "image/jpeg",
+            "test-image".getBytes()
+        );
+
+    String uploadedUrl = "https://s3.example.com/books/thumbnail.jpg";
+
+    when(s3Service.upload(any(MultipartFile.class), any(String.class))).thenReturn(uploadedUrl);
+    when(bookRepository.save(any(Book.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+    // when
+    BookDto result = bookService.create(requestUserId, request, thumbnailImage);
+
+    // then
+    assertThat(result.thumbnailUrl()).isEqualTo(uploadedUrl);
+
+    ArgumentCaptor<String> keyCaptor = ArgumentCaptor.forClass(String.class);
+    verify(s3Service).upload(any(MultipartFile.class), keyCaptor.capture());
+
+    assertThat(keyCaptor.getValue()).contains("books/");
+    assertThat(keyCaptor.getValue()).contains(requestUserId.toString());
+    assertThat(keyCaptor.getValue()).contains("thumbnail");
+  }
+
+  @Test
+  @DisplayName("도서 수정 시 썸네일 이미지가 비어있으면 S3에 업로드하지 않고 요청 thumbnailUrl을 사용한다")
+  void updateBookWithEmptyThumbnailImage() {
+    // given
+    UUID bookId = UUID.randomUUID();
+    UUID requestUserId = UUID.randomUUID();
+
+    Book book = book()
+        .id(bookId)
+        .userId(requestUserId)
+        .title("수정 전 제목")
+        .author("수정 전 작가")
+        .description("수정 전 설명")
+        .publisher("수정 전 출판사")
+        .publishedDate(LocalDate.of(2026, 1, 1))
+        .isbn("9788960177758")
+        .thumbnailUrl("https://example.com/before.jpg")
+        .build();
+
+    BookUpdateRequest request =
+        new BookUpdateRequest(
+            "수정 후 제목",
+            "수정 후 작가",
+            "수정 후 설명",
+            "수정 후 출판사",
+            LocalDate.of(2026, 5, 28),
+            "https://example.com/fallback-after.jpg"
+        );
+
+    MultipartFile emptyThumbnailImage =
+        new MockMultipartFile(
+            "thumbnailImage",
+            "empty.jpg",
+            "image/jpeg",
+            new byte[0]
+        );
+
+    when(bookRepository.findByIdAndDeletedAtIsNull(bookId)).thenReturn(Optional.of(book));
+
+    // when
+    BookDto result = bookService.update(bookId, requestUserId, request, emptyThumbnailImage);
+
+    // then
+    assertThat(result.thumbnailUrl()).isEqualTo(request.thumbnailUrl());
+    assertThat(book.getThumbnailUrl()).isEqualTo(request.thumbnailUrl());
+
+    verify(bookRepository).findByIdAndDeletedAtIsNull(bookId);
+    verify(s3Service, never()).upload(any(MultipartFile.class), any(String.class));
+  }
 }
