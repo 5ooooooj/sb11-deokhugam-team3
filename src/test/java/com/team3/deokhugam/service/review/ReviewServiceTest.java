@@ -20,6 +20,7 @@ import com.team3.deokhugam.exception.review.ReviewAlreadyExistsException;
 import com.team3.deokhugam.exception.review.ReviewForbiddenException;
 import com.team3.deokhugam.exception.review.ReviewNotFoundException;
 import com.team3.deokhugam.global.dto.CursorPageResponse;
+import com.team3.deokhugam.repository.review.ReviewLikeRepository;
 import com.team3.deokhugam.repository.review.ReviewRepository;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
@@ -41,9 +42,11 @@ class ReviewServiceTest {
   @Mock
   private ReviewRepository reviewRepository;
 
+  @Mock
+  private ReviewLikeRepository reviewLikeRepository;
+
   @InjectMocks
   private ReviewService reviewService;
-
 
 
   @Test
@@ -64,6 +67,7 @@ class ReviewServiceTest {
     assertThat(result.userId()).isEqualTo(userId);
     assertThat(result.rating()).isEqualTo(5);
     assertThat(result.content()).isEqualTo("재밌어요");
+    assertThat(result.likedByMe()).isFalse();
     verify(reviewRepository).save(any(Review.class));
   }
 
@@ -90,6 +94,8 @@ class ReviewServiceTest {
     Review review = Review.create(userId, UUID.randomUUID(), 3, "예전 내용");
 
     given(reviewRepository.findById(reviewId)).willReturn(Optional.of(review));
+    given(reviewLikeRepository.existsByReview_IdAndUser_Id(reviewId, userId))
+        .willReturn(false);
 
     ReviewDto result = reviewService.updateReview(
         reviewId, userId, new ReviewUpdateRequest("새 내용", 5));
@@ -168,7 +174,7 @@ class ReviewServiceTest {
   }
 
   @Test
-  @DisplayName("리뷰 상세 조회 성공 - 존재하는 리뷰면 ReviewDto를 반환한다")
+  @DisplayName("리뷰 상세 조회 성공 - 존재하는 리뷰면 ReviewDto를 반환하고 likedByMe가 채워진다")
   void getReview_success() {
     UUID reviewId = UUID.randomUUID();
     UUID userId = UUID.randomUUID();
@@ -176,6 +182,8 @@ class ReviewServiceTest {
     Review review = Review.create(userId, bookId, 5, "재밌어요");
 
     given(reviewRepository.findById(reviewId)).willReturn(Optional.of(review));
+    given(reviewLikeRepository.existsByReview_IdAndUser_Id(reviewId, userId))
+        .willReturn(true);
 
     ReviewDto result = reviewService.getReview(reviewId, userId);
 
@@ -184,6 +192,7 @@ class ReviewServiceTest {
     assertThat(result.userId()).isEqualTo(userId);
     assertThat(result.rating()).isEqualTo(5);
     assertThat(result.content()).isEqualTo("재밌어요");
+    assertThat(result.likedByMe()).isTrue();
   }
 
   @Test
@@ -211,7 +220,6 @@ class ReviewServiceTest {
   }
 
 
-
   @Test
   @DisplayName("리뷰 목록 조회 성공 - 검색 결과를 CursorPageResponse로 반환한다")
   void searchReviews_success() {
@@ -228,6 +236,8 @@ class ReviewServiceTest {
     given(reviewRepository.search(any(ReviewSearchRequest.class)))
         .willReturn(List.of(r1, r2));
     given(reviewRepository.count(any(ReviewSearchRequest.class))).willReturn(2L);
+    given(reviewLikeRepository.findLikedReviewIds(any(), any()))
+        .willReturn(List.of());
 
     CursorPageResponse<ReviewDto> result = reviewService.searchReviews(request);
 
@@ -257,6 +267,8 @@ class ReviewServiceTest {
 
     given(reviewRepository.search(any())).willReturn(reviews);
     given(reviewRepository.count(any(ReviewSearchRequest.class))).willReturn(3L);
+    given(reviewLikeRepository.findLikedReviewIds(any(), any()))
+        .willReturn(List.of());
 
     CursorPageResponse<ReviewDto> result = reviewService.searchReviews(request);
 
@@ -282,6 +294,8 @@ class ReviewServiceTest {
 
     given(reviewRepository.search(any())).willReturn(List.of(r1, r2));
     given(reviewRepository.count(any(ReviewSearchRequest.class))).willReturn(2L);
+    given(reviewLikeRepository.findLikedReviewIds(any(), any()))
+        .willReturn(List.of());
 
     CursorPageResponse<ReviewDto> result = reviewService.searchReviews(request);
 
@@ -306,6 +320,8 @@ class ReviewServiceTest {
     Review r1 = mockReview(Instant.now(), UUID.randomUUID(), 5);
 
     given(reviewRepository.search(any())).willReturn(List.of(r1));
+    given(reviewLikeRepository.findLikedReviewIds(any(), any()))
+        .willReturn(List.of());
 
     CursorPageResponse<ReviewDto> result = reviewService.searchReviews(request);
 
@@ -332,6 +348,37 @@ class ReviewServiceTest {
     assertThat(result.hasNext()).isFalse();
     assertThat(result.nextCursor()).isNull();
     assertThat(result.totalElements()).isEqualTo(0L);
+  }
+
+  @Test
+  @DisplayName("리뷰 목록 조회 - 내가 좋아요한 리뷰만 likedByMe=true 로 표시된다")
+  void searchReviews_populatesLikedByMe() {
+    UUID requestUserId = UUID.randomUUID();
+    ReviewSearchRequest request = new ReviewSearchRequest(
+        null, null, null,
+        ReviewOrderBy.CREATED_AT, Sort.Direction.DESC,
+        null, 10, requestUserId
+    );
+
+    UUID likedId = UUID.randomUUID();
+    UUID notLikedId = UUID.randomUUID();
+    Review liked = mockReview(Instant.now(), likedId, 5);
+    Review notLiked = mockReview(Instant.now(), notLikedId, 4);
+
+    given(reviewRepository.search(any())).willReturn(List.of(liked, notLiked));
+    given(reviewRepository.count(any(ReviewSearchRequest.class))).willReturn(2L);
+    given(reviewLikeRepository.findLikedReviewIds(any(), any()))
+        .willReturn(List.of(likedId));
+
+    CursorPageResponse<ReviewDto> result = reviewService.searchReviews(request);
+
+    ReviewDto likedDto = result.content().stream()
+        .filter(d -> d.id().equals(likedId)).findFirst().orElseThrow();
+    ReviewDto notLikedDto = result.content().stream()
+        .filter(d -> d.id().equals(notLikedId)).findFirst().orElseThrow();
+
+    assertThat(likedDto.likedByMe()).isTrue();
+    assertThat(notLikedDto.likedByMe()).isFalse();
   }
 
   private Review mockReview(Instant createdAt, UUID id, int rating) {
