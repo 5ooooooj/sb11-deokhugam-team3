@@ -7,6 +7,7 @@ import com.team3.deokhugam.dto.comment.CommentCreateRequest;
 import com.team3.deokhugam.dto.comment.CommentDto;
 import com.team3.deokhugam.dto.comment.CommentUpdateRequest;
 import com.team3.deokhugam.exception.comment.CommentNotFoundException;
+import com.team3.deokhugam.exception.review.ReviewNotFoundException;
 import com.team3.deokhugam.exception.user.UserNotFoundException;
 import com.team3.deokhugam.global.dto.CursorPageResponse;
 import com.team3.deokhugam.repository.comment.CommentRepository;
@@ -34,9 +35,8 @@ public class CommentServiceImpl implements CommentService {
 
   @Override
   public CommentDto create(CommentCreateRequest request) {
-    // TODO: 하빈님 ReviewNotFoundException 확인 후 교체
     Review review = reviewRepository.findById(request.reviewId())
-        .orElseThrow(() -> new RuntimeException("리뷰를 찾을 수 없습니다."));
+        .orElseThrow(ReviewNotFoundException::new);
     User user = userRepository.findById(request.userId())
         .orElseThrow(UserNotFoundException::new);
 
