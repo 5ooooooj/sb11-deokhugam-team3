@@ -1,7 +1,6 @@
 package com.team3.deokhugam.batch.step.writer;
 
 import com.team3.deokhugam.domain.dashboard.PowerUser;
-import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import lombok.Getter;

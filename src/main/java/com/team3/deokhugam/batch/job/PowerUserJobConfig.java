@@ -8,7 +8,6 @@ import com.team3.deokhugam.batch.step.processor.PowerUserProcessor;
 import com.team3.deokhugam.batch.step.reader.PowerUserReader;
 import com.team3.deokhugam.batch.step.writer.PowerUserWriter;
 import com.team3.deokhugam.domain.dashboard.PowerUser;
-import com.team3.deokhugam.repository.dashboard.PowerUserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.batch.core.Job;
 import org.springframework.batch.core.Step;
@@ -21,7 +20,6 @@ import org.springframework.dao.CannotAcquireLockException;
 import org.springframework.dao.TransientDataAccessException;
 import org.springframework.retry.backoff.FixedBackOffPolicy;
 import org.springframework.transaction.PlatformTransactionManager;
-import org.springframework.transaction.support.TransactionTemplate;
 
 @Configuration
 @RequiredArgsConstructor

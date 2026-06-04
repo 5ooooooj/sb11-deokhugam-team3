@@ -21,7 +21,6 @@ public class PowerUserRankingPersistenceService {
 
   @Retryable(
       retryFor = {TransientDataAccessException.class, CannotAcquireLockException.class},
-      maxAttempts = 3,
       backoff = @Backoff(delay = 2000)
   )
   public void deleteAndSave(Period period, List<PowerUser> all) {
