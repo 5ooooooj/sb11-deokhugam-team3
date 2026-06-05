@@ -66,11 +66,11 @@ public class ReviewRepositoryCustomImpl implements ReviewRepositoryCustom {
   }
 
   private BooleanExpression userIdEq(ReviewSearchRequest request) {
-    return request.hasUserId() ? review.userId.eq(request.userId()) : null;
+    return request.hasUserId() ? review.user.id.eq(request.userId()) : null;
   }
 
   private BooleanExpression bookIdEq(ReviewSearchRequest request) {
-    return request.hasBookId() ? review.bookId.eq(request.bookId()) : null;
+    return request.hasBookId() ? review.book.id.eq(request.bookId()) : null;
   }
 
   private BooleanExpression containsKeyword(ReviewSearchRequest request) {
@@ -79,7 +79,6 @@ public class ReviewRepositoryCustomImpl implements ReviewRepositoryCustom {
     }
     return review.content.containsIgnoreCase(request.keyword());
   }
-
 
   private BooleanExpression cursorCondition(ReviewSearchRequest request) {
     if (!request.hasCursor()) {
@@ -91,7 +90,6 @@ public class ReviewRepositoryCustomImpl implements ReviewRepositoryCustom {
       case RATING -> ratingCursorCondition(request);
     };
   }
-
 
   private BooleanExpression createdAtCursorCondition(ReviewSearchRequest request) {
     String[] parts = decodeCursor(request.cursor());
@@ -109,7 +107,6 @@ public class ReviewRepositoryCustomImpl implements ReviewRepositoryCustom {
 
     return differentCreatedAt.or(sameCreatedAtTieBreak);
   }
-
 
   private BooleanExpression ratingCursorCondition(ReviewSearchRequest request) {
     String[] parts = decodeCursor(request.cursor());
@@ -134,7 +131,6 @@ public class ReviewRepositoryCustomImpl implements ReviewRepositoryCustom {
         .or(sameRatingSameCreatedAtTieBreak);
   }
 
-
   private OrderSpecifier<?>[] orderSpecifiers(ReviewSearchRequest request) {
     Order direction = resolveDirection(request.direction());
 
@@ -154,8 +150,6 @@ public class ReviewRepositoryCustomImpl implements ReviewRepositoryCustom {
   private Order resolveDirection(Sort.Direction direction) {
     return direction.isAscending() ? Order.ASC : Order.DESC;
   }
-
-
 
   private String[] decodeCursor(String cursor) {
     try {
