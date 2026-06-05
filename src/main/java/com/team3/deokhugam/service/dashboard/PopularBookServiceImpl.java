@@ -2,6 +2,7 @@ package com.team3.deokhugam.service.dashboard;
 
 import com.team3.deokhugam.batch.global.Period;
 import com.team3.deokhugam.dto.dashboard.PopularBookDto;
+import com.team3.deokhugam.exception.dashboard.InvalidPeriodException;
 import com.team3.deokhugam.exception.global.DeokhugamException;
 import com.team3.deokhugam.exception.global.ErrorCode;
 import com.team3.deokhugam.global.dto.CursorPageResponse;
@@ -33,7 +34,7 @@ public class PopularBookServiceImpl implements PopularBookService{
         null,
         null,
         content.size(),
-        (long) popularBookRepository.countByPeriod(parsedPeriod),
+        popularBookRepository.countByPeriod(parsedPeriod),
         false
     );
   }
@@ -43,7 +44,7 @@ public class PopularBookServiceImpl implements PopularBookService{
       return Period.valueOf(period.toUpperCase());
     } catch (IllegalStateException e) {
       log.debug("올바르지 않은 period 파라미터: {}", period);
-      throw new DeokhugamException(ErrorCode.INVALID_PERIOD);
+      throw new InvalidPeriodException();
     }
   }
 
