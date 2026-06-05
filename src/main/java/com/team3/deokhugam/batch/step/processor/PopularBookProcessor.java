@@ -5,11 +5,24 @@ import com.team3.deokhugam.batch.global.Period;
 import com.team3.deokhugam.domain.dashboard.PopularBook;
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.time.ZoneOffset;
+import org.springframework.batch.core.StepExecution;
+import org.springframework.batch.core.StepExecutionListener;
 import org.springframework.batch.item.ItemProcessor;
+import org.springframework.lang.Nullable;
 import org.springframework.stereotype.Component;
 
 @Component
-public class PopularBookProcessor {
+public class PopularBookProcessor implements StepExecutionListener {
+
+  private Instant calculatedAt;
+
+  @Override
+  public void beforeStep(@Nullable StepExecution stepExecution) {
+    calculatedAt = (stepExecution != null && stepExecution.getStartTime() != null)
+        ? stepExecution.getStartTime().toInstant(ZoneOffset.UTC)
+        : Instant.now();
+  }
 
   public ItemProcessor<PopularBookRawData, PopularBook> create(Period period) {
     return item -> {
@@ -21,7 +34,7 @@ public class PopularBookProcessor {
           .score(score)
           .reviewCount(item.reviewCount())
           .rating(item.ratingAvg())
-          .calculatedAt(Instant.now())
+          .calculatedAt(calculatedAt)
           .build();
     };
   }

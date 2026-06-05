@@ -21,6 +21,10 @@ public record ReviewDto(
 ) {
 
   public static ReviewDto from(Review review) {
+    return from(review, false);
+  }
+
+  public static ReviewDto from(Review review, boolean likedByMe) {
     return new ReviewDto(
         review.getId(),
         review.getBookId(),
@@ -32,7 +36,7 @@ public record ReviewDto(
         review.getRating(),
         review.getLikeCount(),
         review.getCommentCount(),
-        false,
+        likedByMe,
         review.getCreatedAt(),
         review.getUpdatedAt()
     );

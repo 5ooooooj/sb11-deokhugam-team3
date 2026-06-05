@@ -279,4 +279,118 @@ class UserServiceTest {
     verify(userPermissionValidator).validateSelf(userId, loginUserId);
     verify(userRepository, never()).findActiveById(any(UUID.class));
   }
+
+  @Test
+  void deleteUser_success() {
+    // given
+    UUID userId = UUID.randomUUID();
+    UUID loginUserId = userId;
+
+    User user = new User("test@test.com", "tester", "Password1!");
+
+    given(userRepository.findActiveById(userId)).willReturn(Optional.of(user));
+
+    // when
+    userService.deleteUser(userId, loginUserId); // header, path 값이 일치해야함
+
+    // then
+    assertThat(user.isDeleted()).isTrue();
+    assertThat(user.getDeletedAt()).isNotNull();
+
+    verify(userPermissionValidator).validateSelf(userId, loginUserId);
+    verify(userRepository).findActiveById(userId);
+    verify(userRepository, never()).delete(any(User.class));
+  }
+
+  @Test
+  void deleteUser_fail_forbidden() {
+    // given
+    UUID userId = UUID.randomUUID();
+    UUID loginUserId = UUID.randomUUID();
+
+    willThrow(new UserForbiddenException())
+        .given(userPermissionValidator)
+        .validateSelf(userId, loginUserId);
+
+    // when, then
+    assertThatThrownBy(() -> userService.deleteUser(userId, loginUserId))
+        .isInstanceOf(UserForbiddenException.class);
+
+    verify(userPermissionValidator).validateSelf(userId, loginUserId);
+    verify(userRepository, never()).findActiveById(any(UUID.class));
+    verify(userRepository, never()).delete(any(User.class));
+  }
+
+  @Test
+  void deleteUser_fail_notFound() {
+    // given
+    UUID userId = UUID.randomUUID();
+    UUID loginUserId = userId;
+
+    given(userRepository.findActiveById(userId))
+        .willReturn(Optional.empty());
+
+    // when, then
+    assertThatThrownBy(() -> userService.deleteUser(userId, loginUserId))
+        .isInstanceOf(UserNotFoundException.class);
+
+    verify(userPermissionValidator).validateSelf(userId, loginUserId);
+    verify(userRepository).findActiveById(userId);
+    verify(userRepository, never()).delete(any(User.class));
+  }
+
+  @Test
+  void hardDeleteUser_success() {
+    // given
+    UUID userId = UUID.randomUUID();
+    UUID loginUserId = userId;
+
+    User user = new User("test@test.com", "tester", "Password1!");
+
+    given(userRepository.findById(userId)).willReturn(Optional.of(user));
+
+    // when
+    userService.hardDeleteUser(userId, loginUserId);
+
+    // then
+    verify(userPermissionValidator).validateSelf(userId, loginUserId);
+    verify(userRepository).findById(userId);
+    verify(userRepository).delete(user);
+  }
+
+  @Test
+  void hardDeleteUser_fail_forbidden() {
+    // given
+    UUID userId = UUID.randomUUID();
+    UUID loginUserId = UUID.randomUUID();
+
+    willThrow(new UserForbiddenException())
+        .given(userPermissionValidator)
+        .validateSelf(userId, loginUserId);
+
+    // when, then
+    assertThatThrownBy(() -> userService.hardDeleteUser(userId, loginUserId))
+        .isInstanceOf(UserForbiddenException.class);
+
+    verify(userPermissionValidator).validateSelf(userId, loginUserId);
+    verify(userRepository, never()).findById(any(UUID.class));
+    verify(userRepository, never()).delete(any(User.class));
+  }
+
+  @Test
+  void hardDeleteUser_fail_notFound() {
+    // given
+    UUID userId = UUID.randomUUID();
+    UUID loginUserId = userId;
+
+    given(userRepository.findById(userId)).willReturn(Optional.empty());
+
+    // when, then
+    assertThatThrownBy(() -> userService.hardDeleteUser(userId, loginUserId))
+        .isInstanceOf(UserNotFoundException.class);
+
+    verify(userPermissionValidator).validateSelf(userId, loginUserId);
+    verify(userRepository).findById(userId);
+    verify(userRepository, never()).delete(any(User.class));
+  }
 }

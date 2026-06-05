@@ -1,6 +1,7 @@
 package com.team3.deokhugam.domain.book;
 
 import com.team3.deokhugam.domain.base.SoftDeletableEntity;
+import com.team3.deokhugam.exception.book.BookForbiddenException;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Table;
@@ -8,6 +9,8 @@ import jakarta.persistence.Table;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 
+import java.util.Objects;
+import java.util.UUID;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -17,6 +20,9 @@ import lombok.NoArgsConstructor;
 @Table(name = "books")
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class Book extends SoftDeletableEntity {
+
+  @Column(name = "user_id", nullable = false, updatable = false)
+  private UUID userId;
 
   @Column(nullable = false)
   private String title;
@@ -46,6 +52,7 @@ public class Book extends SoftDeletableEntity {
   private BigDecimal rating = BigDecimal.ZERO;
 
   public Book(
+      UUID userId,
       String title,
       String author,
       String description,
@@ -54,6 +61,7 @@ public class Book extends SoftDeletableEntity {
       String isbn,
       String thumbnailUrl
   ) {
+    this.userId = userId;
     this.title = title;
     this.author = author;
     this.description = description;
@@ -71,11 +79,17 @@ public class Book extends SoftDeletableEntity {
       LocalDate publishedDate,
       String thumbnailUrl
   ) {
-        this.title = title;
-        this.author = author;
-        this.description = description;
-        this.publisher = publisher;
-        this.publishedDate = publishedDate;
-        this.thumbnailUrl = thumbnailUrl;
+    this.title = title;
+    this.author = author;
+    this.description = description;
+    this.publisher = publisher;
+    this.publishedDate = publishedDate;
+    this.thumbnailUrl = thumbnailUrl;
+  }
+
+  public void validateOwner(UUID requestUserId) {
+    if (!Objects.equals(this.userId, requestUserId)) {
+      throw new BookForbiddenException();
+    }
   }
 }

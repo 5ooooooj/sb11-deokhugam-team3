@@ -17,7 +17,7 @@ import org.springframework.http.MediaType;
 @Operation(
     summary = "도서 수정",
     description = """
-        도서 정보를 수정합니다. ISBN은 수정할 수 없습니다.
+        도서 정보를 수정합니다. 등록한 사용자만 수정할 수 있습니다. ISBN은 수정할 수 없습니다.
         
         현재 썸네일 URL은 bookData.thumbnailUrl 값을 기준으로 수정합니다.
         thumbnailImage 파일 업로드 후 URL로 변환하는 기능은 S3 업로드 연동 작업에서 처리할 예정입니다.
@@ -50,6 +50,16 @@ import org.springframework.http.MediaType;
             schema = @Schema(implementation = ErrorResponse.class)
         )
     ),
+
+    @ApiResponse(
+        responseCode = "403",
+        description = "도서 수정 권한 없음",
+        content = @Content(
+            mediaType = MediaType.APPLICATION_JSON_VALUE,
+            schema = @Schema(implementation = ErrorResponse.class)
+        )
+    ),
+
     @ApiResponse(
         responseCode = "404",
         description = "도서 정보 없음",
@@ -68,4 +78,5 @@ import org.springframework.http.MediaType;
     )
 })
 public @interface BookUpdateApi {
+
 }

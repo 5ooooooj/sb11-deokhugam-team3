@@ -31,3 +31,10 @@ spring:
 batch:
   scheduler:
     cron: "0 0 0 * * *" # 매일 자정 실행, 필요시 값 조정
+
+user:
+  cleanup:
+    cron: "0 50 23 * * *"
+notification:
+  cleanup:
+    cron: "0 0 2 * * *"

@@ -60,5 +60,6 @@ class UserTest {
 
     // then
     assertThat(user.getDeletedAt()).isEqualTo(firstDeletedAt);
+    assertThat(user.isDeleted()).isTrue();
   }
 }
