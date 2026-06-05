@@ -29,8 +29,6 @@ public class PowerUserJobConfig {
   private final PlatformTransactionManager transactionManager;
   private final PowerUserRankingPersistenceService persistenceService;
   private final PowerUserReader powerUserReader;
-  private final PowerUserProcessor powerUserProcessor;
-  private final PowerUserWriter powerUserWriter;
 
   @Bean
   public Job powerUserJob() {
@@ -43,14 +41,18 @@ public class PowerUserJobConfig {
   }
 
   public Step powerUserStep(Period period) {
+    PowerUserProcessor processor = powerUserProcessor();
+    PowerUserWriter writer = powerUserWriter();
+
     return new StepBuilder("powerUserStep_" + period, jobRepository)
         .<PowerUserRawData, PowerUser>chunk(500, transactionManager)
         .reader(powerUserReader.create(period))
-        .processor(powerUserProcessor.create(period))
-        .writer(powerUserWriter.create())
-        .listener(powerUserWriter)
+        .processor(processor.create(period))
+        .listener(processor)
+        .writer(writer.create())
+        .listener(writer)
         .listener(new PowerUserRankingListener(
-            persistenceService, period, powerUserWriter))
+            persistenceService, period, writer))
         .faultTolerant()
         .retryLimit(3)
         .retry(TransientDataAccessException.class) // 일시적 db 오류
@@ -63,6 +65,14 @@ public class PowerUserJobConfig {
     FixedBackOffPolicy policy = new FixedBackOffPolicy();
     policy.setBackOffPeriod(2000L);
     return policy;
+  }
+
+  private PowerUserWriter powerUserWriter() {
+    return new PowerUserWriter();
+  }
+
+  private PowerUserProcessor powerUserProcessor() {
+    return new PowerUserProcessor();
   }
 
 }

@@ -62,6 +62,7 @@ jacocoTestReport {
                     'com/team3/deokhugam/domain/dashboard/**',
                     'com/team3/deokhugam/batch/scheduler/**',
                     'com/team3/deokhugam/batch/exception/**',
+                    '**/batch/**'
             ])
         }))
     }

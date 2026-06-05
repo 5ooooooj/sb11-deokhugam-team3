@@ -1,21 +1,27 @@
 package com.team3.deokhugam.batch.step.listener;
 
 import com.team3.deokhugam.batch.global.Period;
+import com.team3.deokhugam.batch.global.RankCalculateUtil;
+import com.team3.deokhugam.batch.persistenceService.PopularBookRankingPersistenceService;
+import com.team3.deokhugam.batch.step.writer.PopularBookWriter;
 import com.team3.deokhugam.domain.dashboard.PopularBook;
-import com.team3.deokhugam.repository.dashboard.PopularBookRepository;
+import java.util.Comparator;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.batch.core.BatchStatus;
 import org.springframework.batch.core.ExitStatus;
 import org.springframework.batch.core.StepExecution;
 import org.springframework.batch.core.StepExecutionListener;
 import org.springframework.lang.Nullable;
 
+@Slf4j
 @RequiredArgsConstructor
 public class PopularBookRankingListener implements StepExecutionListener {
 
-  private final PopularBookRepository popularBookRepository;
   private final Period period;
+  private final PopularBookWriter popularBookWriter;
+  private final PopularBookRankingPersistenceService persistenceService;
 
   @Override
   public ExitStatus afterStep(@Nullable StepExecution stepExecution) {
@@ -24,19 +30,18 @@ public class PopularBookRankingListener implements StepExecutionListener {
       return stepExecution != null ? stepExecution.getExitStatus() : ExitStatus.FAILED;
     }
 
-    List<PopularBook> all = popularBookRepository.findByPeriodOrderByScoreDesc(period);
-
-    int rank = 1;
-    for (int i = 0; i < all.size(); i++) {
-      if (i > 0 && all.get(i).getScore().compareTo(all.get(i-1).getScore()) == 0) {
-        all.get(i).assignRank(all.get(i-1).getRank());
-      } else {
-        all.get(i).assignRank(rank);
-      }
-      rank++;
+    try {
+      List<PopularBook> all = popularBookWriter.getAccumulated();
+      System.out.println("=== accumulated size=" + all.size());
+      log.info("afterStep 시작 period={}, accumulated size={}", period, all.size());
+      all.sort(Comparator.comparing(PopularBook::getScore).reversed());
+      RankCalculateUtil.assignRanks(all, PopularBook::getScore, PopularBook::assignRank);
+      persistenceService.deleteAndSave(period, all);
+      log.info("deleteAndSave 완료 period={}", period); // 추가
+    } catch (Exception e) {
+      log.error("RankingListener afterStep 실패", e);
+      return ExitStatus.FAILED;
     }
-
-    popularBookRepository.saveAll(all);
     return stepExecution.getExitStatus();
   }
 
