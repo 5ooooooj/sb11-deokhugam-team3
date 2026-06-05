@@ -40,7 +40,9 @@ public class PopularBookRankingListener implements StepExecutionListener {
     } catch (Exception e) {
       log.error("RankingListener afterStep 실패, period={}", period, e);
       stepExecution.addFailureException(e);
-      throw new RuntimeException("afterStep 처리 실패, period=" + period, e);
+      stepExecution.setStatus(BatchStatus.FAILED);          
+      stepExecution.setExitStatus(ExitStatus.FAILED);
+      return ExitStatus.FAILED;
 
     }
     return stepExecution.getExitStatus();

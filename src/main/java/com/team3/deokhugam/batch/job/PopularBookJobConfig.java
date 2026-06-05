@@ -28,7 +28,7 @@ public class PopularBookJobConfig {
   private final PopularBookReader popularBookReader;
   private final PopularBookRankingPersistenceService persistenceService;
 
-  @Value("${batch.popular-review.chunk-size:500}")
+  @Value("${spring.batch.popular-book.chunk-size:500}")
   private int chunkSize;
 
   @Bean

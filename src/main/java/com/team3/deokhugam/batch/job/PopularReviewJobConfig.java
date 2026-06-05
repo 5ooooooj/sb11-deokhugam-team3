@@ -28,7 +28,7 @@ public class PopularReviewJobConfig {
   private final PopularReviewReader popularReviewReader;
   private final PopularReviewRankingPersistenceService persistenceService;
 
-  @Value("${batch.popular-review.chunk-size:500}")
+  @Value("${spring.batch.popular-review.chunk-size:500}")
   private int chunkSize;
 
   @Bean

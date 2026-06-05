@@ -28,7 +28,7 @@ public class PowerUserJobConfig {
   private final PowerUserRankingPersistenceService persistenceService;
   private final PowerUserReader powerUserReader;
 
-  @Value("${batch.popular-review.chunk-size:500}")
+  @Value("${spring.batch.power-user.chunk-size:500}")
   private int chunkSize;
 
   @Bean
