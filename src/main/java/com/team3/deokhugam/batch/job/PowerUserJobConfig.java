@@ -14,6 +14,7 @@ import org.springframework.batch.core.Step;
 import org.springframework.batch.core.job.builder.JobBuilder;
 import org.springframework.batch.core.repository.JobRepository;
 import org.springframework.batch.core.step.builder.StepBuilder;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.dao.CannotAcquireLockException;
@@ -30,6 +31,9 @@ public class PowerUserJobConfig {
   private final PowerUserRankingPersistenceService persistenceService;
   private final PowerUserReader powerUserReader;
 
+  @Value("${batch.popular-review.chunk-size:500}")
+  private int chunkSize;
+
   @Bean
   public Job powerUserJob() {
     return new JobBuilder("powerUserJob", jobRepository)
@@ -45,7 +49,7 @@ public class PowerUserJobConfig {
     PowerUserWriter writer = powerUserWriter();
 
     return new StepBuilder("powerUserStep_" + period, jobRepository)
-        .<PowerUserRawData, PowerUser>chunk(500, transactionManager)
+        .<PowerUserRawData, PowerUser>chunk(chunkSize, transactionManager)
         .reader(powerUserReader.create(period))
         .processor(processor.create(period))
         .listener(processor)
@@ -53,18 +57,7 @@ public class PowerUserJobConfig {
         .listener(writer)
         .listener(new PowerUserRankingListener(
             persistenceService, period, writer))
-        .faultTolerant()
-        .retryLimit(3)
-        .retry(TransientDataAccessException.class) // 일시적 db 오류
-        .retry(CannotAcquireLockException.class) // DB 락 경합
-        .backOffPolicy(createBackOffPolicy())
         .build();
-  }
-
-  private FixedBackOffPolicy createBackOffPolicy() {
-    FixedBackOffPolicy policy = new FixedBackOffPolicy();
-    policy.setBackOffPeriod(2000L);
-    return policy;
   }
 
   private PowerUserWriter powerUserWriter() {

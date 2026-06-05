@@ -38,8 +38,10 @@ public class PopularBookRankingListener implements StepExecutionListener {
       persistenceService.deleteAndSave(period, all);
       log.info("deleteAndSave 완료 period={}", period); // 추가
     } catch (Exception e) {
-      log.error("RankingListener afterStep 실패", e);
-      return ExitStatus.FAILED;
+      log.error("RankingListener afterStep 실패, period={}", period, e);
+      stepExecution.addFailureException(e);
+      throw new RuntimeException("afterStep 처리 실패, period=" + period, e);
+
     }
     return stepExecution.getExitStatus();
   }

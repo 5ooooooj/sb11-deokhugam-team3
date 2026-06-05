@@ -26,7 +26,7 @@ public class PopularBookProcessor implements StepExecutionListener {
 
   public ItemProcessor<PopularBookRawData, PopularBook> create(Period period) {
     return item -> {
-      BigDecimal score = BigDecimal.valueOf(item.reviewCount() * 0.4)
+      BigDecimal score = BigDecimal.valueOf(item.reviewCount()).multiply(BigDecimal.valueOf(0.4))
           .add(item.ratingAvg().multiply(BigDecimal.valueOf(0.6)));
       return PopularBook.builder()
           .bookId(item.bookId())

@@ -31,21 +31,30 @@ public class PopularReviewReader {
       builder.queryString("""
         SELECT new com.team3.deokhugam.batch.dto.PopularReviewRawData(
           r.id,
-          r.likeCount,
-          r.commentCount
+          CAST(COUNT(DISTINCT rl.id) AS int),
+          CAST(COUNT(DISTINCT c.id) AS int)
         )
         FROM Review r
+        LEFT JOIN ReviewLike  rl ON rl.review.id = r.id
+        LEFT JOIN Comment  c ON c.review.id = r.id
+        GROUP BY r.id
+        HAVING COUNT(DISTINCT rl.id) > 0 OR COUNT(DISTINCT c.id) > 0
         ORDER BY r.id
         """);
     } else {
       builder.queryString("""
         SELECT new com.team3.deokhugam.batch.dto.PopularReviewRawData(
           r.id,
-          r.likeCount,
-          r.commentCount
+          CAST(COUNT(DISTINCT rl.id) AS int),
+          CAST(COUNT(DISTINCT c.id) AS int)
         )
         FROM Review r
-        WHERE r.createdAt >= :startDate
+        LEFT JOIN ReviewLike  rl ON rl.review.id = r.id
+          AND rl.createdAt >= :startDate
+        LEFT JOIN Comment  c ON c.review.id = r.id
+          AND c.createdAt >= :startDate
+        GROUP BY r.id
+        HAVING COUNT(DISTINCT rl.id) > 0 OR COUNT(DISTINCT c.id) > 0
         ORDER BY r.id
         """)
           .parameterValues(Map.of("startDate", startDate));

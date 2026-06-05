@@ -26,8 +26,8 @@ public class PopularReviewProcessor implements StepExecutionListener {
 
   public ItemProcessor<PopularReviewRawData, PopularReview> create(Period period) {
     return item -> {
-      BigDecimal score = BigDecimal.valueOf(item.likeCount() * 0.3)
-          .add(BigDecimal.valueOf(item.commentCount() * 0.7));
+      BigDecimal score = BigDecimal.valueOf(item.likeCount()).multiply(BigDecimal.valueOf(0.3))
+          .add(BigDecimal.valueOf(item.commentCount()).multiply(BigDecimal.valueOf(0.7)));
       return PopularReview.builder()
           .reviewId(item.reviewId())
           .period(period)
