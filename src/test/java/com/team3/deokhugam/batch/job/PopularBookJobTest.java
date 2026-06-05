@@ -3,10 +3,14 @@ package com.team3.deokhugam.batch.job;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.team3.deokhugam.batch.global.Period;
+import com.team3.deokhugam.domain.book.Book;
 import com.team3.deokhugam.domain.dashboard.PopularBook;
 import com.team3.deokhugam.domain.review.Review;
+import com.team3.deokhugam.domain.user.User;
+import com.team3.deokhugam.repository.book.BookRepository;
 import com.team3.deokhugam.repository.dashboard.PopularBookRepository;
 import com.team3.deokhugam.repository.review.ReviewRepository;
+import com.team3.deokhugam.repository.user.UserRepository;
 import jakarta.persistence.EntityManager;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -52,6 +56,12 @@ public class PopularBookJobTest {
   private ReviewRepository reviewRepository;
 
   @Autowired
+  private BookRepository bookRepository;
+
+  @Autowired
+  private UserRepository userRepository;
+
+  @Autowired
   private EntityManager entityManager;
 
   @Autowired
@@ -70,22 +80,38 @@ public class PopularBookJobTest {
   void tearDown() {
     popularBookRepository.deleteAll();
     reviewRepository.deleteAll();
+    bookRepository.deleteAll();
+    userRepository.deleteAll();
+  }
+
+  private User saveUser() {
+    return transactionTemplate.execute(status ->
+        userRepository.save(
+            new User("job-" + UUID.randomUUID() + "@test.com", "배치테스터", "Password1!")));
+  }
+
+  private Book saveBook() {
+    return transactionTemplate.execute(status ->
+        bookRepository.save(new Book(
+            UUID.randomUUID(), "테스트 도서", "테스트 저자", "테스트 설명",
+            "테스트 출판사", LocalDate.of(2026, 1, 1), null, null)));
   }
 
   @Test
   @DisplayName("성공: Job 실행 후 POPULAR_BOOKS에 기간별 결과가 저장")
   void job_success() throws Exception {
     // given
-    UUID bookId1 = UUID.randomUUID();
-    UUID bookId2 = UUID.randomUUID();
+    User user = saveUser();
+    Book book1 = saveBook();
+    Book book2 = saveBook();
 
     transactionTemplate.execute(status -> {
       // DAILY 범위 (1시간 전) - 기본 createdAt 그대로 사용
-      reviewRepository.save(Review.create(UUID.randomUUID(), bookId1, 5, "일간 리뷰"));
+      reviewRepository.save(Review.create(user, book1, 5, "일간 리뷰"));
 
       // WEEKLY 범위 (3일 전)
       Review weeklyReview = reviewRepository.save(
-          Review.create(UUID.randomUUID(), bookId1, 3, "주간 리뷰"));
+          Review.create(user, book1, 3, "주간 리뷰"));
       entityManager.createQuery(
               "UPDATE Review r SET r.createdAt = :createdAt WHERE r.id = :id")
           .setParameter("createdAt", Instant.now().minus(3, ChronoUnit.DAYS))
@@ -94,7 +120,7 @@ public class PopularBookJobTest {
 
       // MONTHLY 범위 (15일 전)
       Review monthlyReview = reviewRepository.save(
-          Review.create(UUID.randomUUID(), bookId2, 4, "월간 리뷰"));
+          Review.create(user, book2, 4, "월간 리뷰"));
       entityManager.createQuery(
               "UPDATE Review r SET r.createdAt = :createdAt WHERE r.id = :id")
           .setParameter("createdAt", Instant.now().minus(15, ChronoUnit.DAYS))
@@ -103,7 +129,7 @@ public class PopularBookJobTest {
 
       // ALL_TIME 범위 (200일 전)
       Review allTimeReview = reviewRepository.save(
-          Review.create(UUID.randomUUID(), bookId2, 2, "역대 리뷰"));
+          Review.create(user, book2, 2, "역대 리뷰"));
       entityManager.createQuery(
               "UPDATE Review r SET r.createdAt = :createdAt WHERE r.id = :id")
           .setParameter("createdAt", Instant.now().minus(200, ChronoUnit.DAYS))
@@ -133,10 +159,11 @@ public class PopularBookJobTest {
   @DisplayName("성공: Job 재실행 시 기존 데이터를 삭제하고 새로 저장")
   void job_rerun_success() throws Exception {
     // given
-    UUID bookId = UUID.randomUUID();
+    User user = saveUser();
+    Book book = saveBook();
 
     transactionTemplate.execute(status -> {
-      reviewRepository.save(Review.create(UUID.randomUUID(), bookId, 5, "리뷰"));
+      reviewRepository.save(Review.create(user, book, 5, "리뷰"));
       return null;
     });
 
@@ -176,10 +203,11 @@ public class PopularBookJobTest {
   @DisplayName("성공: 1위 도서의 rank가 1로 저장")
   void job_rankIsOne_forTopBook() throws Exception {
     // given
-    UUID bookId = UUID.randomUUID();
+    User user = saveUser();
+    Book book = saveBook();
 
     transactionTemplate.execute(status -> {
-      reviewRepository.save(Review.create(UUID.randomUUID(), bookId, 5, "리뷰"));
+      reviewRepository.save(Review.create(user, book, 5, "리뷰"));
       return null;
     });
 
@@ -200,19 +228,20 @@ public class PopularBookJobTest {
   @DisplayName("성공: 다수 도서 있을 때 글로벌 순위 올바르게 저장됨")
   void job_globalRankIsCorrect_forMultipleBooks() throws Exception {
     // given
-    UUID bookId1 = UUID.randomUUID();
-    UUID bookId2 = UUID.randomUUID();
-    UUID bookId3 = UUID.randomUUID();
+    User user = saveUser();
+    Book book1 = saveBook();
+    Book book2 = saveBook();
+    Book book3 = saveBook();
 
     transactionTemplate.execute(status -> {
-      reviewRepository.save(Review.create(UUID.randomUUID(), bookId1, 5, "리뷰1"));
-      reviewRepository.save(Review.create(UUID.randomUUID(), bookId1, 5, "리뷰2"));
-      reviewRepository.save(Review.create(UUID.randomUUID(), bookId1, 5, "리뷰3"));
+      reviewRepository.save(Review.create(user, book1, 5, "리뷰1"));
+      reviewRepository.save(Review.create(user, book1, 5, "리뷰2"));
+      reviewRepository.save(Review.create(user, book1, 5, "리뷰3"));
 
-      reviewRepository.save(Review.create(UUID.randomUUID(), bookId2, 3, "리뷰4"));
-      reviewRepository.save(Review.create(UUID.randomUUID(), bookId2, 3, "리뷰5"));
+      reviewRepository.save(Review.create(user, book2, 3, "리뷰4"));
+      reviewRepository.save(Review.create(user, book2, 3, "리뷰5"));
 
-      reviewRepository.save(Review.create(UUID.randomUUID(), bookId3, 1, "리뷰6"));
+      reviewRepository.save(Review.create(user, book3, 1, "리뷰6"));
       return null;
     });
 
@@ -228,11 +257,11 @@ public class PopularBookJobTest {
     // then
     List<PopularBook> results = popularBookRepository.findByPeriodOrderByScoreDesc(Period.DAILY);
     assertThat(results).hasSize(3);
-    assertThat(results.get(0).getBookId()).isEqualTo(bookId1);
+    assertThat(results.get(0).getBookId()).isEqualTo(book1.getId());
     assertThat(results.get(0).getRank()).isEqualTo(1);
-    assertThat(results.get(1).getBookId()).isEqualTo(bookId2);
+    assertThat(results.get(1).getBookId()).isEqualTo(book2.getId());
     assertThat(results.get(1).getRank()).isEqualTo(2);
-    assertThat(results.get(2).getBookId()).isEqualTo(bookId3);
+    assertThat(results.get(2).getBookId()).isEqualTo(book3.getId());
     assertThat(results.get(2).getRank()).isEqualTo(3);
   }
 }
