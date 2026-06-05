@@ -5,7 +5,6 @@ import com.team3.deokhugam.batch.global.RankCalculateUtil;
 import com.team3.deokhugam.batch.persistenceService.PopularBookRankingPersistenceService;
 import com.team3.deokhugam.batch.step.writer.PopularBookWriter;
 import com.team3.deokhugam.domain.dashboard.PopularBook;
-import com.team3.deokhugam.repository.dashboard.PopularBookRepository;
 import java.util.Comparator;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -15,7 +14,6 @@ import org.springframework.batch.core.ExitStatus;
 import org.springframework.batch.core.StepExecution;
 import org.springframework.batch.core.StepExecutionListener;
 import org.springframework.lang.Nullable;
-import org.springframework.transaction.support.TransactionTemplate;
 
 @Slf4j
 @RequiredArgsConstructor

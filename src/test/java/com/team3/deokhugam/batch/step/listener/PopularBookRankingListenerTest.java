@@ -23,7 +23,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
-import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.batch.core.BatchStatus;
@@ -105,7 +104,7 @@ public class PopularBookRankingListenerTest {
         Period.DAILY, popularBookWriter, persistenceService);
     listener.afterStep(stepExecution);
 
-    InOrder inOrder = inOrder(persistenceService);
+    inOrder(persistenceService);
     verify(persistenceService).deleteAndSave(eq(Period.DAILY), captor.capture());
 
     List<PopularBook> saved = captor.getValue();
