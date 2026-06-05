@@ -21,8 +21,7 @@ public class DashboardBatchScheduler {
 
   private final JobLauncher jobLauncher;
   private final Job popularBookJob;
-// 미구현 job, 구현 후 주석 해제
-//  private final Job popularReviewJob;
+  private final Job popularReviewJob;
   private final Job powerUserJob;
 
   @Scheduled(cron = "0 0 0 * * *")
@@ -32,7 +31,7 @@ public class DashboardBatchScheduler {
         .toJobParameters();
 
       runJob(popularBookJob, params); // 실패시 이후 중단
-//      runJob(popularReviewJob, params); // 실패시 이후 중단
+      runJob(popularReviewJob, params); // 실패시 이후 중단
       runJob(powerUserJob, params);
   }
 

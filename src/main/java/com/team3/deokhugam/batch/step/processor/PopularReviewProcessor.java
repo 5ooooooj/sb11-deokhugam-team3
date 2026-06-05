@@ -1,8 +1,8 @@
 package com.team3.deokhugam.batch.step.processor;
 
-import com.team3.deokhugam.batch.dto.PopularBookRawData;
+import com.team3.deokhugam.batch.dto.PopularReviewRawData;
 import com.team3.deokhugam.batch.global.Period;
-import com.team3.deokhugam.domain.dashboard.PopularBook;
+import com.team3.deokhugam.domain.dashboard.PopularReview;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.ZoneOffset;
@@ -13,7 +13,7 @@ import org.springframework.lang.Nullable;
 import org.springframework.stereotype.Component;
 
 @Component
-public class PopularBookProcessor implements StepExecutionListener {
+public class PopularReviewProcessor implements StepExecutionListener {
 
   private Instant calculatedAt;
 
@@ -24,16 +24,17 @@ public class PopularBookProcessor implements StepExecutionListener {
         : Instant.now();
   }
 
-  public ItemProcessor<PopularBookRawData, PopularBook> create(Period period) {
+  public ItemProcessor<PopularReviewRawData, PopularReview> create(Period period) {
     return item -> {
-      BigDecimal score = BigDecimal.valueOf(item.reviewCount()).multiply(BigDecimal.valueOf(0.4))
-          .add(item.ratingAvg().multiply(BigDecimal.valueOf(0.6)));
-      return PopularBook.builder()
-          .bookId(item.bookId())
+      BigDecimal score = BigDecimal.valueOf(item.likeCount()).multiply(BigDecimal.valueOf(0.3))
+          .add(BigDecimal.valueOf(item.commentCount()).multiply(BigDecimal.valueOf(0.7)));
+      return PopularReview.builder()
+          .reviewId(item.reviewId())
           .period(period)
           .score(score)
-          .reviewCount(item.reviewCount())
-          .rating(item.ratingAvg())
+          .rank(0)
+          .likeCount(item.likeCount())
+          .commentCount(item.commentCount())
           .calculatedAt(calculatedAt)
           .build();
     };

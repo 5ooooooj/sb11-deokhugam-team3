@@ -17,6 +17,12 @@ spring:
   batch:
     job:
       enabled: false  # 자동 실행 방지, 스케줄러에서 수동 실행
+    popular-review:
+      chunk-size: 500
+    popular-book:
+      chunk-size: 500
+    power-user:
+      chunk-size: 500
 
 batch:
   scheduler:

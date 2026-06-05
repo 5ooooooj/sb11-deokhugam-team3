@@ -2,9 +2,9 @@ package com.team3.deokhugam.batch.step.listener;
 
 import com.team3.deokhugam.batch.global.Period;
 import com.team3.deokhugam.batch.global.RankCalculateUtil;
-import com.team3.deokhugam.batch.persistenceService.PowerUserRankingPersistenceService;
-import com.team3.deokhugam.batch.step.writer.PowerUserWriter;
-import com.team3.deokhugam.domain.dashboard.PowerUser;
+import com.team3.deokhugam.batch.persistenceService.PopularReviewRankingPersistenceService;
+import com.team3.deokhugam.batch.step.writer.PopularReviewWriter;
+import com.team3.deokhugam.domain.dashboard.PopularReview;
 import java.util.Comparator;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -17,23 +17,24 @@ import org.springframework.lang.Nullable;
 
 @Slf4j
 @RequiredArgsConstructor
-public class PowerUserRankingListener implements StepExecutionListener {
+public class PopularReviewRankingListener implements StepExecutionListener {
 
-  private final PowerUserRankingPersistenceService persistenceService;
   private final Period period;
-  private final PowerUserWriter powerUserWriter;
+  private final PopularReviewWriter popularReviewWriter;
+  private final PopularReviewRankingPersistenceService persistenceService;
 
   @Override
   public ExitStatus afterStep(@Nullable StepExecution stepExecution) {
+
     if (stepExecution == null || stepExecution.getStatus() != BatchStatus.COMPLETED) {
       return stepExecution != null ? stepExecution.getExitStatus() : ExitStatus.FAILED;
     }
 
     try {
-      List<PowerUser> all = powerUserWriter.getAccumulated();
+      List<PopularReview> all = popularReviewWriter.getAccumulated();
       log.info("afterStep 시작 period={}, accumulated size={}", period, all.size());
-      all.sort(Comparator.comparing(PowerUser::getScore).reversed());
-      RankCalculateUtil.assignRanks(all, PowerUser::getScore, PowerUser::assignRank);
+      all.sort(Comparator.comparing(PopularReview::getScore).reversed());
+      RankCalculateUtil.assignRanks(all, PopularReview::getScore, PopularReview::assignRank);
       persistenceService.deleteAndSave(period, all);
       log.info("deleteAndSave 완료 period={}", period);
     } catch (Exception e) {
@@ -45,4 +46,5 @@ public class PowerUserRankingListener implements StepExecutionListener {
     }
     return stepExecution.getExitStatus();
   }
+
 }

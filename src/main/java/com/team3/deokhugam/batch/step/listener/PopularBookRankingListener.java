@@ -32,15 +32,18 @@ public class PopularBookRankingListener implements StepExecutionListener {
 
     try {
       List<PopularBook> all = popularBookWriter.getAccumulated();
-      System.out.println("=== accumulated size=" + all.size());
       log.info("afterStep 시작 period={}, accumulated size={}", period, all.size());
       all.sort(Comparator.comparing(PopularBook::getScore).reversed());
       RankCalculateUtil.assignRanks(all, PopularBook::getScore, PopularBook::assignRank);
       persistenceService.deleteAndSave(period, all);
       log.info("deleteAndSave 완료 period={}", period); // 추가
     } catch (Exception e) {
-      log.error("RankingListener afterStep 실패", e);
+      log.error("RankingListener afterStep 실패, period={}", period, e);
+      stepExecution.addFailureException(e);
+      stepExecution.setStatus(BatchStatus.FAILED);          
+      stepExecution.setExitStatus(ExitStatus.FAILED);
       return ExitStatus.FAILED;
+
     }
     return stepExecution.getExitStatus();
   }
