@@ -26,6 +26,7 @@ import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.team3.deokhugam.exception.user.UserNotFoundException;
 
 @Service
 @RequiredArgsConstructor
@@ -46,7 +47,8 @@ public class ReviewService {
       throw new ReviewAlreadyExistsException();
     }
 
-    User user = userRepository.getReferenceById(request.userId());
+    User user = userRepository.findById(request.userId())
+        .orElseThrow(UserNotFoundException::new);
     Book book = bookRepository.findById(request.bookId())
         .orElseThrow(BookNotFoundException::new);
 

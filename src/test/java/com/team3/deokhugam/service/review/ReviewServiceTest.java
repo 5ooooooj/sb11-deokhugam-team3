@@ -22,6 +22,7 @@ import com.team3.deokhugam.exception.book.BookNotFoundException;
 import com.team3.deokhugam.exception.review.ReviewAlreadyExistsException;
 import com.team3.deokhugam.exception.review.ReviewForbiddenException;
 import com.team3.deokhugam.exception.review.ReviewNotFoundException;
+import com.team3.deokhugam.exception.user.UserNotFoundException;
 import com.team3.deokhugam.global.dto.CursorPageResponse;
 import com.team3.deokhugam.repository.book.BookRepository;
 import com.team3.deokhugam.repository.review.ReviewLikeRepository;
@@ -69,9 +70,12 @@ class ReviewServiceTest {
     User user = mock(User.class);
     Book book = mock(Book.class);
     given(user.getId()).willReturn(userId);
+    given(user.getNickname()).willReturn("작성자닉네임");
     given(book.getId()).willReturn(bookId);
+    given(book.getTitle()).willReturn("테스트 도서");
+    given(book.getThumbnailUrl()).willReturn("https://img/thumb.jpg");
     given(reviewRepository.existsByUser_IdAndBook_Id(userId, bookId)).willReturn(false);
-    given(userRepository.getReferenceById(userId)).willReturn(user);
+    given(userRepository.findById(userId)).willReturn(Optional.of(user));
     given(bookRepository.findById(bookId)).willReturn(Optional.of(book));
     given(reviewRepository.save(any(Review.class)))
         .willAnswer(invocation -> invocation.getArgument(0));
@@ -81,6 +85,9 @@ class ReviewServiceTest {
     assertThat(result).isNotNull();
     assertThat(result.bookId()).isEqualTo(bookId);
     assertThat(result.userId()).isEqualTo(userId);
+    assertThat(result.bookTitle()).isEqualTo("테스트 도서");
+    assertThat(result.bookThumbnailUrl()).isEqualTo("https://img/thumb.jpg");
+    assertThat(result.userNickname()).isEqualTo("작성자닉네임");
     assertThat(result.rating()).isEqualTo(5);
     assertThat(result.content()).isEqualTo("재밌어요");
     assertThat(result.likedByMe()).isFalse();
@@ -103,6 +110,22 @@ class ReviewServiceTest {
   }
 
   @Test
+  @DisplayName("리뷰 등록 실패 - 작성자가 없으면 UserNotFoundException이 발생한다")
+  void createReview_userNotFound_throws() {
+    UUID userId = UUID.randomUUID();
+    UUID bookId = UUID.randomUUID();
+    ReviewCreateRequest request = new ReviewCreateRequest(bookId, userId, "재밌어요", 5);
+
+    given(reviewRepository.existsByUser_IdAndBook_Id(userId, bookId)).willReturn(false);
+    given(userRepository.findById(userId)).willReturn(Optional.empty());
+
+    assertThatThrownBy(() -> reviewService.createReview(request))
+        .isInstanceOf(UserNotFoundException.class);
+
+    verify(reviewRepository, never()).save(any(Review.class));
+  }
+
+  @Test
   @DisplayName("리뷰 등록 실패 - 도서가 없으면 BookNotFoundException이 발생한다")
   void createReview_bookNotFound_throws() {
     UUID userId = UUID.randomUUID();
@@ -110,6 +133,7 @@ class ReviewServiceTest {
     ReviewCreateRequest request = new ReviewCreateRequest(bookId, userId, "재밌어요", 5);
 
     given(reviewRepository.existsByUser_IdAndBook_Id(userId, bookId)).willReturn(false);
+    given(userRepository.findById(userId)).willReturn(Optional.of(mock(User.class)));
     given(bookRepository.findById(bookId)).willReturn(Optional.empty());
 
     assertThatThrownBy(() -> reviewService.createReview(request))
@@ -206,7 +230,7 @@ class ReviewServiceTest {
   }
 
   @Test
-  @DisplayName("리뷰 상세 조회 성공 - 존재하는 리뷰면 ReviewDto를 반환하고 likedByMe가 채워진다")
+  @DisplayName("리뷰 상세 조회 성공 - 존재하는 리뷰면 ReviewDto를 반환하고 도서·작성자 정보가 채워진다")
   void getReview_success() {
     UUID reviewId = UUID.randomUUID();
     UUID userId = UUID.randomUUID();
@@ -222,6 +246,9 @@ class ReviewServiceTest {
     assertThat(result).isNotNull();
     assertThat(result.bookId()).isEqualTo(bookId);
     assertThat(result.userId()).isEqualTo(userId);
+    assertThat(result.bookTitle()).isEqualTo("테스트 도서");
+    assertThat(result.bookThumbnailUrl()).isEqualTo("https://img/thumb.jpg");
+    assertThat(result.userNickname()).isEqualTo("작성자닉네임");
     assertThat(result.rating()).isEqualTo(5);
     assertThat(result.content()).isEqualTo("재밌어요");
     assertThat(result.likedByMe()).isTrue();
@@ -416,7 +443,10 @@ class ReviewServiceTest {
     User user = mock(User.class);
     Book book = mock(Book.class);
     lenient().when(user.getId()).thenReturn(userId);
+    lenient().when(user.getNickname()).thenReturn("작성자닉네임");
     lenient().when(book.getId()).thenReturn(bookId);
+    lenient().when(book.getTitle()).thenReturn("테스트 도서");
+    lenient().when(book.getThumbnailUrl()).thenReturn("https://img/thumb.jpg");
     return Review.create(user, book, rating, content);
   }
 
@@ -425,6 +455,8 @@ class ReviewServiceTest {
     lenient().when(review.getCreatedAt()).thenReturn(createdAt);
     lenient().when(review.getId()).thenReturn(id);
     lenient().when(review.getRating()).thenReturn(rating);
+    lenient().when(review.getUser()).thenReturn(mock(User.class));
+    lenient().when(review.getBook()).thenReturn(mock(Book.class));
     return review;
   }
 }

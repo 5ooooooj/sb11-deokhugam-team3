@@ -33,6 +33,8 @@ public class ReviewRepositoryCustomImpl implements ReviewRepositoryCustom {
   public List<Review> search(ReviewSearchRequest request) {
     return queryFactory
         .selectFrom(review)
+        .join(review.user).fetchJoin()
+        .join(review.book).fetchJoin()
         .where(
             notDeleted(),
             userIdEq(request),
