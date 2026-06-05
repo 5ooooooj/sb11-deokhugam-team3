@@ -16,6 +16,7 @@ import org.springframework.batch.core.repository.JobRepository;
 import org.springframework.batch.core.step.builder.StepBuilder;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Scope;
 import org.springframework.dao.CannotAcquireLockException;
 import org.springframework.dao.TransientDataAccessException;
 import org.springframework.retry.backoff.FixedBackOffPolicy;
@@ -41,8 +42,8 @@ public class PopularBookJobConfig {
   }
 
   private Step popularBookStep(Period period) {
-    PopularBookWriter writer = new PopularBookWriter();
-    PopularBookProcessor processor = new PopularBookProcessor();
+    PopularBookWriter writer = popularBookWriter();
+    PopularBookProcessor processor = popularBookProcessor();
 
     return new StepBuilder("popularBookStep_" + period.name(), jobRepository)
         .<PopularBookRawData, PopularBook>chunk(500, transactionManager)
@@ -64,5 +65,17 @@ public class PopularBookJobConfig {
     FixedBackOffPolicy policy = new FixedBackOffPolicy();
     policy.setBackOffPeriod(2000L);
     return policy;
+  }
+
+  @Bean
+  @Scope("prototype")
+  public PopularBookWriter popularBookWriter() {
+    return new PopularBookWriter();
+  }
+
+  @Bean
+  @Scope("prototype")
+  public PopularBookProcessor popularBookProcessor() {
+    return new PopularBookProcessor();
   }
 }

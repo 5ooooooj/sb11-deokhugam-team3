@@ -64,8 +64,6 @@ public class PopularBookJobTest {
     jobLauncherTestUtils.setJob(popularBookJob);
     transactionTemplate = new TransactionTemplate(transactionManager);
     jobRepositoryTestUtils.removeJobExecutions();
-    popularBookRepository.deleteAll();
-    reviewRepository.deleteAll();
   }
 
   @AfterEach
@@ -186,11 +184,12 @@ public class PopularBookJobTest {
     });
 
     // when
-    jobLauncherTestUtils.launchJob(
+    JobExecution execution = jobLauncherTestUtils.launchJob(
         new JobParametersBuilder()
             .addLocalDate("targetDate", LocalDate.now())
             .toJobParameters()
     );
+    assertThat(execution.getStatus()).isEqualTo(BatchStatus.COMPLETED);
     // then
     List<PopularBook> dailyResults = popularBookRepository.findByPeriod(Period.DAILY);
     assertThat(dailyResults).hasSize(1);
@@ -218,11 +217,13 @@ public class PopularBookJobTest {
     });
 
     // when
-    jobLauncherTestUtils.launchJob(
+    JobExecution execution = jobLauncherTestUtils.launchJob(
         new JobParametersBuilder()
             .addLocalDate("targetDate", LocalDate.now())
             .toJobParameters()
     );
+    assertThat(execution.getStatus()).isEqualTo(BatchStatus.COMPLETED);
+
 
     // then
     List<PopularBook> results = popularBookRepository.findByPeriodOrderByScoreDesc(Period.DAILY);

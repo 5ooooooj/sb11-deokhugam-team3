@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThatNoException;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
@@ -56,6 +57,7 @@ class PopularBookRankingPersistenceServiceTest {
         .isThrownBy(() -> persistenceService.deleteAndSave(Period.DAILY, all));
 
     verify(popularBookRepository, times(2)).deleteByPeriod(Period.DAILY);
+    verify(popularBookRepository, times(1)).saveAll(all);
   }
 
   @Test
@@ -70,5 +72,6 @@ class PopularBookRankingPersistenceServiceTest {
         .isInstanceOf(TransientDataAccessException.class);
 
     verify(popularBookRepository, times(3)).deleteByPeriod(Period.DAILY);
+    verify(popularBookRepository, never()).saveAll(any());
   }
 }

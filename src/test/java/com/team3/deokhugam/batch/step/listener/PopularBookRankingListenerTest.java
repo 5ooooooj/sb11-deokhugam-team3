@@ -74,7 +74,7 @@ public class PopularBookRankingListenerTest {
 
   @Test
   @DisplayName("성공: 데이터가 없을 때 빈 리스트로 저장 호출")
-  void afterStep_doesNotSaveWhenEmpty() {
+  void afterStep_saveEmptyListWhenDataEmpty() {
     StepExecution stepExecution = mock(StepExecution.class);
     when(stepExecution.getStatus()).thenReturn(BatchStatus.COMPLETED);
     when(stepExecution.getExitStatus()).thenReturn(ExitStatus.COMPLETED);

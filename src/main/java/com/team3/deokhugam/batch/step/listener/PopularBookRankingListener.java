@@ -31,10 +31,9 @@ public class PopularBookRankingListener implements StepExecutionListener {
     }
 
     try {
-      System.out.println("=== afterStep 시작 period=" + period);
       List<PopularBook> all = popularBookWriter.getAccumulated();
       System.out.println("=== accumulated size=" + all.size());
-      log.info("accumulated size: {}", all.size()); // 추가
+      log.info("afterStep 시작 period={}, accumulated size={}", period, all.size());
       all.sort(Comparator.comparing(PopularBook::getScore).reversed());
       RankCalculateUtil.assignRanks(all, PopularBook::getScore, PopularBook::assignRank);
       persistenceService.deleteAndSave(period, all);
