@@ -9,19 +9,15 @@ import org.springframework.batch.core.StepExecution;
 import org.springframework.batch.core.StepExecutionListener;
 import org.springframework.batch.item.ItemWriter;
 import org.springframework.lang.Nullable;
-import org.springframework.stereotype.Component;
 
 @Getter
-@Component
 @NoArgsConstructor
 public class PopularBookWriter implements StepExecutionListener {
 
-  private StepExecution stepExecution;
   private final List<PopularBook> accumulated = new ArrayList<>();
 
   @Override
   public void beforeStep(@Nullable StepExecution stepExecution) {
-    this.stepExecution = stepExecution;
     accumulated.clear();
   }
 

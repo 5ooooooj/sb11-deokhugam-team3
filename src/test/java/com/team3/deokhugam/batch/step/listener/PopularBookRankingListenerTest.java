@@ -1,16 +1,17 @@
 package com.team3.deokhugam.batch.step.listener;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import com.team3.deokhugam.batch.global.Period;
+import com.team3.deokhugam.batch.persistenceService.PopularBookRankingPersistenceService;
 import com.team3.deokhugam.batch.step.writer.PopularBookWriter;
 import com.team3.deokhugam.domain.dashboard.PopularBook;
-import com.team3.deokhugam.repository.dashboard.PopularBookRepository;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -29,18 +30,12 @@ import org.springframework.batch.core.BatchStatus;
 import org.springframework.batch.core.ExitStatus;
 import org.springframework.batch.core.StepExecution;
 import org.springframework.batch.item.Chunk;
-import org.springframework.transaction.TransactionStatus;
-import org.springframework.transaction.support.TransactionCallback;
-import org.springframework.transaction.support.TransactionTemplate;
 
 @ExtendWith(MockitoExtension.class)
 public class PopularBookRankingListenerTest {
 
   @Mock
-  private PopularBookRepository popularBookRepository;
-
-  @Mock
-  private TransactionTemplate transactionTemplate;
+  private PopularBookRankingPersistenceService persistenceService;
 
   private PopularBookWriter popularBookWriter;
 
@@ -65,18 +60,12 @@ public class PopularBookRankingListenerTest {
     StepExecution stepExecution = mock(StepExecution.class);
     when(stepExecution.getStatus()).thenReturn(BatchStatus.COMPLETED);
     when(stepExecution.getExitStatus()).thenReturn(ExitStatus.COMPLETED);
-    when(transactionTemplate.execute(any())).thenAnswer(invocation -> {
-      TransactionCallback<?> callback = invocation.getArgument(0);
-      return callback.doInTransaction(mock(TransactionStatus.class));
-    });
 
     PopularBookRankingListener listener = new PopularBookRankingListener(
-        popularBookRepository, Period.DAILY, transactionTemplate, popularBookWriter);
+        Period.DAILY, popularBookWriter, persistenceService);
     listener.afterStep(stepExecution);
 
-    InOrder inOrder = inOrder(popularBookRepository);
-    inOrder.verify(popularBookRepository).deleteByPeriod(Period.DAILY);
-    inOrder.verify(popularBookRepository).saveAll(captor.capture());
+    verify(persistenceService).deleteAndSave(eq(Period.DAILY), captor.capture());
 
     List<PopularBook> saved = captor.getValue();
     assertThat(saved.get(0).getRank()).isEqualTo(1);
@@ -90,18 +79,12 @@ public class PopularBookRankingListenerTest {
     StepExecution stepExecution = mock(StepExecution.class);
     when(stepExecution.getStatus()).thenReturn(BatchStatus.COMPLETED);
     when(stepExecution.getExitStatus()).thenReturn(ExitStatus.COMPLETED);
-    when(transactionTemplate.execute(any())).thenAnswer(invocation -> {
-      TransactionCallback<?> callback = invocation.getArgument(0);
-      return callback.doInTransaction(mock(TransactionStatus.class));
-    });
 
     PopularBookRankingListener listener = new PopularBookRankingListener(
-        popularBookRepository, Period.DAILY, transactionTemplate, popularBookWriter);
+        Period.DAILY, popularBookWriter, persistenceService);
     listener.afterStep(stepExecution);
 
-    InOrder inOrder = inOrder(popularBookRepository);
-    inOrder.verify(popularBookRepository).deleteByPeriod(Period.DAILY);
-    inOrder.verify(popularBookRepository).saveAll(List.of());
+    verify(persistenceService).deleteAndSave(eq(Period.DAILY), eq(List.of()));
   }
 
   @Test
@@ -117,18 +100,13 @@ public class PopularBookRankingListenerTest {
     StepExecution stepExecution = mock(StepExecution.class);
     when(stepExecution.getStatus()).thenReturn(BatchStatus.COMPLETED);
     when(stepExecution.getExitStatus()).thenReturn(ExitStatus.COMPLETED);
-    when(transactionTemplate.execute(any())).thenAnswer(invocation -> {
-      TransactionCallback<?> callback = invocation.getArgument(0);
-      return callback.doInTransaction(mock(TransactionStatus.class));
-    });
 
     PopularBookRankingListener listener = new PopularBookRankingListener(
-        popularBookRepository, Period.DAILY, transactionTemplate, popularBookWriter);
+        Period.DAILY, popularBookWriter, persistenceService);
     listener.afterStep(stepExecution);
 
-    InOrder inOrder = inOrder(popularBookRepository);
-    inOrder.verify(popularBookRepository).deleteByPeriod(Period.DAILY);
-    inOrder.verify(popularBookRepository).saveAll(captor.capture());
+    InOrder inOrder = inOrder(persistenceService);
+    verify(persistenceService).deleteAndSave(eq(Period.DAILY), captor.capture());
 
     List<PopularBook> saved = captor.getValue();
 
@@ -147,21 +125,21 @@ public class PopularBookRankingListenerTest {
     when(stepExecution.getExitStatus()).thenReturn(ExitStatus.FAILED);
 
     PopularBookRankingListener listener =
-        new PopularBookRankingListener(popularBookRepository, Period.DAILY, transactionTemplate, popularBookWriter);
+        new PopularBookRankingListener(Period.DAILY, popularBookWriter, persistenceService);
     listener.afterStep(stepExecution);
 
-    verifyNoInteractions(popularBookRepository);
+    verifyNoInteractions(persistenceService);
   }
 
   @Test
   @DisplayName("실패: stepExecution이 null이면 FAILED 반환")
   void afterStep_returnsFailed_whenStepExecutionIsNull() {
     PopularBookRankingListener listener =
-        new PopularBookRankingListener(popularBookRepository, Period.DAILY, transactionTemplate, popularBookWriter);
+        new PopularBookRankingListener(Period.DAILY, popularBookWriter, persistenceService);
     ExitStatus result = listener.afterStep(null);
 
     assertThat(result).isEqualTo(ExitStatus.FAILED);
-    verifyNoInteractions(popularBookRepository);
+    verifyNoInteractions(persistenceService);
   }
 
   private PopularBook createPopularBook(UUID bookId, BigDecimal score) {

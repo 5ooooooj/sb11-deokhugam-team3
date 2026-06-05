@@ -2,7 +2,6 @@ package com.team3.deokhugam.batch.job;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.team3.deokhugam.batch.global.DateCalculateUtil;
 import com.team3.deokhugam.batch.global.Period;
 import com.team3.deokhugam.domain.dashboard.PopularBook;
 import com.team3.deokhugam.domain.review.Review;
@@ -14,6 +13,7 @@ import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.UUID;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -64,11 +64,14 @@ public class PopularBookJobTest {
     jobLauncherTestUtils.setJob(popularBookJob);
     transactionTemplate = new TransactionTemplate(transactionManager);
     jobRepositoryTestUtils.removeJobExecutions();
-    transactionTemplate.execute(status -> {
-      popularBookRepository.deleteAll();
-      reviewRepository.deleteAll();
-      return null;
-    });
+    popularBookRepository.deleteAll();
+    reviewRepository.deleteAll();
+  }
+
+  @AfterEach
+  void tearDown() {
+    popularBookRepository.deleteAll();
+    reviewRepository.deleteAll();
   }
 
   @Test
@@ -151,14 +154,9 @@ public class PopularBookJobTest {
         .addLocalDate("targetDate", LocalDate.now())
         .toJobParameters();
     JobExecution execution = jobLauncherTestUtils.launchJob(params2);
-
     // then
     assertThat(execution.getStatus()).isEqualTo(BatchStatus.COMPLETED);
     assertThat(popularBookRepository.count()).isEqualTo(countAfterFirst);
-  }
-
-  private Review createReview(UUID bookId, int rating) {
-    return Review.create(UUID.randomUUID(), bookId, rating, "테스트리뷰");
   }
 
   @Test
@@ -188,12 +186,11 @@ public class PopularBookJobTest {
     });
 
     // when
-    JobExecution execution = jobLauncherTestUtils.launchJob(
+    jobLauncherTestUtils.launchJob(
         new JobParametersBuilder()
             .addLocalDate("targetDate", LocalDate.now())
             .toJobParameters()
     );
-
     // then
     List<PopularBook> dailyResults = popularBookRepository.findByPeriod(Period.DAILY);
     assertThat(dailyResults).hasSize(1);
@@ -220,22 +217,12 @@ public class PopularBookJobTest {
       return null;
     });
 
-    // 저장된 리뷰 createdAt 확인
-    reviewRepository.findAll().forEach(r ->
-        System.out.println("createdAt: " + r.getCreatedAt()));
-    System.out.println("DAILY startDate: " + DateCalculateUtil.getStartDate(Period.DAILY));
-
-
     // when
     jobLauncherTestUtils.launchJob(
         new JobParametersBuilder()
             .addLocalDate("targetDate", LocalDate.now())
             .toJobParameters()
     );
-
-    System.out.println("DAILY 결과: " + popularBookRepository.findByPeriodOrderByScoreDesc(Period.DAILY).size());
-    System.out.println("ALL_TIME 결과: " + popularBookRepository.findByPeriodOrderByScoreDesc(Period.ALL_TIME).size());
-
 
     // then
     List<PopularBook> results = popularBookRepository.findByPeriodOrderByScoreDesc(Period.DAILY);
