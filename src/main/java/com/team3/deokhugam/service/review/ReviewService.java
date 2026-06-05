@@ -1,17 +1,22 @@
 package com.team3.deokhugam.service.review;
 
+import com.team3.deokhugam.domain.book.Book;
 import com.team3.deokhugam.domain.review.Review;
+import com.team3.deokhugam.domain.user.User;
 import com.team3.deokhugam.dto.review.ReviewCreateRequest;
 import com.team3.deokhugam.dto.review.ReviewDto;
 import com.team3.deokhugam.dto.review.ReviewOrderBy;
 import com.team3.deokhugam.dto.review.ReviewSearchRequest;
 import com.team3.deokhugam.dto.review.ReviewUpdateRequest;
+import com.team3.deokhugam.exception.book.BookNotFoundException;
 import com.team3.deokhugam.exception.review.ReviewAlreadyExistsException;
 import com.team3.deokhugam.exception.review.ReviewForbiddenException;
 import com.team3.deokhugam.exception.review.ReviewNotFoundException;
 import com.team3.deokhugam.global.dto.CursorPageResponse;
+import com.team3.deokhugam.repository.book.BookRepository;
 import com.team3.deokhugam.repository.review.ReviewLikeRepository;
 import com.team3.deokhugam.repository.review.ReviewRepository;
+import com.team3.deokhugam.repository.user.UserRepository;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import java.util.HashSet;
@@ -22,7 +27,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-
 @Service
 @RequiredArgsConstructor
 public class ReviewService {
@@ -31,23 +35,25 @@ public class ReviewService {
 
   private final ReviewRepository reviewRepository;
   private final ReviewLikeRepository reviewLikeRepository;
+  private final UserRepository userRepository;
+  private final BookRepository bookRepository;
 
   @Transactional
   public ReviewDto createReview(ReviewCreateRequest request) {
-    boolean exists = reviewRepository.existsByUserIdAndBookId(
+    boolean exists = reviewRepository.existsByUser_IdAndBook_Id(
         request.userId(), request.bookId());
     if (exists) {
       throw new ReviewAlreadyExistsException();
     }
 
-    Review review = Review.create(
-        request.userId(),
-        request.bookId(),
-        request.rating(),
-        request.content());
+    User user = userRepository.getReferenceById(request.userId());
+    Book book = bookRepository.findById(request.bookId())
+        .orElseThrow(BookNotFoundException::new);
+
+    Review review = Review.create(user, book, request.rating(), request.content());
 
     Review saved = reviewRepository.save(review);
-    return ReviewDto.from(saved); // 신규 리뷰 → likedByMe=false
+    return ReviewDto.from(saved);
   }
 
   @Transactional
@@ -86,14 +92,12 @@ public class ReviewService {
 
   @Transactional(readOnly = true)
   public CursorPageResponse<ReviewDto> searchReviews(ReviewSearchRequest request) {
-    // hasNext 판별을 위해 limit + 1 만큼 조회한다.
     ReviewSearchRequest pageRequest = request.withLimit(request.limit() + PAGE_FETCH_OVER);
     List<Review> reviews = reviewRepository.search(pageRequest);
 
     boolean hasNext = reviews.size() > request.limit();
     List<Review> pageReviews = hasNext ? reviews.subList(0, request.limit()) : reviews;
 
-    // 현재 페이지 리뷰들 중 요청자가 좋아요한 리뷰 ID를 한 번에 조회 (N+1 방지)
     List<UUID> reviewIds = pageReviews.stream().map(Review::getId).toList();
     Set<UUID> likedIds = reviewIds.isEmpty()
         ? Set.of()
@@ -119,7 +123,6 @@ public class ReviewService {
         hasNext
     );
   }
-
 
   private String buildNextCursor(Review review, ReviewOrderBy orderBy) {
     String raw = switch (orderBy) {
