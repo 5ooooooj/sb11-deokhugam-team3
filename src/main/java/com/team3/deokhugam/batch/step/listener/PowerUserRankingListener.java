@@ -4,7 +4,6 @@ import com.team3.deokhugam.batch.global.Period;
 import com.team3.deokhugam.batch.global.RankCalculateUtil;
 import com.team3.deokhugam.batch.persistenceService.PowerUserRankingPersistenceService;
 import com.team3.deokhugam.batch.step.writer.PowerUserWriter;
-import com.team3.deokhugam.domain.dashboard.PopularReview;
 import com.team3.deokhugam.domain.dashboard.PowerUser;
 import java.util.Comparator;
 import java.util.List;
