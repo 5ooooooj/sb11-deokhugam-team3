@@ -16,7 +16,6 @@ import org.springframework.batch.core.repository.JobRepository;
 import org.springframework.batch.core.step.builder.StepBuilder;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.context.annotation.Scope;
 import org.springframework.dao.CannotAcquireLockException;
 import org.springframework.dao.TransientDataAccessException;
 import org.springframework.retry.backoff.FixedBackOffPolicy;
@@ -67,15 +66,11 @@ public class PopularBookJobConfig {
     return policy;
   }
 
-  @Bean
-  @Scope("prototype")
-  public PopularBookWriter popularBookWriter() {
+  private PopularBookWriter popularBookWriter() {
     return new PopularBookWriter();
   }
 
-  @Bean
-  @Scope("prototype")
-  public PopularBookProcessor popularBookProcessor() {
+  private PopularBookProcessor popularBookProcessor() {
     return new PopularBookProcessor();
   }
 }

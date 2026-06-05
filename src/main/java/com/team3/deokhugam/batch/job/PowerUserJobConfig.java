@@ -16,7 +16,6 @@ import org.springframework.batch.core.repository.JobRepository;
 import org.springframework.batch.core.step.builder.StepBuilder;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.context.annotation.Scope;
 import org.springframework.dao.CannotAcquireLockException;
 import org.springframework.dao.TransientDataAccessException;
 import org.springframework.retry.backoff.FixedBackOffPolicy;
@@ -68,15 +67,11 @@ public class PowerUserJobConfig {
     return policy;
   }
 
-  @Bean
-  @Scope("prototype")
-  public PowerUserWriter powerUserWriter() {
+  private PowerUserWriter powerUserWriter() {
     return new PowerUserWriter();
   }
 
-  @Bean
-  @Scope("prototype")
-  public PowerUserProcessor powerUserProcessor() {
+  private PowerUserProcessor powerUserProcessor() {
     return new PowerUserProcessor();
   }
 
