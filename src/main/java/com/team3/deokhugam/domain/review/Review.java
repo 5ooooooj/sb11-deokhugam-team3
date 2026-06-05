@@ -1,8 +1,13 @@
 package com.team3.deokhugam.domain.review;
 
 import com.team3.deokhugam.domain.base.SoftDeletableEntity;
+import com.team3.deokhugam.domain.book.Book;
+import com.team3.deokhugam.domain.user.User;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import java.util.UUID;
 import lombok.AccessLevel;
@@ -15,11 +20,13 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class Review extends SoftDeletableEntity {
 
-    @Column(name = "user_id", nullable = false, updatable = false)
-    private UUID userId;
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "user_id", nullable = false, updatable = false)
+    private User user;
 
-    @Column(name = "book_id", nullable = false, updatable = false)
-    private UUID bookId;
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "book_id", nullable = false, updatable = false)
+    private Book book;
 
     @Column(name = "rating", nullable = false)
     private int rating;
@@ -33,18 +40,27 @@ public class Review extends SoftDeletableEntity {
     @Column(name = "comment_count", nullable = false)
     private int commentCount = 0;
 
-    private Review(UUID userId, UUID bookId, int rating, String content) {
-        this.userId = userId;
-        this.bookId = bookId;
+    private Review(User user, Book book, int rating, String content) {
+        this.user = user;
+        this.book = book;
         this.rating = rating;
         this.content = content;
     }
 
-    public static Review create(UUID userId, UUID bookId, int rating, String content) {
+    public static Review create(User user, Book book, int rating, String content) {
         if (rating < 1 || rating > 5) {
             throw new IllegalArgumentException("평점은 1~5 사이여야 합니다. 입력값: " + rating);
         }
-        return new Review(userId, bookId, rating, content);
+        return new Review(user, book, rating, content);
+    }
+
+
+    public UUID getUserId() {
+        return user != null ? user.getId() : null;
+    }
+
+    public UUID getBookId() {
+        return book != null ? book.getId() : null;
     }
 
     public void update(int rating, String content) {
