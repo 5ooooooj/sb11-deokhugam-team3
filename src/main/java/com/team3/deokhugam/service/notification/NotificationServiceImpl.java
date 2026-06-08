@@ -31,17 +31,17 @@ public class NotificationServiceImpl implements NotificationService {
 
   @Override
   public void createCommentNotification(UUID reviewId, UUID commenterUserId) {
-    createNotification(reviewId, NotificationType.COMMENT, "댓글이 달렸습니다.");
+    createNotification(reviewId, commenterUserId, NotificationType.COMMENT, "댓글이 달렸습니다.");
   }
 
   @Override
   public void createLikeNotification(UUID reviewId, UUID likerUserId) {
-    createNotification(reviewId, NotificationType.LIKE, "좋아요가 달렸습니다.");
+    createNotification(reviewId, likerUserId, NotificationType.LIKE, "좋아요가 달렸습니다.");
   }
 
   @Override
   public void createRankingNotification(UUID reviewId, String period) {
-    createNotification(reviewId, NotificationType.POPULAR_REVIEW,
+    createNotification(reviewId, null, NotificationType.POPULAR_REVIEW,
         "리뷰가 " + period + " TOP10에 선정되었습니다.");
   }
 
@@ -100,9 +100,12 @@ public class NotificationServiceImpl implements NotificationService {
   // private 메서드
   // ───────────────────────────────────────────
 
-  private void createNotification(UUID reviewId, NotificationType type, String message) {
+  private void createNotification(UUID reviewId, UUID actorUserId, NotificationType type, String message) {
     reviewRepository.findById(reviewId).ifPresent(review -> {
-      // TODO: 하빈님 Review @ManyToOne 전환 후 review.getUser()로 교체
+      // 본인 리뷰에 대한 알림은 생성하지 않음
+      if (actorUserId != null && review.getUserId().equals(actorUserId)) {
+        return;
+      }
       userRepository.findById(review.getUserId()).ifPresent(user -> {
         Notification notification = Notification.create(
             user, review, type, message

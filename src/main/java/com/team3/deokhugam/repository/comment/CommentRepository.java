@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.UUID;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -43,4 +44,12 @@ public interface CommentRepository extends JpaRepository<Comment, UUID> {
       @Param("after") Instant after,
       Pageable pageable
   );
+
+  @Modifying(clearAutomatically = true, flushAutomatically = true)
+  @Query("""
+      DELETE FROM Comment c
+      WHERE c.deletedAt IS NOT NULL
+        AND c.deletedAt < :threshold
+      """)
+  void deleteExpiredComments(@Param("threshold") Instant threshold);
 }
