@@ -2,8 +2,11 @@ package com.team3.deokhugam.service.notification;
 
 import com.team3.deokhugam.domain.notification.Notification;
 import com.team3.deokhugam.domain.notification.NotificationType;
+import com.team3.deokhugam.domain.review.Review;
+import com.team3.deokhugam.domain.user.User;
 import com.team3.deokhugam.dto.notification.NotificationDto;
 import com.team3.deokhugam.exception.notification.NotificationNotFoundException;
+import com.team3.deokhugam.exception.user.UserNotFoundException;
 import com.team3.deokhugam.global.dto.CursorPageResponse;
 import com.team3.deokhugam.repository.notification.NotificationRepository;
 import com.team3.deokhugam.repository.review.ReviewRepository;
@@ -30,12 +33,12 @@ public class NotificationServiceImpl implements NotificationService {
 
   @Override
   public void createCommentNotification(UUID reviewId, UUID commenterUserId) {
-    createNotification(reviewId, NotificationType.COMMENT, "댓글이 달렸습니다.");
+    createNotification(reviewId, commenterUserId, NotificationType.COMMENT, "댓글이 달렸습니다.");
   }
 
   @Override
   public void createLikeNotification(UUID reviewId, UUID likerUserId) {
-    createNotification(reviewId, NotificationType.LIKE, "좋아요가 달렸습니다.");
+    createNotification(reviewId, likerUserId, NotificationType.LIKE, "좋아요가 달렸습니다.");
   }
 
   @Override
@@ -46,7 +49,7 @@ public class NotificationServiceImpl implements NotificationService {
       log.debug("이미 랭킹 알림이 존재합니다. reviewId: {}", reviewId);
       return;
     }
-    createNotification(reviewId, NotificationType.POPULAR_REVIEW, message);
+    createNotification(reviewId, null, NotificationType.POPULAR_REVIEW, message);
   }
 
   @Override
@@ -104,9 +107,12 @@ public class NotificationServiceImpl implements NotificationService {
   // private 메서드
   // ───────────────────────────────────────────
 
-  private void createNotification(UUID reviewId, NotificationType type, String message) {
+  private void createNotification(UUID reviewId, UUID actorUserId, NotificationType type, String message) {
     reviewRepository.findById(reviewId).ifPresent(review -> {
-      // TODO: 하빈님 Review @ManyToOne 전환 후 review.getUser()로 교체
+      // 본인 리뷰에 대한 알림은 생성하지 않음
+      if (actorUserId != null && review.getUserId().equals(actorUserId)) {
+        return;
+      }
       userRepository.findById(review.getUserId()).ifPresent(user -> {
         Notification notification = Notification.create(
             user, review, type, message

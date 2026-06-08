@@ -60,8 +60,8 @@ public class CommentServiceTest {
     User user = mock(User.class);
     given(user.getId()).willReturn(userId);
     given(user.getNickname()).willReturn("테스트유저");
-    given(reviewRepository.findById(reviewId)).willReturn(Optional.of(review));
-    given(userRepository.findById(userId)).willReturn(Optional.of(user));
+    given(reviewRepository.findByIdAndDeletedAtIsNull(reviewId)).willReturn(Optional.of(review));
+    given(userRepository.findActiveById(userId)).willReturn(Optional.of(user));
     given(commentRepository.save(any())).willReturn(Comment.create(review, user, "좋은 리뷰네요"));
 
     // when

@@ -35,15 +35,14 @@ public class CommentServiceImpl implements CommentService {
 
   @Override
   public CommentDto create(CommentCreateRequest request) {
-    Review review = reviewRepository.findById(request.reviewId())
+    Review review = reviewRepository.findByIdAndDeletedAtIsNull(request.reviewId())
         .orElseThrow(ReviewNotFoundException::new);
-    User user = userRepository.findById(request.userId())
+    User user = userRepository.findActiveById(request.userId())
         .orElseThrow(UserNotFoundException::new);
 
     Comment comment = Comment.create(review, user, request.content());
     commentRepository.save(comment);
 
-    // 알림 트리거
     notificationService.createCommentNotification(
         request.reviewId(), request.userId()
     );
