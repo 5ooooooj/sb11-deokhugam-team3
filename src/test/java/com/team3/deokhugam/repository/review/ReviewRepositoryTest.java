@@ -4,13 +4,16 @@ import static com.team3.deokhugam.domain.review.ReviewTestFactory.review;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.team3.deokhugam.domain.book.Book;
 import com.team3.deokhugam.domain.review.Review;
+import com.team3.deokhugam.domain.user.User;
 import com.team3.deokhugam.dto.review.ReviewOrderBy;
 import com.team3.deokhugam.dto.review.ReviewSearchRequest;
 import com.team3.deokhugam.exception.global.DeokhugamException;
 import com.team3.deokhugam.global.config.JpaAuditingConfig;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.Base64;
 import java.util.List;
 import java.util.UUID;
@@ -36,10 +39,22 @@ class ReviewRepositoryTest {
   @Autowired
   private TestEntityManager entityManager;
 
+  private User persistUser() {
+    return entityManager.persist(
+        new User("review-repo-" + UUID.randomUUID() + "@test.com", "리뷰테스터", "Password1!"));
+  }
+
+  private Book persistBook() {
+    return entityManager.persist(new Book(
+        UUID.randomUUID(), "테스트 도서", "테스트 저자", "테스트 설명",
+        "테스트 출판사", LocalDate.of(2026, 1, 1), null, null));
+  }
+
   @Test
   @DisplayName("리뷰를 저장하고 ID로 다시 조회할 수 있다")
   void saveAndFind() {
-    Review review = Review.create(UUID.randomUUID(), UUID.randomUUID(), 5, "좋은 책이에요");
+    Review review = review().user(persistUser()).book(persistBook())
+        .rating(5).content("좋은 책이에요").build();
 
     Review saved = reviewRepository.save(review);
     entityManager.flush();
@@ -55,7 +70,8 @@ class ReviewRepositoryTest {
   @Test
   @DisplayName("저장한 리뷰를 삭제할 수 있다")
   void deleteReview() {
-    Review review = Review.create(UUID.randomUUID(), UUID.randomUUID(), 4, "삭제될 리뷰");
+    Review review = review().user(persistUser()).book(persistBook())
+        .rating(4).content("삭제될 리뷰").build();
     Review saved = reviewRepository.save(review);
 
     reviewRepository.delete(saved);
@@ -66,14 +82,17 @@ class ReviewRepositoryTest {
   @Test
   @DisplayName("userId로 필터링 검색이 동작한다")
   void searchByUserId() {
-    UUID targetUserId = UUID.randomUUID();
+    User targetUser = persistUser();
+    User otherUser = persistUser();
+    Book book = persistBook();
 
     reviewRepository.saveAll(List.of(
-        review().userId(targetUserId).content("내 리뷰 1").build(),
-        review().userId(targetUserId).content("내 리뷰 2").build(),
-        review().userId(UUID.randomUUID()).content("남의 리뷰").build()
+        review().user(targetUser).book(book).content("내 리뷰 1").build(),
+        review().user(targetUser).book(book).content("내 리뷰 2").build(),
+        review().user(otherUser).book(book).content("남의 리뷰").build()
     ));
 
+    UUID targetUserId = targetUser.getId();
     ReviewSearchRequest request = ReviewSearchRequest.of(
         targetUserId, null, null,
         ReviewOrderBy.CREATED_AT, Sort.Direction.DESC,
@@ -89,13 +108,16 @@ class ReviewRepositoryTest {
   @Test
   @DisplayName("bookId로 필터링 검색이 동작한다")
   void searchByBookId() {
-    UUID targetBookId = UUID.randomUUID();
+    User user = persistUser();
+    Book targetBook = persistBook();
+    Book otherBook = persistBook();
 
     reviewRepository.saveAll(List.of(
-        review().bookId(targetBookId).content("이 책 리뷰 1").build(),
-        review().bookId(UUID.randomUUID()).content("다른 책 리뷰").build()
+        review().user(user).book(targetBook).content("이 책 리뷰 1").build(),
+        review().user(user).book(otherBook).content("다른 책 리뷰").build()
     ));
 
+    UUID targetBookId = targetBook.getId();
     ReviewSearchRequest request = ReviewSearchRequest.of(
         null, targetBookId, null,
         ReviewOrderBy.CREATED_AT, Sort.Direction.DESC,
@@ -111,10 +133,13 @@ class ReviewRepositoryTest {
   @Test
   @DisplayName("keyword로 content 부분 일치 검색이 동작한다")
   void searchByKeyword() {
+    User user = persistUser();
+    Book book = persistBook();
+
     reviewRepository.saveAll(List.of(
-        review().content("repo-keyword-스프링 정말 재밌어요").build(),
-        review().content("repo-keyword-자바 어렵네요").build(),
-        review().content("이 책 너무 별로").build()
+        review().user(user).book(book).content("repo-keyword-스프링 정말 재밌어요").build(),
+        review().user(user).book(book).content("repo-keyword-자바 어렵네요").build(),
+        review().user(user).book(book).content("이 책 너무 별로").build()
     ));
 
     ReviewSearchRequest request = ReviewSearchRequest.of(
@@ -132,10 +157,13 @@ class ReviewRepositoryTest {
   @Test
   @DisplayName("rating 기준 내림차순 정렬이 동작한다")
   void searchOrderByRatingDesc() {
+    User user = persistUser();
+    Book book = persistBook();
+
     reviewRepository.saveAll(List.of(
-        review().rating(2).content("repo-rating-sort 낮음").build(),
-        review().rating(5).content("repo-rating-sort 높음").build(),
-        review().rating(3).content("repo-rating-sort 중간").build()
+        review().user(user).book(book).rating(2).content("repo-rating-sort 낮음").build(),
+        review().user(user).book(book).rating(5).content("repo-rating-sort 높음").build(),
+        review().user(user).book(book).rating(3).content("repo-rating-sort 중간").build()
     ));
 
     ReviewSearchRequest request = ReviewSearchRequest.of(
@@ -153,10 +181,13 @@ class ReviewRepositoryTest {
   @Test
   @DisplayName("limit 조건이 적용된다")
   void searchWithLimit() {
+    User user = persistUser();
+    Book book = persistBook();
+
     reviewRepository.saveAll(List.of(
-        review().content("repo-limit A").build(),
-        review().content("repo-limit B").build(),
-        review().content("repo-limit C").build()
+        review().user(user).book(book).content("repo-limit A").build(),
+        review().user(user).book(book).content("repo-limit B").build(),
+        review().user(user).book(book).content("repo-limit C").build()
     ));
 
     ReviewSearchRequest request = ReviewSearchRequest.of(
@@ -173,8 +204,11 @@ class ReviewRepositoryTest {
   @Test
   @DisplayName("논리 삭제된 리뷰는 검색에서 제외된다")
   void searchExcludesDeleted() {
-    Review review1 = review().content("repo-deleted 살아있음").build();
-    Review review2 = review().content("repo-deleted 삭제됨").build();
+    User user = persistUser();
+    Book book = persistBook();
+
+    Review review1 = review().user(user).book(book).content("repo-deleted 살아있음").build();
+    Review review2 = review().user(user).book(book).content("repo-deleted 삭제됨").build();
     reviewRepository.saveAll(List.of(review1, review2));
 
     review2.softDelete();
@@ -195,13 +229,17 @@ class ReviewRepositoryTest {
   @Test
   @DisplayName("검색 조건에 맞는 리뷰 전체 개수를 조회한다")
   void countBySearchCondition() {
-    UUID targetUserId = UUID.randomUUID();
+    User targetUser = persistUser();
+    User otherUser = persistUser();
+    Book book = persistBook();
+
     reviewRepository.saveAll(List.of(
-        review().userId(targetUserId).content("count A").build(),
-        review().userId(targetUserId).content("count B").build(),
-        review().userId(UUID.randomUUID()).content("count C").build()
+        review().user(targetUser).book(book).content("count A").build(),
+        review().user(targetUser).book(book).content("count B").build(),
+        review().user(otherUser).book(book).content("count C").build()
     ));
 
+    UUID targetUserId = targetUser.getId();
     ReviewSearchRequest request = ReviewSearchRequest.of(
         targetUserId, null, null,
         ReviewOrderBy.CREATED_AT, Sort.Direction.DESC,
@@ -213,16 +251,16 @@ class ReviewRepositoryTest {
     assertThat(result).isEqualTo(2);
   }
 
-
-
   @Test
   @DisplayName("커서 페이지네이션 - createdAt 커서가 디코드되어 필터가 동작한다")
   void searchWithCreatedAtCursor() {
-    reviewRepository.saveAll(List.of(
-        review().content("cursor-asc A").build(),
-        review().content("cursor-asc B").build()
-    ));
+    User user = persistUser();
+    Book book = persistBook();
 
+    reviewRepository.saveAll(List.of(
+        review().user(user).book(book).content("cursor-asc A").build(),
+        review().user(user).book(book).content("cursor-asc B").build()
+    ));
 
     String raw = Instant.now().plusSeconds(60) + "|" + UUID.randomUUID();
     String cursor = Base64.getUrlEncoder().withoutPadding()
@@ -242,11 +280,13 @@ class ReviewRepositoryTest {
   @Test
   @DisplayName("커서 페이지네이션 - RATING 3-part 커서가 디코드되어 필터가 동작한다")
   void searchWithRatingCursor() {
-    reviewRepository.saveAll(List.of(
-        review().rating(5).content("rating-cursor A").build(),
-        review().rating(3).content("rating-cursor B").build()
-    ));
+    User user = persistUser();
+    Book book = persistBook();
 
+    reviewRepository.saveAll(List.of(
+        review().user(user).book(book).rating(5).content("rating-cursor A").build(),
+        review().user(user).book(book).rating(3).content("rating-cursor B").build()
+    ));
 
     String raw = 6 + "|" + Instant.now() + "|" + UUID.randomUUID();
     String cursor = Base64.getUrlEncoder().withoutPadding()
@@ -279,7 +319,6 @@ class ReviewRepositoryTest {
   @Test
   @DisplayName("커서 페이지네이션 - RATING 커서가 part 개수 부족이면 INVALID_INPUT 예외")
   void searchWithMalformedRatingCursor() {
-
     String raw = Instant.now() + "|" + UUID.randomUUID();
     String cursor = Base64.getUrlEncoder().withoutPadding()
         .encodeToString(raw.getBytes(StandardCharsets.UTF_8));

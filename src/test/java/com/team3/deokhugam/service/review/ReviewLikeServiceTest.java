@@ -3,11 +3,13 @@ package com.team3.deokhugam.service.review;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.team3.deokhugam.domain.book.Book;
 import com.team3.deokhugam.domain.review.Review;
 import com.team3.deokhugam.domain.review.ReviewLike;
 import com.team3.deokhugam.domain.user.User;
@@ -46,8 +48,8 @@ class ReviewLikeServiceTest {
   void setUp() {
     reviewId = UUID.randomUUID();
     userId = UUID.randomUUID();
-    review = Review.create(UUID.randomUUID(), UUID.randomUUID(), 5, "내용");
-    ReflectionTestUtils.setField(review, "id", reviewId); // JPA가 생성하는 id 수동 주입
+    review = Review.create(mock(User.class), mock(Book.class), 5, "내용");
+    ReflectionTestUtils.setField(review, "id", reviewId);
   }
 
   @Test
@@ -71,7 +73,7 @@ class ReviewLikeServiceTest {
   @Test
   @DisplayName("이미 좋아요한 리뷰에 다시 누르면 취소되고 like_count가 -1, liked=false")
   void toggleLike_cancel() {
-    review.increaseLikeCount(); // 초기 좋아요 1개
+    review.increaseLikeCount();
     ReviewLike existing = ReviewLike.create(review, new User("a@b.com", "닉", "pw"));
     when(reviewRepository.findById(reviewId)).thenReturn(Optional.of(review));
     when(reviewLikeRepository.findByReview_IdAndUser_Id(reviewId, userId))

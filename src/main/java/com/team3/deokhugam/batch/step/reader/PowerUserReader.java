@@ -35,8 +35,8 @@ public class PowerUserReader {
                     CAST(COUNT(DISTINCT c.id) AS int)
                 )
                 FROM User u
-                LEFT JOIN Review r ON r.userId = u.id
-                LEFT JOIN PopularReview pr ON pr.reviewId= r.id
+                LEFT JOIN Review r ON r.user.id = u.id
+                LEFT JOIN PopularReview pr ON pr.reviewId = r.id
                                            AND pr.period = :period
                 LEFT JOIN ReviewLike rl ON rl.user.id = u.id
                 LEFT JOIN Comment c ON c.user.id = u.id
@@ -57,7 +57,7 @@ public class PowerUserReader {
                     CAST(COUNT(DISTINCT c.id) AS int)
                 )
                 FROM User u
-                LEFT JOIN Review r ON r.userId = u.id
+                LEFT JOIN Review r ON r.user.id = u.id
                                    AND r.createdAt >= :startDate
                 LEFT JOIN PopularReview pr ON pr.reviewId = r.id
                                            AND pr.period = :period
@@ -76,5 +76,4 @@ public class PowerUserReader {
     }
     return builder.build();
   }
-
 }
