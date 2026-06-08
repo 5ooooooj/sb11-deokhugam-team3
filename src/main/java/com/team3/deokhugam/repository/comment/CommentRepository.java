@@ -12,11 +12,11 @@ import org.springframework.data.repository.query.Param;
 
 public interface CommentRepository extends JpaRepository<Comment, UUID> {
 
+  // after가 null이면 Instant.MAX를 sentinel로 사용하여 단일 쿼리로 처리
+  // PostgreSQL null 파라미터 타입 추론 실패 문제 해결
   default List<Comment> findByReviewIdWithCursor(UUID reviewId, Instant after, Pageable pageable) {
-    if (after == null) {
-      return findByReviewIdWithoutCursor(reviewId, pageable);
-    }
-    return findByReviewIdWithAfter(reviewId, after, pageable);
+    Instant cursor = after != null ? after : Instant.parse("9999-12-31T23:59:59Z");
+    return findByReviewId(reviewId, cursor, pageable);
   }
 
   @Query("""
@@ -24,27 +24,16 @@ public interface CommentRepository extends JpaRepository<Comment, UUID> {
       FROM Comment c
       WHERE c.review.id = :reviewId
         AND c.deletedAt IS NULL
-      ORDER BY c.createdAt DESC
+        AND c.createdAt <= :cursor
+      ORDER BY c.createdAt DESC, c.id DESC
       """)
-  List<Comment> findByReviewIdWithoutCursor(
+  List<Comment> findByReviewId(
       @Param("reviewId") UUID reviewId,
+      @Param("cursor") Instant cursor,
       Pageable pageable
   );
 
-  @Query("""
-      SELECT c
-      FROM Comment c
-      WHERE c.review.id = :reviewId
-        AND c.deletedAt IS NULL
-        AND c.createdAt < :after
-      ORDER BY c.createdAt DESC
-      """)
-  List<Comment> findByReviewIdWithAfter(
-      @Param("reviewId") UUID reviewId,
-      @Param("after") Instant after,
-      Pageable pageable
-  );
-
+  // 영속성 컨텍스트와 DB 동기화: 호출 전/후 자동 flush/clear
   @Modifying(clearAutomatically = true, flushAutomatically = true)
   @Query("""
       DELETE FROM Comment c

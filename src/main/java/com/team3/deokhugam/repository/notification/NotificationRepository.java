@@ -13,37 +13,27 @@ import org.springframework.data.repository.query.Param;
 
 public interface NotificationRepository extends JpaRepository<Notification, UUID> {
 
+  // after가 null이면 Instant.MAX를 sentinel로 사용하여 단일 쿼리로 처리
+  // PostgreSQL null 파라미터 타입 추론 실패 문제 해결
   default List<Notification> findByUserIdWithCursor(UUID userId, Instant after, Pageable pageable) {
-    if (after == null) {
-      return findByUserIdWithoutCursor(userId, pageable);
-    }
-    return findByUserIdWithAfter(userId, after, pageable);
+    Instant cursor = after != null ? after : Instant.parse("9999-12-31T23:59:59Z");
+    return findByUserId(userId, cursor, pageable);
   }
 
   @Query("""
       SELECT n
       FROM Notification n
       WHERE n.user.id = :userId
-      ORDER BY n.createdAt DESC
+        AND n.createdAt <= :cursor
+      ORDER BY n.createdAt DESC, n.id DESC
       """)
-  List<Notification> findByUserIdWithoutCursor(
+  List<Notification> findByUserId(
       @Param("userId") UUID userId,
+      @Param("cursor") Instant cursor,
       Pageable pageable
   );
 
-  @Query("""
-      SELECT n
-      FROM Notification n
-      WHERE n.user.id = :userId
-        AND n.createdAt < :after
-      ORDER BY n.createdAt DESC
-      """)
-  List<Notification> findByUserIdWithAfter(
-      @Param("userId") UUID userId,
-      @Param("after") Instant after,
-      Pageable pageable
-  );
-
+  // 영속성 컨텍스트와 DB 동기화: 호출 전/후 자동 flush/clear
   @Modifying(clearAutomatically = true, flushAutomatically = true)
   @Query("""
       UPDATE Notification n
@@ -53,6 +43,7 @@ public interface NotificationRepository extends JpaRepository<Notification, UUID
       """)
   void confirmAllByUserId(@Param("userId") UUID userId);
 
+  // 영속성 컨텍스트와 DB 동기화: 호출 전/후 자동 flush/clear
   @Modifying(clearAutomatically = true, flushAutomatically = true)
   @Query("""
       DELETE FROM Notification n
