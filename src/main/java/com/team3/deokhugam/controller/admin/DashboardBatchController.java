@@ -2,7 +2,6 @@ package com.team3.deokhugam.controller.admin;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
-import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import java.time.LocalDate;
 import lombok.RequiredArgsConstructor;
@@ -22,6 +21,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class DashboardBatchController {
 
   private final JobLauncher jobLauncher;
+  private final Job popularReviewJob;
   private final Job popularBookJob;
 
   @Operation(summary = "인기 도서 배치 수동 실행", description = "인기 도서 배치 수동 실행")
@@ -35,5 +35,18 @@ public class DashboardBatchController {
 
     jobLauncher.run(popularBookJob, params);
     return ResponseEntity.ok("인기 도서 배치 실행 완료");
+  }
+
+  @Operation(summary = "인기 리뷰 배치 수동 실행", description = "인기 리뷰 배치 수동 실행")
+  @ApiResponse(responseCode = "200", description = "배치 성공")
+  @PostMapping("/popular-reviews")
+  public ResponseEntity<String> runPopularReviewJob() throws Exception {
+    JobParameters params = new JobParametersBuilder()
+        .addLocalDate("targetDate", LocalDate.now())
+        .addLong("timestamp", System.currentTimeMillis())
+        .toJobParameters();
+
+    jobLauncher.run(popularReviewJob, params);
+    return ResponseEntity.ok("인기 리뷰 배치 실행 완료");
   }
 }

@@ -1,12 +1,15 @@
 package com.team3.deokhugam.controller.review;
 
+import com.team3.deokhugam.dto.dashboard.PopularReviewDto;
 import com.team3.deokhugam.dto.review.ReviewCreateRequest;
 import com.team3.deokhugam.dto.review.ReviewDto;
 import com.team3.deokhugam.dto.review.ReviewLikeDto;
 import com.team3.deokhugam.dto.review.ReviewOrderBy;
 import com.team3.deokhugam.dto.review.ReviewSearchRequest;
 import com.team3.deokhugam.dto.review.ReviewUpdateRequest;
+import com.team3.deokhugam.exception.global.ErrorResponse;
 import com.team3.deokhugam.global.dto.CursorPageResponse;
+import com.team3.deokhugam.service.dashboard.PopularReviewService;
 import com.team3.deokhugam.service.review.ReviewLikeService;
 import com.team3.deokhugam.service.review.ReviewService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -17,10 +20,12 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import java.time.Instant;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -41,6 +46,7 @@ public class ReviewController {
 
   private final ReviewService reviewService;
   private final ReviewLikeService reviewLikeService;
+  private final PopularReviewService popularReviewService;
 
   @Operation(summary = "리뷰 등록", description = "새로운 리뷰를 등록합니다.")
   @ApiResponses({
@@ -164,5 +170,26 @@ public class ReviewController {
       @RequestHeader("Deokhugam-Request-User-ID") UUID requestUserId) {
     ReviewLikeDto response = reviewLikeService.toggleLike(reviewId, requestUserId);
     return ResponseEntity.ok(response);
+  }
+
+  @Operation(summary = "인기 리뷰 목록 조회", description = "기간별 인기 리뷰 목록을 조회합니다")
+  @ApiResponses({
+      @ApiResponse(
+          responseCode = "200", description = "인기 리뷰 목록 조회 성공"),
+      @ApiResponse(
+          responseCode = "400", description = "잘못된 요청 (랭킹 기간 오류)"),
+      @ApiResponse(
+          responseCode = "500", description = "서버 내부 오류")
+  })
+  @GetMapping("/popular")
+  public CursorPageResponse<PopularReviewDto> getPopularReviews(
+      @RequestParam(defaultValue = "DAILY") String period,
+      // 프로토타입엔 정렬, 페이지네이션이 없지만 api 명세서 기준으로 있으므로 파라미터는 받괴 실제 사용 x, 여유되면 추후 구현
+      @RequestParam(defaultValue = "ASC") String direction,
+      @RequestParam(required = false) String cursor,
+      @RequestParam(required = false) Instant after,
+      @RequestParam(defaultValue = "20") int limit
+  ) {
+    return popularReviewService.getPopularReviews(period, limit);
   }
 }
