@@ -6,6 +6,6 @@ import com.team3.deokhugam.exception.global.ErrorCode;
 public class InvalidOcrImageException extends DeokhugamException {
 
   public InvalidOcrImageException() {
-    super(ErrorCode.INVALID_OCR_INAGE);
+    super(ErrorCode.INVALID_OCR_IMAGE);
   }
 }
