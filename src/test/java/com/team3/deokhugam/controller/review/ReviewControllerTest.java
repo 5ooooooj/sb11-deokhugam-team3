@@ -1,6 +1,8 @@
 package com.team3.deokhugam.controller.review;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verify;
@@ -12,6 +14,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.team3.deokhugam.batch.global.Period;
+import com.team3.deokhugam.dto.dashboard.PopularReviewDto;
 import com.team3.deokhugam.dto.review.ReviewCreateRequest;
 import com.team3.deokhugam.dto.review.ReviewDto;
 import com.team3.deokhugam.dto.review.ReviewUpdateRequest;
@@ -21,6 +25,7 @@ import com.team3.deokhugam.global.dto.CursorPageResponse;
 import com.team3.deokhugam.service.dashboard.PopularReviewService;
 import com.team3.deokhugam.service.review.ReviewLikeService;
 import com.team3.deokhugam.service.review.ReviewService;
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
@@ -227,5 +232,60 @@ class ReviewControllerTest {
             .param("direction", "WRONG_VALUE")
             .header("Deokhugam-Request-User-ID", userId.toString()))
         .andExpect(status().isBadRequest());
+  }
+
+  @Test
+  @DisplayName("성공: GET /api/reviews/popular - 200 정상 응답")
+  void getPopularReviews_success() throws Exception {
+    List<PopularReviewDto> content = List.of(
+        new PopularReviewDto(UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(),
+            "도서1", null, UUID.randomUUID(), "유저1", "내용1", 5,
+            Period.DAILY, Instant.now(), 1, BigDecimal.valueOf(90), 10, 5),
+        new PopularReviewDto(UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(),
+            "도서2", null, UUID.randomUUID(), "유저2", "내용2", 4,
+            Period.DAILY, Instant.now(), 2, BigDecimal.valueOf(80), 8, 3)
+    );
+
+    CursorPageResponse<PopularReviewDto> mockResponse = new CursorPageResponse<>(
+        content, null, null, content.size(), 2L, false
+    );
+
+    given(popularReviewService.getPopularReviews(eq("DAILY"), eq(20)))
+        .willReturn(mockResponse);
+
+    mockMvc.perform(get("/api/reviews/popular")
+            .param("period", "DAILY")
+            .param("limit", "20"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.content").isArray())
+        .andExpect(jsonPath("$.content.length()").value(2))
+        .andExpect(jsonPath("$.content[0].rank").value(1))
+        .andExpect(jsonPath("$.hasNext").value(false));
+
+    verify(popularReviewService).getPopularReviews(eq("DAILY"), eq(20));
+  }
+
+  @Test
+  @DisplayName("실패: GET /api/reviews/popular - 잘못된 period → 400")
+  void getPopularReviews_invalidPeriod_returns400() throws Exception {
+    given(popularReviewService.getPopularReviews(eq("INVALID"), anyInt()))
+        .willThrow(new DeokhugamException(ErrorCode.INVALID_PERIOD));
+
+    mockMvc.perform(get("/api/reviews/popular")
+            .param("period", "INVALID"))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.code").value("INVALID_PERIOD"));
+  }
+
+  @Test
+  @DisplayName("실패: GET /api/reviews/popular - limit 0 → 400")
+  void getPopularReviews_invalidLimit_returns400() throws Exception {
+    given(popularReviewService.getPopularReviews(anyString(), eq(0)))
+        .willThrow(new DeokhugamException(ErrorCode.INVALID_INPUT));
+
+    mockMvc.perform(get("/api/reviews/popular")
+            .param("limit", "0"))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.code").value("INVALID_INPUT"));
   }
 }

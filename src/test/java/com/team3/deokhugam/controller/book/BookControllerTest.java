@@ -2,8 +2,11 @@ package com.team3.deokhugam.controller.book;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.nullable;
+import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -14,15 +17,19 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.team3.deokhugam.batch.global.Period;
 import com.team3.deokhugam.dto.book.BookCreateRequest;
 import com.team3.deokhugam.dto.book.BookCursor;
 import com.team3.deokhugam.dto.book.BookDto;
 import com.team3.deokhugam.dto.book.BookOrderBy;
 import com.team3.deokhugam.dto.book.BookSearchRequest;
 import com.team3.deokhugam.dto.book.BookUpdateRequest;
+import com.team3.deokhugam.dto.dashboard.PopularBookDto;
 import com.team3.deokhugam.exception.book.BookAlreadyExistsException;
 import com.team3.deokhugam.exception.book.BookForbiddenException;
 import com.team3.deokhugam.exception.book.BookNotFoundException;
+import com.team3.deokhugam.exception.global.DeokhugamException;
+import com.team3.deokhugam.exception.global.ErrorCode;
 import com.team3.deokhugam.global.dto.CursorPageResponse;
 import com.team3.deokhugam.service.book.BookService;
 import com.team3.deokhugam.service.dashboard.PopularBookService;
@@ -31,6 +38,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
+import org.jeasy.random.EasyRandom;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -860,5 +868,63 @@ class BookControllerTest {
                 })
         )
         .andExpect(status().isBadRequest());
+  }
+
+  @Test
+  @DisplayName("성공: GET /api/books/popular - 200 정상 응답")
+  void getPopularBooks_success() throws Exception {
+    EasyRandom random = new EasyRandom();
+
+    List<PopularBookDto> content = List.of(
+        new PopularBookDto(UUID.randomUUID(), UUID.randomUUID(),
+            random.nextObject(String.class), random.nextObject(String.class),
+            null, Period.DAILY, 1, BigDecimal.valueOf(90), 10, BigDecimal.valueOf(4.5),
+            Instant.now()),
+        new PopularBookDto(UUID.randomUUID(), UUID.randomUUID(),
+            random.nextObject(String.class), random.nextObject(String.class),
+            null, Period.DAILY, 2, BigDecimal.valueOf(80), 8, BigDecimal.valueOf(4.0),
+            Instant.now())
+    );
+
+    CursorPageResponse<PopularBookDto> mockResponse = new CursorPageResponse<>(
+        content, null, null, content.size(), 3L, false
+    );
+
+    given(popularBookService.getPopularBooks(eq("DAILY"), eq(50)))
+        .willReturn(mockResponse);
+
+    mockMvc.perform(get("/api/books/popular")
+            .param("period", "DAILY")
+            .param("limit", "50"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.content").isArray())
+        .andExpect(jsonPath("$.content.length()").value(2))
+        .andExpect(jsonPath("$.hasNext").value(false));
+
+    verify(popularBookService).getPopularBooks(eq("DAILY"), eq(50));
+  }
+
+  @Test
+  @DisplayName("실패: GET /api/books/popular - 잘못된 period → 400")
+  void getPopularBooks_invalidPeriod_returns400() throws Exception {
+    given(popularBookService.getPopularBooks(eq("INVALID"), anyInt()))
+        .willThrow(new DeokhugamException(ErrorCode.INVALID_PERIOD));
+
+    mockMvc.perform(get("/api/books/popular")
+            .param("period", "INVALID"))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.code").value("INVALID_PERIOD"));
+  }
+
+  @Test
+  @DisplayName("실패: GET /api/books/popular - limit 0 → 400")
+  void getPopularBooks_invalidLimit_returns400() throws Exception {
+    given(popularBookService.getPopularBooks(anyString(), eq(0)))
+        .willThrow(new DeokhugamException(ErrorCode.INVALID_INPUT));
+
+    mockMvc.perform(get("/api/books/popular")
+            .param("limit", "0"))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.code").value("INVALID_INPUT"));
   }
 }
