@@ -1,19 +1,30 @@
 package com.team3.deokhugam.service.book;
 
+import com.team3.deokhugam.client.naver.NaverBookClient;
+import com.team3.deokhugam.client.naver.dto.NaverBookItemDto;
+import com.team3.deokhugam.client.naver.dto.NaverBookSearchDto;
 import com.team3.deokhugam.domain.book.Book;
 import com.team3.deokhugam.dto.book.BookCreateRequest;
 import com.team3.deokhugam.dto.book.BookCursor;
 import com.team3.deokhugam.dto.book.BookDto;
+import com.team3.deokhugam.dto.book.BookInfoDto;
 import com.team3.deokhugam.dto.book.BookOrderBy;
 import com.team3.deokhugam.dto.book.BookSearchRequest;
 import com.team3.deokhugam.dto.book.BookUpdateRequest;
 import com.team3.deokhugam.exception.book.BookAlreadyExistsException;
+import com.team3.deokhugam.exception.book.BookInfoNotFoundException;
 import com.team3.deokhugam.exception.book.BookNotFoundException;
+import com.team3.deokhugam.exception.book.InvalidBookIsbnException;
 import com.team3.deokhugam.global.dto.CursorPageResponse;
 import com.team3.deokhugam.repository.book.BookRepository;
 import com.team3.deokhugam.service.s3.S3Service;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.util.List;
+import java.util.Locale;
 import java.util.UUID;
+import java.util.regex.Pattern;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -21,6 +32,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.util.HtmlUtils;
 
 @Slf4j
 @Service
@@ -28,9 +40,18 @@ import org.springframework.web.multipart.MultipartFile;
 @Transactional(readOnly = true)
 public class BookService {
 
+  // -과 공백 제거 후 ISBN-10 or 13 허용, ISBN-10 은 맨뒤 X 허용
+  private static final Pattern ISBN_PATTERN = Pattern.compile("^(\\d{9}[\\dX]|\\d{13})$");
+
+  // Naver pubdate는 yyyyMMdd 형식이므로 ISO_DATE 사용
+  private static final DateTimeFormatter NAVER_PUBLISHED_DATE_FORMATTER =
+      DateTimeFormatter.BASIC_ISO_DATE;
+
   private final BookRepository bookRepository;
 
   private final S3Service s3Service;
+
+  private final NaverBookClient naverBookClient;
 
   @Transactional
   public BookDto create(UUID requestUserId, BookCreateRequest request,
@@ -65,6 +86,22 @@ public class BookService {
     Book book = getActiveBook(bookId);
 
     return BookDto.from(book);
+  }
+
+  public BookInfoDto findBookInfoByIsbn(String isbn) {
+    String normalizedIsbn = normalizeIsbn(isbn);
+    NaverBookSearchDto response = naverBookClient.searchByIsbn(normalizedIsbn);
+
+    if (response == null || response.hasNoItems()) {
+      throw new BookInfoNotFoundException();
+    }
+
+    NaverBookItemDto item = response.items().stream()
+        .filter(bookItem -> containsIsbn(bookItem, normalizedIsbn))
+        .findFirst()
+        .orElseThrow(BookInfoNotFoundException::new);
+
+    return toBookInfoDto(item, normalizedIsbn);
   }
 
   public CursorPageResponse<BookDto> search(BookSearchRequest request) {
@@ -160,6 +197,65 @@ public class BookService {
       case RATING -> book.getRating() == null ? null : book.getRating().toString();
       case REVIEW_COUNT -> String.valueOf(book.getReviewCount());
     };
+  }
+
+  private String normalizeIsbn(String isbn) {
+    if (isbn == null) {
+      throw new InvalidBookIsbnException();
+    }
+
+    String normalizedIsbn = isbn.replaceAll("[-\\s]", "")
+        .toUpperCase(Locale.ROOT);
+
+    if (!ISBN_PATTERN.matcher(normalizedIsbn).matches()) {
+      throw new InvalidBookIsbnException();
+    }
+
+    return normalizedIsbn;
+  }
+
+  private boolean containsIsbn(NaverBookItemDto item, String normalizedIsbn) {
+    if (item == null || item.isbn() == null) {
+      return false;
+    }
+
+    String normalizedNaverIsbn = item.isbn()
+        .replaceAll("[-\\s]", "")
+        .toUpperCase(Locale.ROOT);
+
+    return normalizedNaverIsbn.contains(normalizedIsbn);
+  }
+
+  private BookInfoDto toBookInfoDto(NaverBookItemDto item, String normalizedIsbn) {
+    return new BookInfoDto(
+        cleanHtml(item.title()),
+        cleanHtml(item.author()),
+        cleanHtml(item.description()),
+        cleanHtml(item.publisher()),
+        parsePublishedDate(item.pubdate()),
+        normalizedIsbn,
+        item.image()
+    );
+  }
+
+  private String cleanHtml(String value) {
+    if (value == null) {
+      return null;
+    }
+
+    return HtmlUtils.htmlUnescape(value.replaceAll("<[^>]*>", "")).trim();
+  }
+
+  private LocalDate parsePublishedDate(String pubdate) {
+    if (pubdate == null || pubdate.isBlank()) {
+      return null;
+    }
+
+    try {
+      return LocalDate.parse(pubdate, NAVER_PUBLISHED_DATE_FORMATTER);
+    } catch (DateTimeParseException e) {
+      return null;
+    }
   }
 
   private String uploadThumbnailIfPresent(
