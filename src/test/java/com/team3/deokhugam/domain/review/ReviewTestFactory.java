@@ -1,13 +1,18 @@
 package com.team3.deokhugam.domain.review;
 
+import com.team3.deokhugam.domain.book.Book;
+import com.team3.deokhugam.domain.user.User;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.UUID;
 import org.springframework.test.util.ReflectionTestUtils;
 
 public class ReviewTestFactory {
 
-  private UUID userId = UUID.randomUUID();
-  private UUID bookId = UUID.randomUUID();
+  private User user = new User("review-factory@test.com", "리뷰작성자", "Password1!");
+  private Book book = new Book(
+      UUID.randomUUID(), "테스트 도서", "테스트 저자", "테스트 설명",
+      "테스트 출판사", LocalDate.of(2026, 1, 1), null, null);
   private int rating = 5;
   private String content = "테스트 리뷰 내용";
   private UUID id;
@@ -20,13 +25,13 @@ public class ReviewTestFactory {
     return new ReviewTestFactory();
   }
 
-  public ReviewTestFactory userId(UUID userId) {
-    this.userId = userId;
+  public ReviewTestFactory user(User user) {
+    this.user = user;
     return this;
   }
 
-  public ReviewTestFactory bookId(UUID bookId) {
-    this.bookId = bookId;
+  public ReviewTestFactory book(Book book) {
+    this.book = book;
     return this;
   }
 
@@ -51,7 +56,7 @@ public class ReviewTestFactory {
   }
 
   public Review build() {
-    Review review = Review.create(userId, bookId, rating, content);
+    Review review = Review.create(user, book, rating, content);
 
     if (id != null) {
       ReflectionTestUtils.setField(review, "id", id);

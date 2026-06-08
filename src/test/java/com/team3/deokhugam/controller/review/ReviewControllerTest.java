@@ -54,7 +54,7 @@ class ReviewControllerTest {
     ReviewCreateRequest request = new ReviewCreateRequest(bookId, userId, "재밌어요", 5);
 
     ReviewDto response = new ReviewDto(
-        UUID.randomUUID(), bookId, null, null, userId, null,
+        UUID.randomUUID(), bookId, "테스트 도서", "https://img/thumb.jpg", userId, "작성자닉네임",
         "재밌어요", 5, 0, 0, false, Instant.now(), Instant.now());
 
     given(reviewService.createReview(any(ReviewCreateRequest.class))).willReturn(response);
@@ -64,6 +64,9 @@ class ReviewControllerTest {
             .content(objectMapper.writeValueAsString(request)))
         .andExpect(status().isCreated())
         .andExpect(jsonPath("$.bookId").value(bookId.toString()))
+        .andExpect(jsonPath("$.bookTitle").value("테스트 도서"))
+        .andExpect(jsonPath("$.bookThumbnailUrl").value("https://img/thumb.jpg"))
+        .andExpect(jsonPath("$.userNickname").value("작성자닉네임"))
         .andExpect(jsonPath("$.rating").value(5))
         .andExpect(jsonPath("$.content").value("재밌어요"));
   }
@@ -136,7 +139,7 @@ class ReviewControllerTest {
     UUID bookId = UUID.randomUUID();
 
     ReviewDto response = new ReviewDto(
-        reviewId, bookId, null, null, userId, null,
+        reviewId, bookId, "테스트 도서", "https://img/thumb.jpg", userId, "작성자닉네임",
         "재밌어요", 5, 0, 0, false, Instant.now(), Instant.now());
 
     given(reviewService.getReview(eq(reviewId), eq(userId))).willReturn(response);
@@ -146,6 +149,9 @@ class ReviewControllerTest {
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.id").value(reviewId.toString()))
         .andExpect(jsonPath("$.bookId").value(bookId.toString()))
+        .andExpect(jsonPath("$.bookTitle").value("테스트 도서"))
+        .andExpect(jsonPath("$.bookThumbnailUrl").value("https://img/thumb.jpg"))
+        .andExpect(jsonPath("$.userNickname").value("작성자닉네임"))
         .andExpect(jsonPath("$.content").value("재밌어요"))
         .andExpect(jsonPath("$.rating").value(5));
   }
@@ -172,7 +178,7 @@ class ReviewControllerTest {
     UUID bookId = UUID.randomUUID();
 
     ReviewDto reviewDto = new ReviewDto(
-        reviewId, bookId, null, null, requestUserId, null,
+        reviewId, bookId, "테스트 도서", "https://img/thumb.jpg", requestUserId, "작성자닉네임",
         "재밌어요", 5, 0, 0, false, Instant.now(), Instant.now()
     );
     CursorPageResponse<ReviewDto> response = new CursorPageResponse<>(
@@ -186,6 +192,8 @@ class ReviewControllerTest {
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.content").isArray())
         .andExpect(jsonPath("$.content[0].id").value(reviewId.toString()))
+        .andExpect(jsonPath("$.content[0].bookTitle").value("테스트 도서"))
+        .andExpect(jsonPath("$.content[0].userNickname").value("작성자닉네임"))
         .andExpect(jsonPath("$.totalElements").value(1))
         .andExpect(jsonPath("$.hasNext").value(false));
   }

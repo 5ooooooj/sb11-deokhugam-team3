@@ -10,18 +10,24 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
+import com.team3.deokhugam.domain.book.Book;
 import com.team3.deokhugam.domain.review.Review;
+import com.team3.deokhugam.domain.user.User;
 import com.team3.deokhugam.dto.review.ReviewCreateRequest;
 import com.team3.deokhugam.dto.review.ReviewDto;
 import com.team3.deokhugam.dto.review.ReviewOrderBy;
 import com.team3.deokhugam.dto.review.ReviewSearchRequest;
 import com.team3.deokhugam.dto.review.ReviewUpdateRequest;
+import com.team3.deokhugam.exception.book.BookNotFoundException;
 import com.team3.deokhugam.exception.review.ReviewAlreadyExistsException;
 import com.team3.deokhugam.exception.review.ReviewForbiddenException;
 import com.team3.deokhugam.exception.review.ReviewNotFoundException;
+import com.team3.deokhugam.exception.user.UserNotFoundException;
 import com.team3.deokhugam.global.dto.CursorPageResponse;
+import com.team3.deokhugam.repository.book.BookRepository;
 import com.team3.deokhugam.repository.review.ReviewLikeRepository;
 import com.team3.deokhugam.repository.review.ReviewRepository;
+import com.team3.deokhugam.repository.user.UserRepository;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.Base64;
@@ -45,9 +51,14 @@ class ReviewServiceTest {
   @Mock
   private ReviewLikeRepository reviewLikeRepository;
 
+  @Mock
+  private UserRepository userRepository;
+
+  @Mock
+  private BookRepository bookRepository;
+
   @InjectMocks
   private ReviewService reviewService;
-
 
   @Test
   @DisplayName("리뷰 등록 성공 - 중복이 없으면 저장하고 ReviewDto를 반환한다")
@@ -56,7 +67,16 @@ class ReviewServiceTest {
     UUID bookId = UUID.randomUUID();
     ReviewCreateRequest request = new ReviewCreateRequest(bookId, userId, "재밌어요", 5);
 
-    given(reviewRepository.existsByUserIdAndBookId(userId, bookId)).willReturn(false);
+    User user = mock(User.class);
+    Book book = mock(Book.class);
+    given(user.getId()).willReturn(userId);
+    given(user.getNickname()).willReturn("작성자닉네임");
+    given(book.getId()).willReturn(bookId);
+    given(book.getTitle()).willReturn("테스트 도서");
+    given(book.getThumbnailUrl()).willReturn("https://img/thumb.jpg");
+    given(reviewRepository.existsByUser_IdAndBook_Id(userId, bookId)).willReturn(false);
+    given(userRepository.findActiveById(userId)).willReturn(Optional.of(user));
+    given(bookRepository.findByIdAndDeletedAtIsNull(bookId)).willReturn(Optional.of(book));
     given(reviewRepository.save(any(Review.class)))
         .willAnswer(invocation -> invocation.getArgument(0));
 
@@ -65,6 +85,9 @@ class ReviewServiceTest {
     assertThat(result).isNotNull();
     assertThat(result.bookId()).isEqualTo(bookId);
     assertThat(result.userId()).isEqualTo(userId);
+    assertThat(result.bookTitle()).isEqualTo("테스트 도서");
+    assertThat(result.bookThumbnailUrl()).isEqualTo("https://img/thumb.jpg");
+    assertThat(result.userNickname()).isEqualTo("작성자닉네임");
     assertThat(result.rating()).isEqualTo(5);
     assertThat(result.content()).isEqualTo("재밌어요");
     assertThat(result.likedByMe()).isFalse();
@@ -78,10 +101,43 @@ class ReviewServiceTest {
     UUID bookId = UUID.randomUUID();
     ReviewCreateRequest request = new ReviewCreateRequest(bookId, userId, "또 씀", 4);
 
-    given(reviewRepository.existsByUserIdAndBookId(userId, bookId)).willReturn(true);
+    given(reviewRepository.existsByUser_IdAndBook_Id(userId, bookId)).willReturn(true);
 
     assertThatThrownBy(() -> reviewService.createReview(request))
         .isInstanceOf(ReviewAlreadyExistsException.class);
+
+    verify(reviewRepository, never()).save(any(Review.class));
+  }
+
+  @Test
+  @DisplayName("리뷰 등록 실패 - 작성자가 없으면 UserNotFoundException이 발생한다")
+  void createReview_userNotFound_throws() {
+    UUID userId = UUID.randomUUID();
+    UUID bookId = UUID.randomUUID();
+    ReviewCreateRequest request = new ReviewCreateRequest(bookId, userId, "재밌어요", 5);
+
+    given(reviewRepository.existsByUser_IdAndBook_Id(userId, bookId)).willReturn(false);
+    given(userRepository.findActiveById(userId)).willReturn(Optional.empty());
+
+    assertThatThrownBy(() -> reviewService.createReview(request))
+        .isInstanceOf(UserNotFoundException.class);
+
+    verify(reviewRepository, never()).save(any(Review.class));
+  }
+
+  @Test
+  @DisplayName("리뷰 등록 실패 - 도서가 없으면 BookNotFoundException이 발생한다")
+  void createReview_bookNotFound_throws() {
+    UUID userId = UUID.randomUUID();
+    UUID bookId = UUID.randomUUID();
+    ReviewCreateRequest request = new ReviewCreateRequest(bookId, userId, "재밌어요", 5);
+
+    given(reviewRepository.existsByUser_IdAndBook_Id(userId, bookId)).willReturn(false);
+    given(userRepository.findActiveById(userId)).willReturn(Optional.of(mock(User.class)));
+    given(bookRepository.findByIdAndDeletedAtIsNull(bookId)).willReturn(Optional.empty());
+
+    assertThatThrownBy(() -> reviewService.createReview(request))
+        .isInstanceOf(BookNotFoundException.class);
 
     verify(reviewRepository, never()).save(any(Review.class));
   }
@@ -91,7 +147,7 @@ class ReviewServiceTest {
   void updateReview_success() {
     UUID reviewId = UUID.randomUUID();
     UUID userId = UUID.randomUUID();
-    Review review = Review.create(userId, UUID.randomUUID(), 3, "예전 내용");
+    Review review = reviewWith(userId, UUID.randomUUID(), 3, "예전 내용");
 
     given(reviewRepository.findById(reviewId)).willReturn(Optional.of(review));
     given(reviewLikeRepository.existsByReview_IdAndUser_Id(reviewId, userId))
@@ -110,7 +166,7 @@ class ReviewServiceTest {
     UUID reviewId = UUID.randomUUID();
     UUID ownerId = UUID.randomUUID();
     UUID otherUserId = UUID.randomUUID();
-    Review review = Review.create(ownerId, UUID.randomUUID(), 3, "내용");
+    Review review = reviewWith(ownerId, UUID.randomUUID(), 3, "내용");
 
     given(reviewRepository.findById(reviewId)).willReturn(Optional.of(review));
 
@@ -135,7 +191,7 @@ class ReviewServiceTest {
   void deleteReview_success() {
     UUID reviewId = UUID.randomUUID();
     UUID userId = UUID.randomUUID();
-    Review review = Review.create(userId, UUID.randomUUID(), 3, "내용");
+    Review review = reviewWith(userId, UUID.randomUUID(), 3, "내용");
 
     given(reviewRepository.findById(reviewId)).willReturn(Optional.of(review));
 
@@ -149,7 +205,7 @@ class ReviewServiceTest {
   void hardDeleteReview_success() {
     UUID reviewId = UUID.randomUUID();
     UUID userId = UUID.randomUUID();
-    Review review = Review.create(userId, UUID.randomUUID(), 3, "내용");
+    Review review = reviewWith(userId, UUID.randomUUID(), 3, "내용");
 
     given(reviewRepository.findById(reviewId)).willReturn(Optional.of(review));
 
@@ -163,7 +219,7 @@ class ReviewServiceTest {
   void updateReview_deleted_throws() {
     UUID reviewId = UUID.randomUUID();
     UUID userId = UUID.randomUUID();
-    Review review = Review.create(userId, UUID.randomUUID(), 3, "내용");
+    Review review = reviewWith(userId, UUID.randomUUID(), 3, "내용");
     review.softDelete();
 
     given(reviewRepository.findById(reviewId)).willReturn(Optional.of(review));
@@ -174,12 +230,12 @@ class ReviewServiceTest {
   }
 
   @Test
-  @DisplayName("리뷰 상세 조회 성공 - 존재하는 리뷰면 ReviewDto를 반환하고 likedByMe가 채워진다")
+  @DisplayName("리뷰 상세 조회 성공 - 존재하는 리뷰면 ReviewDto를 반환하고 도서·작성자 정보가 채워진다")
   void getReview_success() {
     UUID reviewId = UUID.randomUUID();
     UUID userId = UUID.randomUUID();
     UUID bookId = UUID.randomUUID();
-    Review review = Review.create(userId, bookId, 5, "재밌어요");
+    Review review = reviewWith(userId, bookId, 5, "재밌어요");
 
     given(reviewRepository.findById(reviewId)).willReturn(Optional.of(review));
     given(reviewLikeRepository.existsByReview_IdAndUser_Id(reviewId, userId))
@@ -190,6 +246,9 @@ class ReviewServiceTest {
     assertThat(result).isNotNull();
     assertThat(result.bookId()).isEqualTo(bookId);
     assertThat(result.userId()).isEqualTo(userId);
+    assertThat(result.bookTitle()).isEqualTo("테스트 도서");
+    assertThat(result.bookThumbnailUrl()).isEqualTo("https://img/thumb.jpg");
+    assertThat(result.userNickname()).isEqualTo("작성자닉네임");
     assertThat(result.rating()).isEqualTo(5);
     assertThat(result.content()).isEqualTo("재밌어요");
     assertThat(result.likedByMe()).isTrue();
@@ -210,7 +269,7 @@ class ReviewServiceTest {
   void getReview_deleted_throws() {
     UUID reviewId = UUID.randomUUID();
     UUID userId = UUID.randomUUID();
-    Review review = Review.create(userId, UUID.randomUUID(), 5, "삭제될 리뷰");
+    Review review = reviewWith(userId, UUID.randomUUID(), 5, "삭제될 리뷰");
     review.softDelete();
 
     given(reviewRepository.findById(reviewId)).willReturn(Optional.of(review));
@@ -218,7 +277,6 @@ class ReviewServiceTest {
     assertThatThrownBy(() -> reviewService.getReview(reviewId, userId))
         .isInstanceOf(ReviewNotFoundException.class);
   }
-
 
   @Test
   @DisplayName("리뷰 목록 조회 성공 - 검색 결과를 CursorPageResponse로 반환한다")
@@ -381,11 +439,24 @@ class ReviewServiceTest {
     assertThat(notLikedDto.likedByMe()).isFalse();
   }
 
+  private Review reviewWith(UUID userId, UUID bookId, int rating, String content) {
+    User user = mock(User.class);
+    Book book = mock(Book.class);
+    lenient().when(user.getId()).thenReturn(userId);
+    lenient().when(user.getNickname()).thenReturn("작성자닉네임");
+    lenient().when(book.getId()).thenReturn(bookId);
+    lenient().when(book.getTitle()).thenReturn("테스트 도서");
+    lenient().when(book.getThumbnailUrl()).thenReturn("https://img/thumb.jpg");
+    return Review.create(user, book, rating, content);
+  }
+
   private Review mockReview(Instant createdAt, UUID id, int rating) {
     Review review = mock(Review.class);
     lenient().when(review.getCreatedAt()).thenReturn(createdAt);
     lenient().when(review.getId()).thenReturn(id);
     lenient().when(review.getRating()).thenReturn(rating);
+    lenient().when(review.getUser()).thenReturn(mock(User.class));
+    lenient().when(review.getBook()).thenReturn(mock(Book.class));
     return review;
   }
 }
