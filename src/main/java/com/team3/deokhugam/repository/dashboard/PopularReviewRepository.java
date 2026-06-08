@@ -17,16 +17,14 @@ public interface PopularReviewRepository extends JpaRepository<PopularReview, UU
   @Query("""
     SELECT new com.team3.deokhugam.dto.dashboard.PopularReviewDto(
         pr.id, pr.reviewId,
-        r.bookId, b.title, b.thumbnailUrl,
-        r.userId, u.nickname,
+        r.book.id, r.book.title, r.book.thumbnailUrl,
+        r.user.id, r.user.nickname,
         r.content, r.rating,
         pr.period, pr.calculatedAt, pr.rank, pr.score,
         pr.likeCount, pr.commentCount
     )
     FROM PopularReview pr
     JOIN Review r ON pr.reviewId = r.id
-    JOIN Book b ON r.bookId = b.id
-    JOIN User u ON r.userId = u.id
     WHERE pr.period = :period
     ORDER BY pr.rank ASC
     """)
