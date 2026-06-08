@@ -2,49 +2,68 @@ package com.team3.deokhugam.domain.review;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import java.util.UUID;
+import static org.mockito.Mockito.mock;
+
+import com.team3.deokhugam.domain.book.Book;
+import com.team3.deokhugam.domain.user.User;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
-
 
 class ReviewTest {
 
     @Test
     @DisplayName("리뷰를 생성하면 필수 값이 정상 보존되고, 좋아요·댓글 수는 0으로 시작한다")
     void createReview() {
-
-        UUID userId = UUID.randomUUID();
-        UUID bookId = UUID.randomUUID();
+        User user = mock(User.class);
+        Book book = mock(Book.class);
         int rating = 5;
         String content = "좋은 책";
 
+        Review review = Review.create(user, book, rating, content);
 
-        Review review = Review.create(userId, bookId, rating, content);
-
-
-        assertThat(review.getUserId()).isEqualTo(userId);
-        assertThat(review.getBookId()).isEqualTo(bookId);
+        assertThat(review.getUser()).isEqualTo(user);
+        assertThat(review.getBook()).isEqualTo(book);
         assertThat(review.getRating()).isEqualTo(rating);
         assertThat(review.getContent()).isEqualTo(content);
         assertThat(review.getLikeCount()).isZero();
         assertThat(review.getCommentCount()).isZero();
     }
+
     @ParameterizedTest
     @ValueSource(ints = {0, -1, 6, 100})
     @DisplayName("평점이 1~5 범위를 벗어나면 예외가 발생한다")
     void create_invalidRating(int invalidRating) {
-        UUID userId = UUID.randomUUID();
-        UUID bookId = UUID.randomUUID();
+        User user = mock(User.class);
+        Book book = mock(Book.class);
 
-        assertThatThrownBy(() -> Review.create(userId, bookId, invalidRating, "내용"))
+        assertThatThrownBy(() -> Review.create(user, book, invalidRating, "내용"))
             .isInstanceOf(IllegalArgumentException.class);
     }
+
+    @Test
+    @DisplayName("작성자(user)가 null이면 예외가 발생한다")
+    void create_userNull() {
+        Book book = mock(Book.class);
+
+        assertThatThrownBy(() -> Review.create(null, book, 5, "내용"))
+            .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    @DisplayName("도서(book)가 null이면 예외가 발생한다")
+    void create_bookNull() {
+        User user = mock(User.class);
+
+        assertThatThrownBy(() -> Review.create(user, null, 5, "내용"))
+            .isInstanceOf(IllegalArgumentException.class);
+    }
+
     @Test
     @DisplayName("좋아요 수를 증가시키면 1 늘어난다")
     void increaseLikeCount() {
-        Review review = Review.create(UUID.randomUUID(), UUID.randomUUID(), 5, "내용");
+        Review review = Review.create(mock(User.class), mock(Book.class), 5, "내용");
 
         review.increaseLikeCount();
 
@@ -54,10 +73,10 @@ class ReviewTest {
     @Test
     @DisplayName("좋아요 수를 감소시키면 1 줄어든다")
     void decreaseLikeCount() {
-        Review review = Review.create(UUID.randomUUID(), UUID.randomUUID(), 5, "내용");
-        review.increaseLikeCount();  // 1로 만들고
+        Review review = Review.create(mock(User.class), mock(Book.class), 5, "내용");
+        review.increaseLikeCount();
 
-        review.decreaseLikeCount();  // 다시 0으로
+        review.decreaseLikeCount();
 
         assertThat(review.getLikeCount()).isZero();
     }
@@ -65,17 +84,17 @@ class ReviewTest {
     @Test
     @DisplayName("좋아요 수는 0 미만으로 내려가지 않는다")
     void decreaseLikeCount_notBelowZero() {
-        Review review = Review.create(UUID.randomUUID(), UUID.randomUUID(), 5, "내용");
+        Review review = Review.create(mock(User.class), mock(Book.class), 5, "내용");
 
-        review.decreaseLikeCount();  // 0에서 빼도
+        review.decreaseLikeCount();
 
-        assertThat(review.getLikeCount()).isZero();  // 여전히 0
+        assertThat(review.getLikeCount()).isZero();
     }
 
     @Test
     @DisplayName("댓글 수를 증가·감소시킬 수 있다")
     void changeCommentCount() {
-        Review review = Review.create(UUID.randomUUID(), UUID.randomUUID(), 5, "내용");
+        Review review = Review.create(mock(User.class), mock(Book.class), 5, "내용");
 
         review.increaseCommentCount();
         review.increaseCommentCount();

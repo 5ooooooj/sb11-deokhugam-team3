@@ -27,28 +27,27 @@ public class PopularBookReader {
             .pageSize(500);
 
     if (startDate == null) {
-      // ALL_TIME 날짜조건 없음
       builder.queryString("""
         SELECT new com.team3.deokhugam.batch.dto.PopularBookRawData(
-          r.bookId,
+          r.book.id,
           CAST(COUNT(r) AS int),
           CAST(AVG(r.rating) AS bigdecimal )
         )
         FROM Review r
-        GROUP BY r.bookId
-        ORDER BY r.bookId
+        GROUP BY r.book.id
+        ORDER BY r.book.id
         """);
     } else {
       builder.queryString("""
         SELECT new com.team3.deokhugam.batch.dto.PopularBookRawData(
-          r.bookId,
+          r.book.id,
           CAST(COUNT(r) AS int),
           CAST(AVG(r.rating) AS bigdecimal)
         )
         FROM Review r
         WHERE r.createdAt >= :startDate
-        GROUP BY r.bookId
-        ORDER BY r.bookId
+        GROUP BY r.book.id
+        ORDER BY r.book.id
         """)
           .parameterValues(Map.of("startDate", startDate));
     }
