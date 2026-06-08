@@ -21,6 +21,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import java.time.Instant;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Sort;
@@ -134,6 +135,10 @@ public class BookController {
   @GetMapping("/popular")
   public ResponseEntity<CursorPageResponse<PopularBookDto>> getPopularBooks(
       @RequestParam(defaultValue = "DAILY") String period,
+      // 프로토타입엔 정렬, 페이지네이션이 없지만 api 명세서 기준으로 있으므로 파라미터는 받괴 실제 사용 x, 여유되면 추후 구현
+      @RequestParam(defaultValue = "ASC") String direction,
+      @RequestParam(required = false) String cursor,
+      @RequestParam(required = false) Instant after,
       @RequestParam(defaultValue = "50") int limit
   ) {
     CursorPageResponse<PopularBookDto> response =

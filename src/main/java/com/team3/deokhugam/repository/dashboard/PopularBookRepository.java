@@ -25,12 +25,10 @@ public interface PopularBookRepository extends JpaRepository<PopularBook, UUID> 
         WHERE pb.period = :period
         ORDER BY pb.rank ASC
         """)
-  List<PopularBookDto> findPopularBookByPeriod(
+  List<PopularBookDto> findPopularBooksByPeriod(
       @Param("period") Period period,
       Pageable pageable
   );
-
-  List<PopularBook> findByPeriodOrderByRankAsc(Period period, Pageable pageable);
 
   int countByPeriod(Period period);
 

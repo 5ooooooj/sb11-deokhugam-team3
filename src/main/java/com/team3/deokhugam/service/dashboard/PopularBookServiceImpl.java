@@ -25,7 +25,7 @@ public class PopularBookServiceImpl implements PopularBookService{
     Period parsedPeriod = parsePeriod(period);
 
     List<PopularBookDto> content = popularBookRepository
-        .findPopularBookByPeriod(parsedPeriod, PageRequest.of(0, limit));
+        .findPopularBooksByPeriod(parsedPeriod, PageRequest.of(0, limit));
 
     return new CursorPageResponse<>(
         content,
