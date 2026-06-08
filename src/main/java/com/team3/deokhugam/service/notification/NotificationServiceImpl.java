@@ -2,11 +2,8 @@ package com.team3.deokhugam.service.notification;
 
 import com.team3.deokhugam.domain.notification.Notification;
 import com.team3.deokhugam.domain.notification.NotificationType;
-import com.team3.deokhugam.domain.review.Review;
-import com.team3.deokhugam.domain.user.User;
 import com.team3.deokhugam.dto.notification.NotificationDto;
 import com.team3.deokhugam.exception.notification.NotificationNotFoundException;
-import com.team3.deokhugam.exception.user.UserNotFoundException;
 import com.team3.deokhugam.global.dto.CursorPageResponse;
 import com.team3.deokhugam.repository.notification.NotificationRepository;
 import com.team3.deokhugam.repository.review.ReviewRepository;
