@@ -264,4 +264,40 @@ public class NotificationServiceTest {
     assertThat(result.hasNext()).isTrue();
     assertThat(result.content()).hasSize(limit);
   }
+  @Test
+  @DisplayName("본인 리뷰에 댓글 달면 알림 생성 안 함")
+  void createCommentNotification_selfComment() {
+    // given
+    UUID reviewId = UUID.randomUUID();
+    UUID reviewOwnerId = UUID.randomUUID();
+
+    Review review = mock(Review.class);
+    given(review.getUserId()).willReturn(reviewOwnerId);
+    given(reviewRepository.findById(reviewId)).willReturn(Optional.of(review));
+
+    // when - 리뷰 작성자가 본인 리뷰에 댓글
+    notificationService.createCommentNotification(reviewId, reviewOwnerId);
+
+    // then - 알림 생성 안 함
+    verify(notificationRepository, never()).save(any(Notification.class));
+  }
+
+  @Test
+  @DisplayName("본인 리뷰에 좋아요 누르면 알림 생성 안 함")
+  void createLikeNotification_selfLike() {
+    // given
+    UUID reviewId = UUID.randomUUID();
+    UUID reviewOwnerId = UUID.randomUUID();
+
+    Review review = mock(Review.class);
+    given(review.getUserId()).willReturn(reviewOwnerId);
+    given(reviewRepository.findById(reviewId)).willReturn(Optional.of(review));
+
+    // when - 리뷰 작성자가 본인 리뷰에 좋아요
+    notificationService.createLikeNotification(reviewId, reviewOwnerId);
+
+    // then - 알림 생성 안 함
+    verify(notificationRepository, never()).save(any(Notification.class));
+  }
+
 }
