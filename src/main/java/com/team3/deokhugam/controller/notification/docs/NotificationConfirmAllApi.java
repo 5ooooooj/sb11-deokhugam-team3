@@ -13,7 +13,7 @@ import java.lang.annotation.RetentionPolicy;
 @Retention(RetentionPolicy.RUNTIME)
 @Operation(summary = "알림 전체 읽음", description = "사용자의 모든 알림을 읽음 처리합니다.")
 @ApiResponses({
-    @ApiResponse(responseCode = "200", description = "전체 읽음 처리 성공"),
+    @ApiResponse(responseCode = "204", description = "전체 읽음 처리 성공"),
     @ApiResponse(responseCode = "500", description = "서버 내부 오류",
         content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
             schema = @Schema(implementation = ErrorResponse.class)))
