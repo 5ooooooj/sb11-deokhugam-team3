@@ -1,5 +1,6 @@
 package com.team3.deokhugam.controller.admin;
 
+import com.team3.deokhugam.batch.scheduler.DashboardBatchScheduler;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -24,6 +25,7 @@ public class DashboardBatchController {
   private final Job popularReviewJob;
   private final Job popularBookJob;
   private final Job powerUserJob;
+  private final DashboardBatchScheduler dashboardBatchScheduler;
 
   @Operation(summary = "인기 도서 배치 수동 실행", description = "인기 도서 배치 수동 실행")
   @ApiResponse(responseCode = "200", description = "배치 성공")
@@ -63,4 +65,11 @@ public class DashboardBatchController {
     jobLauncher.run(powerUserJob, params);
     return ResponseEntity.ok("인기 유저 배치 실행 완료");
   }
+
+  @PostMapping("/dashboard")
+  public ResponseEntity<String> runDashboardBatch() {
+    dashboardBatchScheduler.runDashboardBatch();
+    return ResponseEntity.ok("배치 실행 완료");
+  }
+
 }
