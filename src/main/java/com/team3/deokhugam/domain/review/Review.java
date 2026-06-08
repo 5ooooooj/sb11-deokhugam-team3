@@ -48,6 +48,9 @@ public class Review extends SoftDeletableEntity {
     }
 
     public static Review create(User user, Book book, int rating, String content) {
+        if (user == null || book == null) {
+            throw new IllegalArgumentException("작성자와 도서는 필수입니다.");
+        }
         if (rating < 1 || rating > 5) {
             throw new IllegalArgumentException("평점은 1~5 사이여야 합니다. 입력값: " + rating);
         }

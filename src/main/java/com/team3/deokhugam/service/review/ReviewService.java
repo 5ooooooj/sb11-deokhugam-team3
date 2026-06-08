@@ -47,9 +47,9 @@ public class ReviewService {
       throw new ReviewAlreadyExistsException();
     }
 
-    User user = userRepository.findById(request.userId())
+    User user = userRepository.findActiveById(request.userId())
         .orElseThrow(UserNotFoundException::new);
-    Book book = bookRepository.findById(request.bookId())
+    Book book = bookRepository.findByIdAndDeletedAtIsNull(request.bookId())
         .orElseThrow(BookNotFoundException::new);
 
     Review review = Review.create(user, book, request.rating(), request.content());
