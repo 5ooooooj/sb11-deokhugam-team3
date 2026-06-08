@@ -44,7 +44,7 @@ public class PopularBookServiceImpl implements PopularBookService{
   private Period parsePeriod(String period) {
     try {
       return Period.valueOf(period.trim().toUpperCase(Locale.ROOT));
-    } catch (IllegalStateException | NullPointerException e) {
+    } catch (IllegalArgumentException| NullPointerException e) {
       log.debug("올바르지 않은 period 파라미터: {}", period);
       throw new InvalidPeriodException();
     }
