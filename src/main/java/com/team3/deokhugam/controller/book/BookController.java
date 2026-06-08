@@ -6,9 +6,11 @@ import com.team3.deokhugam.controller.book.docs.BookFindByIdApi;
 import com.team3.deokhugam.controller.book.docs.BookUpdateApi;
 import com.team3.deokhugam.controller.book.docs.BookDeleteApi;
 import com.team3.deokhugam.controller.book.docs.BookHardDeleteApi;
+import com.team3.deokhugam.controller.book.docs.BookInfoApi;
 import com.team3.deokhugam.dto.book.BookCreateRequest;
 import com.team3.deokhugam.dto.book.BookUpdateRequest;
 import com.team3.deokhugam.dto.book.BookDto;
+import com.team3.deokhugam.dto.book.BookInfoDto;
 import com.team3.deokhugam.dto.book.BookOrderBy;
 import com.team3.deokhugam.dto.book.BookSearchRequest;
 import com.team3.deokhugam.global.dto.CursorPageResponse;
@@ -72,6 +74,12 @@ public class BookController {
         );
 
     return bookService.search(request);
+  }
+
+  @BookInfoApi
+  @GetMapping("/info")
+  public BookInfoDto findBookInfoByIsbn(@RequestParam String isbn) {
+    return bookService.findBookInfoByIsbn(isbn);
   }
 
   @BookFindByIdApi
