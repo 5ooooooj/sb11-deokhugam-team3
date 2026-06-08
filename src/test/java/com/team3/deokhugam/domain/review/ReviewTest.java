@@ -43,6 +43,24 @@ class ReviewTest {
     }
 
     @Test
+    @DisplayName("작성자(user)가 null이면 예외가 발생한다")
+    void create_userNull() {
+        Book book = mock(Book.class);
+
+        assertThatThrownBy(() -> Review.create(null, book, 5, "내용"))
+            .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    @DisplayName("도서(book)가 null이면 예외가 발생한다")
+    void create_bookNull() {
+        User user = mock(User.class);
+
+        assertThatThrownBy(() -> Review.create(user, null, 5, "내용"))
+            .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
     @DisplayName("좋아요 수를 증가시키면 1 늘어난다")
     void increaseLikeCount() {
         Review review = Review.create(mock(User.class), mock(Book.class), 5, "내용");

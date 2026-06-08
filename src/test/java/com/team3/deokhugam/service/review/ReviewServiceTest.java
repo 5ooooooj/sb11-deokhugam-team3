@@ -75,8 +75,8 @@ class ReviewServiceTest {
     given(book.getTitle()).willReturn("테스트 도서");
     given(book.getThumbnailUrl()).willReturn("https://img/thumb.jpg");
     given(reviewRepository.existsByUser_IdAndBook_Id(userId, bookId)).willReturn(false);
-    given(userRepository.findById(userId)).willReturn(Optional.of(user));
-    given(bookRepository.findById(bookId)).willReturn(Optional.of(book));
+    given(userRepository.findActiveById(userId)).willReturn(Optional.of(user));
+    given(bookRepository.findByIdAndDeletedAtIsNull(bookId)).willReturn(Optional.of(book));
     given(reviewRepository.save(any(Review.class)))
         .willAnswer(invocation -> invocation.getArgument(0));
 
@@ -117,7 +117,7 @@ class ReviewServiceTest {
     ReviewCreateRequest request = new ReviewCreateRequest(bookId, userId, "재밌어요", 5);
 
     given(reviewRepository.existsByUser_IdAndBook_Id(userId, bookId)).willReturn(false);
-    given(userRepository.findById(userId)).willReturn(Optional.empty());
+    given(userRepository.findActiveById(userId)).willReturn(Optional.empty());
 
     assertThatThrownBy(() -> reviewService.createReview(request))
         .isInstanceOf(UserNotFoundException.class);
@@ -133,8 +133,8 @@ class ReviewServiceTest {
     ReviewCreateRequest request = new ReviewCreateRequest(bookId, userId, "재밌어요", 5);
 
     given(reviewRepository.existsByUser_IdAndBook_Id(userId, bookId)).willReturn(false);
-    given(userRepository.findById(userId)).willReturn(Optional.of(mock(User.class)));
-    given(bookRepository.findById(bookId)).willReturn(Optional.empty());
+    given(userRepository.findActiveById(userId)).willReturn(Optional.of(mock(User.class)));
+    given(bookRepository.findByIdAndDeletedAtIsNull(bookId)).willReturn(Optional.empty());
 
     assertThatThrownBy(() -> reviewService.createReview(request))
         .isInstanceOf(BookNotFoundException.class);
