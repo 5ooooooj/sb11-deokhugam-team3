@@ -11,7 +11,7 @@ public record OcrResultDto(
     List<OcrParseResultDto> parsedResults,
 
     @JsonProperty("OCRExitCode")
-    int orcExitCode,
+    int ocrExitCode,
 
     @JsonProperty("IsErroredOnProcessing")
     boolean erroredOnProcessing,
@@ -27,7 +27,7 @@ public record OcrResultDto(
 ) {
 
   public boolean hasProcessingError() {
-    return erroredOnProcessing || orcExitCode == 3 || orcExitCode == 4;
+    return erroredOnProcessing || ocrExitCode == 3 || ocrExitCode == 4;
   }
 
   public String mergedParsedText() {

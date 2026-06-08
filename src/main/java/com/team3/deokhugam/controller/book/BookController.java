@@ -95,7 +95,7 @@ public class BookController {
   @PostMapping(
       value = "/isbn/ocr",
       consumes = MediaType.MULTIPART_FORM_DATA_VALUE,
-      produces = MediaType.APPLICATION_JSON_VALUE
+      produces = MediaType.TEXT_PLAIN_VALUE
   )
   public String recognizeIsbn(@RequestPart("image") MultipartFile image) {
     return bookService.recognizeIsbn(image);
