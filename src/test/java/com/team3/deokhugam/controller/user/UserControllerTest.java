@@ -17,6 +17,7 @@ import com.team3.deokhugam.dto.user.UserRegisterRequest;
 import com.team3.deokhugam.dto.user.UserDto;
 import com.team3.deokhugam.dto.user.UserUpdateRequest;
 import com.team3.deokhugam.exception.user.UserNotFoundException;
+import com.team3.deokhugam.service.dashboard.PowerUserService;
 import com.team3.deokhugam.service.user.UserService;
 import com.team3.deokhugam.dto.user.UserLoginRequest;
 import com.team3.deokhugam.exception.user.LoginFailedException;
@@ -41,6 +42,9 @@ class UserControllerTest {
 
   @MockitoBean
   private UserService userService;
+
+  @MockitoBean
+  private PowerUserService powerUserService;
 
   @Test
   void register_success() throws Exception {

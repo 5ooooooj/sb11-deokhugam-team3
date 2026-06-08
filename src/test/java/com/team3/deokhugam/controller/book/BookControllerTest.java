@@ -25,6 +25,7 @@ import com.team3.deokhugam.exception.book.BookForbiddenException;
 import com.team3.deokhugam.exception.book.BookNotFoundException;
 import com.team3.deokhugam.global.dto.CursorPageResponse;
 import com.team3.deokhugam.service.book.BookService;
+import com.team3.deokhugam.service.dashboard.PopularBookService;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -55,6 +56,9 @@ class BookControllerTest {
 
   @MockitoBean
   private BookService bookService;
+
+  @MockitoBean
+  private PopularBookService popularBookService;
 
   @Test
   @DisplayName("도서 생성")

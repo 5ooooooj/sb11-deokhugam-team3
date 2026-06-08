@@ -18,6 +18,7 @@ import com.team3.deokhugam.dto.review.ReviewUpdateRequest;
 import com.team3.deokhugam.exception.global.DeokhugamException;
 import com.team3.deokhugam.exception.global.ErrorCode;
 import com.team3.deokhugam.global.dto.CursorPageResponse;
+import com.team3.deokhugam.service.dashboard.PopularReviewService;
 import com.team3.deokhugam.service.review.ReviewLikeService;
 import com.team3.deokhugam.service.review.ReviewService;
 import java.time.Instant;
@@ -45,6 +46,9 @@ class ReviewControllerTest {
 
   @MockitoBean
   private ReviewLikeService reviewLikeService;
+
+  @MockitoBean
+  private PopularReviewService popularReviewService;
 
   @Test
   @DisplayName("POST /api/reviews - 리뷰 등록 성공 시 201과 ReviewDto를 반환한다")

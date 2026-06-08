@@ -8,6 +8,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.team3.deokhugam.dto.review.ReviewLikeDto;
 import com.team3.deokhugam.exception.review.ReviewNotFoundException;
+import com.team3.deokhugam.service.dashboard.PopularReviewService;
 import com.team3.deokhugam.service.review.ReviewLikeService;
 import com.team3.deokhugam.service.review.ReviewService;
 import java.util.UUID;
@@ -29,6 +30,9 @@ class ReviewControllerLikeTest {
 
   @MockitoBean
   ReviewLikeService reviewLikeService;
+
+  @MockitoBean
+  PopularReviewService popularReviewService;
 
   private static final String HEADER = "Deokhugam-Request-User-ID";
 
