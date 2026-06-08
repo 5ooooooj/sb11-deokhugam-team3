@@ -40,7 +40,7 @@ public class NotificationServiceImpl implements NotificationService {
 
   @Override
   public void createRankingNotification(UUID reviewId, String period) {
-    String message = "리뷰가 " + period + "TOP10에 선정되었습니다.";
+    String message = "리뷰가 " + period + " TOP10에 선정되었습니다.";
 
     if (notificationRepository.existsByReviewIdAndTypeAndMessage(reviewId, NotificationType.POPULAR_REVIEW, message)) {
       log.debug("이미 랭킹 알림이 존재합니다. reviewId: {}", reviewId);
