@@ -23,6 +23,7 @@ public class PowerUserServiceImpl implements PowerUserService {
 
   @Override
   public CursorPageResponse<PowerUserDto> getPowerUsers(String period, int limit) {
+    validateLimit(limit);
     Period parsedPeriod = parsePeriod(period);
 
     List<PowerUserDto> content = powerUserRepository
@@ -44,6 +45,12 @@ public class PowerUserServiceImpl implements PowerUserService {
     } catch (IllegalArgumentException e) {
       log.warn("올바르지 않은 period 파라미터: {}", period);
       throw new DeokhugamException(ErrorCode.INVALID_PERIOD);
+    }
+  }
+
+  private void validateLimit(int limit) {
+    if (limit < 1) {
+      throw new DeokhugamException(ErrorCode.INVALID_INPUT);
     }
   }
 }

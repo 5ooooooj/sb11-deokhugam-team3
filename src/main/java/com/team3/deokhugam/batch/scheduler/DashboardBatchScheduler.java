@@ -38,14 +38,18 @@ public class DashboardBatchScheduler {
         .addLocalDate("targetDate", LocalDate.now())
         .toJobParameters();
 
+    boolean popularReviewJobSucceeded = false;
     try {
       runJob(popularBookJob, params); // 실패시 이후 중단
       runJob(popularReviewJob, params); // 실패시 이후 중단
+      popularReviewJobSucceeded = true;
       runJob(powerUserJob, params);
   } catch (BatchJobExecutionException e) {
       log.error("[배치] Job 실패로 인해 일부 배치가 중단되었습니다: {}", e.getMessage());
     } finally {
-      sendRankingNotifications();
+      if (popularReviewJobSucceeded) {
+        sendRankingNotifications();
+      }
     }
   }
 
@@ -66,19 +70,18 @@ public class DashboardBatchScheduler {
   }
 
   private void sendRankingNotifications() {
-    try {
-      for (Period period : Period.values()) {
+    for (Period period : Period.values()) {
         List<PopularReviewDto> top10 = popularReviewRepository
             .findPopularReviewsByPeriod(period, PageRequest.of(0, 10));
 
-        top10.forEach(review ->
-            notificationService.createRankingNotification(
-                review.reviewId(), period.name()
-            )
-        );
-      }
-    } catch (Exception e) {
-        log.error("[배치] 랭킹 알림 발송 실패: {}", e.getMessage());
+        for (PopularReviewDto review : top10) {
+          try {
+            notificationService.createRankingNotification(review.reviewId(), period.name());
+          } catch (Exception e) {
+            log.error("[배치] 랭킹 알림 발송 실패 - period: {}, reviewId: {}, error: {}",
+                period, review.reviewId(), e.getMessage());
+          }
+        }
     }
   }
 }

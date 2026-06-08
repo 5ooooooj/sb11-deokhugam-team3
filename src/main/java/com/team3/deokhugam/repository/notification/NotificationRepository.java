@@ -61,5 +61,5 @@ public interface NotificationRepository extends JpaRepository<Notification, UUID
       """)
   void deleteExpiredNotifications(@Param("threshold") Instant threshold);
 
-  boolean existsByReviewIdAndType(UUID reviewId, NotificationType type);
+  boolean existsByReviewIdAndTypeAndMessage(UUID reviewId, NotificationType type, String message);
 }

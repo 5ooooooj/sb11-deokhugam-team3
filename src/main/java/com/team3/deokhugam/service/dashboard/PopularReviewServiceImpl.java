@@ -23,6 +23,7 @@ public class PopularReviewServiceImpl implements PopularReviewService {
 
   @Override
   public CursorPageResponse<PopularReviewDto> getPopularReviews(String period, int limit) {
+    validateLimit(limit);
     Period parsedPeriod = parsePeriod(period);
 
     List<PopularReviewDto> content = popularReviewRepository
@@ -44,6 +45,12 @@ public class PopularReviewServiceImpl implements PopularReviewService {
     } catch (IllegalArgumentException e) {
       log.debug("올바르지 않은 period 파라미터: {}", period);
       throw new DeokhugamException(ErrorCode.INVALID_PERIOD);
+    }
+  }
+
+  private void validateLimit(int limit) {
+    if (limit < 1) {
+      throw new DeokhugamException(ErrorCode.INVALID_INPUT);
     }
   }
 }
