@@ -1,6 +1,9 @@
 package com.team3.deokhugam.controller.user;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -13,15 +16,24 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.mockito.BDDMockito.willThrow;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.team3.deokhugam.batch.global.Period;
+import com.team3.deokhugam.dto.dashboard.PowerUserDto;
 import com.team3.deokhugam.dto.user.UserRegisterRequest;
 import com.team3.deokhugam.dto.user.UserDto;
 import com.team3.deokhugam.dto.user.UserUpdateRequest;
+import com.team3.deokhugam.exception.global.DeokhugamException;
+import com.team3.deokhugam.exception.global.ErrorCode;
 import com.team3.deokhugam.exception.user.UserNotFoundException;
+import com.team3.deokhugam.global.dto.CursorPageResponse;
+import com.team3.deokhugam.service.dashboard.PowerUserService;
 import com.team3.deokhugam.service.user.UserService;
 import com.team3.deokhugam.dto.user.UserLoginRequest;
 import com.team3.deokhugam.exception.user.LoginFailedException;
+import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
@@ -41,6 +53,9 @@ class UserControllerTest {
 
   @MockitoBean
   private UserService userService;
+
+  @MockitoBean
+  private PowerUserService powerUserService;
 
   @Test
   void register_success() throws Exception {
@@ -359,6 +374,58 @@ class UserControllerTest {
         .andExpect(jsonPath("$.status").value(500));
 
     verify(userService).deleteUser(userId, userId);
+  }
+
+  @Test
+  @DisplayName("성공: GET /api/users/power - 200 정상 응답")
+  void getPowerUsers_success() throws Exception {
+    List<PowerUserDto> content = List.of(
+        new PowerUserDto(UUID.randomUUID(), "유저1", Period.DAILY, Instant.now(), 1,
+            BigDecimal.valueOf(90), BigDecimal.valueOf(50), 10, 5),
+        new PowerUserDto(UUID.randomUUID(), "유저2", Period.DAILY, Instant.now(), 2,
+            BigDecimal.valueOf(80), BigDecimal.valueOf(40), 8, 3)
+    );
+    CursorPageResponse<PowerUserDto> mockResponse = new CursorPageResponse<>(
+        content, null, null, content.size(), 2L, false
+    );
+
+    given(powerUserService.getPowerUsers(eq("DAILY"), eq(10)))
+        .willReturn(mockResponse);
+
+    mockMvc.perform(get("/api/users/power")
+            .param("period", "DAILY")
+            .param("limit", "10"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.content").isArray())
+        .andExpect(jsonPath("$.content.length()").value(2))
+        .andExpect(jsonPath("$.content[0].rank").value(1))
+        .andExpect(jsonPath("$.hasNext").value(false));
+
+    verify(powerUserService).getPowerUsers(eq("DAILY"), eq(10));
+  }
+
+  @Test
+  @DisplayName("실패: GET /api/users/power - 잘못된 period → 400")
+  void getPowerUsers_invalidPeriod_returns400() throws Exception {
+    given(powerUserService.getPowerUsers(eq("INVALID"), anyInt()))
+        .willThrow(new DeokhugamException(ErrorCode.INVALID_PERIOD));
+
+    mockMvc.perform(get("/api/users/power")
+            .param("period", "INVALID"))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.code").value("INVALID_PERIOD"));
+  }
+
+  @Test
+  @DisplayName("실패: GET /api/users/power - limit 0 → 400")
+  void getPowerUsers_invalidLimit_returns400() throws Exception {
+    given(powerUserService.getPowerUsers(anyString(), eq(0)))
+        .willThrow(new DeokhugamException(ErrorCode.INVALID_INPUT));
+
+    mockMvc.perform(get("/api/users/power")
+            .param("limit", "0"))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.code").value("INVALID_INPUT"));
   }
 
 }

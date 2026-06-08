@@ -300,4 +300,52 @@ public class NotificationServiceTest {
     verify(notificationRepository, never()).save(any(Notification.class));
   }
 
+
+  @Test
+  @DisplayName("랭킹 알림 중복 생성 방지 - 이미 알림 존재 시 저장 안 함")
+  void createRankingNotification_duplicate_notSaved() {
+    // given
+    UUID reviewId = UUID.randomUUID();
+    String period = "DAILY";
+    String message = "리뷰가 " + period + " TOP10에 선정되었습니다.";
+
+    given(notificationRepository.existsByReviewIdAndTypeAndMessage(
+        reviewId, NotificationType.POPULAR_REVIEW, message))
+        .willReturn(true);
+
+    // when
+    notificationService.createRankingNotification(reviewId, period);
+
+    // then
+    verify(notificationRepository, never()).save(any());
+  }
+
+  @Test
+  @DisplayName("랭킹 알림 생성 - 기간별로 다른 알림은 각각 생성된다")
+  void createRankingNotification_differentPeriod_saved() {
+    // given
+    UUID reviewId = UUID.randomUUID();
+    UUID reviewOwnerId = UUID.randomUUID();
+
+    Review review = mock(Review.class);
+    User user = mock(User.class);
+    given(review.getUserId()).willReturn(reviewOwnerId);
+    given(reviewRepository.findById(reviewId)).willReturn(Optional.of(review));
+    given(userRepository.findById(reviewOwnerId)).willReturn(Optional.of(user));
+
+    given(notificationRepository.existsByReviewIdAndTypeAndMessage(
+        eq(reviewId), eq(NotificationType.POPULAR_REVIEW), contains("DAILY")))
+        .willReturn(false);
+
+    given(notificationRepository.existsByReviewIdAndTypeAndMessage(
+        eq(reviewId), eq(NotificationType.POPULAR_REVIEW), contains("WEEKLY")))
+        .willReturn(true);
+
+    // when
+    notificationService.createRankingNotification(reviewId, "DAILY");
+    notificationService.createRankingNotification(reviewId, "WEEKLY");
+
+    // then - DAILY만 저장, WEEKLY는 중복이라 저장 안 함
+    verify(notificationRepository, times(1)).save(any());
+  }
 }

@@ -59,7 +59,7 @@ jacocoTestReport {
     afterEvaluate {
         classDirectories.setFrom(files(classDirectories.files.collect {
             fileTree(dir: it, exclude: [
-                    'com/team3/deokhugam/domain/dashboard/**',
+                    'com/team3/deokhugam/controller/admin/**',
                     'com/team3/deokhugam/batch/scheduler/**',
                     'com/team3/deokhugam/batch/exception/**',
                     '**/batch/**'
@@ -72,7 +72,7 @@ jacocoTestCoverageVerification {
     violationRules {
         rule {
             excludes = [
-                    'com.team3.deokhugam.domain.dashboard.*',
+                    'com.team3.deokhugam.controller.admin.*',
                     'com.team3.deokhugam.batch.scheduler.*',
                     'com.team3.deokhugam.batch.exception.*',
             ]

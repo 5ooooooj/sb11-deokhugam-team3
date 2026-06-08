@@ -1,6 +1,7 @@
 package com.team3.deokhugam.repository.notification;
 
 import com.team3.deokhugam.domain.notification.Notification;
+import com.team3.deokhugam.domain.notification.NotificationType;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
@@ -59,4 +60,6 @@ public interface NotificationRepository extends JpaRepository<Notification, UUID
         AND n.updatedAt < :threshold
       """)
   void deleteExpiredNotifications(@Param("threshold") Instant threshold);
+
+  boolean existsByReviewIdAndTypeAndMessage(UUID reviewId, NotificationType type, String message);
 }

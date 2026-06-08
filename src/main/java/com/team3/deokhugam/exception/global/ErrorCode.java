@@ -42,6 +42,9 @@ public enum ErrorCode {
   REVIEW_FORBIDDEN("본인 리뷰만 수정/삭제할 수 있습니다.", HttpStatus.FORBIDDEN),
   REVIEW_ALREADY_EXISTS("이미 작성된 리뷰가 있습니다.", HttpStatus.CONFLICT),
 
+  // Dashboard
+  INVALID_PERIOD("올바르지 않은 기간입니다.", HttpStatus.BAD_REQUEST),
+
   // S3
   S3_UPLOAD_FAILED("S3 업로드에 실패했습니다.", HttpStatus.INTERNAL_SERVER_ERROR),
   EMPTY_FILE_UPLOAD("파일이 비어있습니다.", HttpStatus.BAD_REQUEST),

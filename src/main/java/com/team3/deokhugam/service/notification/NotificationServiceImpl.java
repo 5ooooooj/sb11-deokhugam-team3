@@ -12,6 +12,7 @@ import com.team3.deokhugam.repository.notification.NotificationRepository;
 import com.team3.deokhugam.repository.review.ReviewRepository;
 import com.team3.deokhugam.repository.user.UserRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -20,6 +21,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional
@@ -41,8 +43,13 @@ public class NotificationServiceImpl implements NotificationService {
 
   @Override
   public void createRankingNotification(UUID reviewId, String period) {
-    createNotification(reviewId, null, NotificationType.POPULAR_REVIEW,
-        "리뷰가 " + period + " TOP10에 선정되었습니다.");
+    String message = "리뷰가 " + period + " TOP10에 선정되었습니다.";
+
+    if (notificationRepository.existsByReviewIdAndTypeAndMessage(reviewId, NotificationType.POPULAR_REVIEW, message)) {
+      log.debug("이미 랭킹 알림이 존재합니다. reviewId: {}", reviewId);
+      return;
+    }
+    createNotification(reviewId, null, NotificationType.POPULAR_REVIEW, message);
   }
 
   @Override
