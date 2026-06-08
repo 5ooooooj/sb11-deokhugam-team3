@@ -186,7 +186,7 @@ public class ReviewController {
       @RequestParam(defaultValue = "ASC") String direction,
       @RequestParam(required = false) String cursor,
       @RequestParam(required = false) Instant after,
-      @RequestParam(defaultValue = "20") int limit
+      @RequestParam(defaultValue = "50") int limit
   ) {
     return popularReviewService.getPopularReviews(period, limit);
   }
