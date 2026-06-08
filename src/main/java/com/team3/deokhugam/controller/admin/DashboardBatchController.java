@@ -23,6 +23,7 @@ public class DashboardBatchController {
   private final JobLauncher jobLauncher;
   private final Job popularReviewJob;
   private final Job popularBookJob;
+  private final Job powerUserJob;
 
   @Operation(summary = "인기 도서 배치 수동 실행", description = "인기 도서 배치 수동 실행")
   @ApiResponse(responseCode = "200", description = "배치 성공")
@@ -48,5 +49,18 @@ public class DashboardBatchController {
 
     jobLauncher.run(popularReviewJob, params);
     return ResponseEntity.ok("인기 리뷰 배치 실행 완료");
+  }
+
+  @Operation(summary = "인기 유저 배치 수동 실행", description = "인기 유저 배치 수동 실행")
+  @ApiResponse(responseCode = "200", description = "배치 성공")
+  @PostMapping("/power-users")
+  public ResponseEntity<String> runPowerUserJob() throws Exception {
+    JobParameters params = new JobParametersBuilder()
+        .addLocalDate("targetDate", LocalDate.now())
+        .addLong("timestamp", System.currentTimeMillis())
+        .toJobParameters();
+
+    jobLauncher.run(powerUserJob, params);
+    return ResponseEntity.ok("인기 유저 배치 실행 완료");
   }
 }
