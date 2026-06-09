@@ -20,7 +20,7 @@ class PopularBookTest {
         .bookId(UUID.randomUUID())
         .period(Period.DAILY)
         .score(BigDecimal.valueOf(90))
-        .rank(0)
+        .ranking(0)
         .reviewCount(10)
         .rating(BigDecimal.valueOf(4.5))
         .calculatedAt(Instant.now())
@@ -30,7 +30,7 @@ class PopularBookTest {
     popularBook.assignRank(1);
 
     // then
-    assertThat(popularBook.getRank()).isEqualTo(1);
+    assertThat(popularBook.getRanking()).isEqualTo(1);
   }
 
   @Test
@@ -41,7 +41,7 @@ class PopularBookTest {
         .bookId(UUID.randomUUID())
         .period(Period.DAILY)
         .score(BigDecimal.valueOf(90))
-        .rank(1)
+        .ranking(1)
         .reviewCount(10)
         .rating(BigDecimal.valueOf(4.5))
         .calculatedAt(Instant.now())
@@ -51,6 +51,6 @@ class PopularBookTest {
     popularBook.assignRank(5);
 
     // then
-    assertThat(popularBook.getRank()).isEqualTo(5);
+    assertThat(popularBook.getRanking()).isEqualTo(5);
   }
 }

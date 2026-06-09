@@ -18,7 +18,7 @@ class PopularReviewTest {
     // given
     PopularReview popularReview = PopularReview.builder()
         .reviewId(UUID.randomUUID())
-        .rank(0)
+        .ranking(0)
         .likeCount(3)
         .commentCount(10)
         .score(BigDecimal.valueOf(90))
@@ -30,7 +30,7 @@ class PopularReviewTest {
     popularReview.assignRank(1);
 
     // then
-    assertThat(popularReview.getRank()).isEqualTo(1);
+    assertThat(popularReview.getRanking()).isEqualTo(1);
   }
 
   @Test
@@ -39,7 +39,7 @@ class PopularReviewTest {
     // given
     PopularReview popularReview = PopularReview.builder()
         .reviewId(UUID.randomUUID())
-        .rank(0)
+        .ranking(0)
         .likeCount(3)
         .commentCount(10)
         .score(BigDecimal.valueOf(90))
@@ -51,6 +51,6 @@ class PopularReviewTest {
     popularReview.assignRank(5);
 
     // then
-    assertThat(popularReview.getRank()).isEqualTo(5);
+    assertThat(popularReview.getRanking()).isEqualTo(5);
   }
 }

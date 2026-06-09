@@ -32,7 +32,7 @@ public class PopularReviewProcessor implements StepExecutionListener {
           .reviewId(item.reviewId())
           .period(period)
           .score(score)
-          .rank(0)
+          .ranking(0)
           .likeCount(item.likeCount())
           .commentCount(item.commentCount())
           .calculatedAt(calculatedAt)

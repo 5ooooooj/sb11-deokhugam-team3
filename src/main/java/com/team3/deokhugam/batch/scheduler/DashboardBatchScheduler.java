@@ -32,7 +32,7 @@ public class DashboardBatchScheduler {
   private final Job popularReviewJob;
   private final Job powerUserJob;
 
-  @Scheduled(cron = "0 0 0 * * *")
+  @Scheduled(cron = "0 0 0 * * *", zone = "Asia/Seoul")
   public void runDashboardBatch() {
     JobParameters params = new JobParametersBuilder()
         .addLocalDate("targetDate", LocalDate.now())

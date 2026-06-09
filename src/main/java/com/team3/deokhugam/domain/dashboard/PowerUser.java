@@ -41,8 +41,8 @@ public class PowerUser {
   @Column(name = "score", nullable = false)
   private BigDecimal score;
 
-  @Column(name = "rank", nullable = false)
-  private int rank;
+  @Column(name = "ranking", nullable = false)
+  private int ranking;
 
   @Column(name = "review_score_sum", nullable = false)
   private BigDecimal reviewScoreSum;
@@ -58,6 +58,6 @@ public class PowerUser {
 
   // PopularBook이랑 메서드 이름 통일
   public void assignRank(int rank) {
-    this.rank = rank;
+    this.ranking = rank;
   }
 }

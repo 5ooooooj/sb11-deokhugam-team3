@@ -18,7 +18,7 @@ class PowerUserTest {
     // given
     PowerUser powerUser = PowerUser.builder()
         .userId(UUID.randomUUID())
-        .rank(0)
+        .ranking(0)
         .score(BigDecimal.valueOf(90))
         .reviewScoreSum(BigDecimal.valueOf(100))
         .likeCount(10)
@@ -31,7 +31,7 @@ class PowerUserTest {
     powerUser.assignRank(1);
 
     // then
-    assertThat(powerUser.getRank()).isEqualTo(1);
+    assertThat(powerUser.getRanking()).isEqualTo(1);
   }
 
   @Test
@@ -40,7 +40,7 @@ class PowerUserTest {
     // given
     PowerUser powerUser = PowerUser.builder()
         .userId(UUID.randomUUID())
-        .rank(0)
+        .ranking(0)
         .score(BigDecimal.valueOf(90))
         .reviewScoreSum(BigDecimal.valueOf(100))
         .likeCount(10)
@@ -53,6 +53,6 @@ class PowerUserTest {
     powerUser.assignRank(5);
 
     // then
-    assertThat(powerUser.getRank()).isEqualTo(5);
+    assertThat(powerUser.getRanking()).isEqualTo(5);
   }
 }
