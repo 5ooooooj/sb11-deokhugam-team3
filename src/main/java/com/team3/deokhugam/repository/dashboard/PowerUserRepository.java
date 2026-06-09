@@ -33,6 +33,10 @@ public interface PowerUserRepository extends JpaRepository<PowerUser, UUID> {
 
   int countByPeriod(Period period);
 
+  List<PowerUser> findByPeriod(Period period);
+
+  List<PowerUser> findByPeriodOrderByScoreDesc(Period period);
+
   @Modifying
   @Query("DELETE FROM PowerUser p WHERE p.period = :period")
   void deleteByPeriod(Period period);
