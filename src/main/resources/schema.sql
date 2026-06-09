@@ -29,7 +29,6 @@ CREATE TABLE IF NOT EXISTS books (
                                      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
                                      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
                                      deleted_at TIMESTAMPTZ,
-                                     CONSTRAINT fk_books_user FOREIGN KEY (user_id) REFERENCES users(id)
 );
 
 -- reviews 테이블 생성 --
