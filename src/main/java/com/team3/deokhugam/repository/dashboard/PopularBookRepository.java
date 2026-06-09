@@ -17,13 +17,13 @@ public interface PopularBookRepository extends JpaRepository<PopularBook, UUID> 
         SELECT new com.team3.deokhugam.dto.dashboard.PopularBookDto(
             pb.id, pb.bookId,
             b.title, b.author, b.thumbnailUrl,
-            pb.period, pb.rank, pb.score,
+            pb.period, pb.ranking, pb.score,
             pb.reviewCount, pb.rating, pb.calculatedAt
         )
         FROM PopularBook pb
         JOIN Book b ON pb.bookId = b.id
         WHERE pb.period = :period
-        ORDER BY pb.rank ASC
+        ORDER BY pb.ranking ASC
         """)
   List<PopularBookDto> findPopularBooksByPeriod(
       @Param("period") Period period,

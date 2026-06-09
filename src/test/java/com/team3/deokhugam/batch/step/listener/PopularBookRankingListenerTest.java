@@ -67,9 +67,9 @@ public class PopularBookRankingListenerTest {
     verify(persistenceService).deleteAndSave(eq(Period.DAILY), captor.capture());
 
     List<PopularBook> saved = captor.getValue();
-    assertThat(saved.get(0).getRank()).isEqualTo(1);
-    assertThat(saved.get(1).getRank()).isEqualTo(1); // 동점
-    assertThat(saved.get(2).getRank()).isEqualTo(3); // 2위 건너뜀
+    assertThat(saved.get(0).getRanking()).isEqualTo(1);
+    assertThat(saved.get(1).getRanking()).isEqualTo(1); // 동점
+    assertThat(saved.get(2).getRanking()).isEqualTo(3); // 2위 건너뜀
   }
 
   @Test
@@ -110,10 +110,10 @@ public class PopularBookRankingListenerTest {
     List<PopularBook> saved = captor.getValue();
 
     assertThat(saved).hasSize(550);
-    assertThat(saved.get(0).getRank()).isEqualTo(1);
-    assertThat(saved.get(499).getRank()).isEqualTo(500);
-    assertThat(saved.get(500).getRank()).isEqualTo(501);
-    assertThat(saved.get(549).getRank()).isEqualTo(550);
+    assertThat(saved.get(0).getRanking()).isEqualTo(1);
+    assertThat(saved.get(499).getRanking()).isEqualTo(500);
+    assertThat(saved.get(500).getRanking()).isEqualTo(501);
+    assertThat(saved.get(549).getRanking()).isEqualTo(550);
   }
 
   @Test

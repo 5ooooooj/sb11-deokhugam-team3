@@ -98,7 +98,7 @@ CREATE TABLE IF NOT EXISTS popular_books (
                                              id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
                                              book_id UUID NOT NULL,
                                              period VARCHAR(20) NOT NULL,
-                                             rank INT NOT NULL,
+                                             ranking INT NOT NULL,
                                              score DECIMAL(10,4) NOT NULL DEFAULT 0.0,
                                              review_count INT NOT NULL DEFAULT 0,
                                              rating DECIMAL(3,2) NOT NULL DEFAULT 0.0,
@@ -114,7 +114,7 @@ CREATE TABLE IF NOT EXISTS popular_reviews (
                                                id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
                                                review_id UUID NOT NULL,
                                                period VARCHAR(20) NOT NULL,
-                                               rank INT NOT NULL,
+                                               ranking INT NOT NULL,
                                                score DECIMAL(10,4) NOT NULL DEFAULT 0.0,
                                                like_count INT NOT NULL DEFAULT 0,
                                                comment_count INT NOT NULL DEFAULT 0,
@@ -130,7 +130,7 @@ CREATE TABLE IF NOT EXISTS power_users (
                                            id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
                                            user_id UUID NOT NULL,
                                            period VARCHAR(20) NOT NULL,
-                                           rank INT NOT NULL,
+                                           ranking INT NOT NULL,
                                            score DECIMAL(10,4) NOT NULL DEFAULT 0.0,
                                            review_score_sum DECIMAL(10,4) NOT NULL DEFAULT 0.0,
                                            like_count INT NOT NULL DEFAULT 0,
@@ -201,18 +201,18 @@ CREATE INDEX IF NOT EXISTS idx_notifications_confirmed_created ON notifications 
 
 -- popular_books --
 -- 기간별 인기 도서 조회
-CREATE INDEX IF NOT EXISTS idx_popular_books_period_rank ON popular_books (period, rank, calculated_at, id);
+CREATE INDEX IF NOT EXISTS idx_popular_books_period_rank ON popular_books (period, ranking, calculated_at, id);
 -- 도서 물리 삭제 시 ON DELETE CASCADE 대상 빠른 조회
 CREATE INDEX IF NOT EXISTS idx_popular_books_book_id ON popular_books (book_id);
 
 -- popular_reviews --
 -- 기간별 인기 리뷰 조회
-CREATE INDEX IF NOT EXISTS idx_popular_reviews_period_rank ON popular_reviews (period, rank, calculated_at, id);
+CREATE INDEX IF NOT EXISTS idx_popular_reviews_period_rank ON popular_reviews (period, ranking, calculated_at, id);
 -- 리뷰 물리 삭제 시 ON DELETE CASCADE 대상 빠른 조회
 CREATE INDEX IF NOT EXISTS idx_popular_reviews_review_id ON popular_reviews (review_id);
 
 -- power_users --
 -- 기간별 파워 유저 조회 (커서 페이지네이션, B-Tree)
-CREATE INDEX IF NOT EXISTS idx_power_users_period_rank ON power_users (period, rank, calculated_at, id);
+CREATE INDEX IF NOT EXISTS idx_power_users_period_rank ON power_users (period, ranking, calculated_at, id);
 -- 사용자 물리 삭제 시 ON DELETE CASCADE 대상 빠른 조회
 CREATE INDEX IF NOT EXISTS idx_power_users_user_id ON power_users (user_id);

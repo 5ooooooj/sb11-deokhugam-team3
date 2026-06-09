@@ -18,13 +18,13 @@ public interface PowerUserRepository extends JpaRepository<PowerUser, UUID> {
   @Query("""
         SELECT new com.team3.deokhugam.dto.dashboard.PowerUserDto(
             pu.userId, u.nickname,
-            pu.period, pu.calculatedAt, pu.rank, pu.score,
+            pu.period, pu.calculatedAt, pu.ranking, pu.score,
             pu.reviewScoreSum, pu.likeCount, pu.commentCount
         )
         FROM PowerUser pu
         JOIN User u ON pu.userId = u.id
         WHERE pu.period = :period
-        ORDER BY pu.rank ASC
+        ORDER BY pu.ranking ASC
         """)
   List<PowerUserDto> findPowerUsersByPeriod(
       @Param("period") Period period,

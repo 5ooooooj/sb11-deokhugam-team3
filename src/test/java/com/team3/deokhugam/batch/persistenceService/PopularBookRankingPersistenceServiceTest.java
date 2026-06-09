@@ -41,7 +41,7 @@ class PopularBookRankingPersistenceServiceTest {
             .bookId(UUID.randomUUID())
             .period(Period.DAILY)
             .score(BigDecimal.valueOf(3.0))
-            .rank(1)
+            .ranking(1)
             .reviewCount(1)
             .rating(BigDecimal.valueOf(3.0))
             .calculatedAt(Instant.now())

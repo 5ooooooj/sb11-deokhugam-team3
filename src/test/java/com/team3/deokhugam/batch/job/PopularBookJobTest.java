@@ -221,7 +221,7 @@ public class PopularBookJobTest {
     // then
     List<PopularBook> dailyResults = popularBookRepository.findByPeriod(Period.DAILY);
     assertThat(dailyResults).hasSize(1);
-    assertThat(dailyResults.get(0).getRank()).isEqualTo(1);
+    assertThat(dailyResults.get(0).getRanking()).isEqualTo(1);
   }
 
   @Test
@@ -258,10 +258,10 @@ public class PopularBookJobTest {
     List<PopularBook> results = popularBookRepository.findByPeriodOrderByScoreDesc(Period.DAILY);
     assertThat(results).hasSize(3);
     assertThat(results.get(0).getBookId()).isEqualTo(book1.getId());
-    assertThat(results.get(0).getRank()).isEqualTo(1);
+    assertThat(results.get(0).getRanking()).isEqualTo(1);
     assertThat(results.get(1).getBookId()).isEqualTo(book2.getId());
-    assertThat(results.get(1).getRank()).isEqualTo(2);
+    assertThat(results.get(1).getRanking()).isEqualTo(2);
     assertThat(results.get(2).getBookId()).isEqualTo(book3.getId());
-    assertThat(results.get(2).getRank()).isEqualTo(3);
+    assertThat(results.get(2).getRanking()).isEqualTo(3);
   }
 }

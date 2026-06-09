@@ -41,8 +41,8 @@ public class PopularBook {
   @Column(name = "score", nullable = false)
   private BigDecimal score;
 
-  @Column(name = "rank", nullable = false)
-  private int rank;
+  @Column(name = "ranking", nullable = false)
+  private int ranking;
 
   @Column(name = "review_count", nullable = false)
   private int reviewCount;
@@ -54,6 +54,6 @@ public class PopularBook {
   private Instant calculatedAt;
 
   public void assignRank(int rank) {
-    this.rank = rank;
+    this.ranking = rank;
   }
 }

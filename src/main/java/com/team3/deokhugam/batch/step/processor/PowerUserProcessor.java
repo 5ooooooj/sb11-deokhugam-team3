@@ -34,7 +34,7 @@ public class PowerUserProcessor implements StepExecutionListener {
           .userId(item.userId())
           .period(period)
           .score(score)
-          .rank(0)
+          .ranking(0)
           .reviewScoreSum(item.reviewScoreSum())
           .likeCount(item.likeCount())
           .commentCount(item.commentCount())
