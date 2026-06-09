@@ -6,6 +6,7 @@ import com.team3.deokhugam.dto.dashboard.PopularReviewDto;
 import com.team3.deokhugam.repository.dashboard.PopularReviewRepository;
 import com.team3.deokhugam.service.notification.NotificationService;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -25,6 +26,8 @@ import org.springframework.stereotype.Component;
 @Slf4j
 public class DashboardBatchScheduler {
 
+  private static final ZoneId KST = ZoneId.of("Asia/Seoul");
+
   private final PopularReviewRepository popularReviewRepository;
   private final NotificationService notificationService;
   private final JobLauncher jobLauncher;
@@ -35,7 +38,7 @@ public class DashboardBatchScheduler {
   @Scheduled(cron = "0 0 0 * * *", zone = "Asia/Seoul")
   public void runDashboardBatch() {
     JobParameters params = new JobParametersBuilder()
-        .addLocalDate("targetDate", LocalDate.now())
+        .addLocalDate("targetDate", LocalDate.now(KST))
         .toJobParameters();
 
     boolean popularReviewJobSucceeded = false;

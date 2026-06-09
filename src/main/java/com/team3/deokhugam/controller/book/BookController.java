@@ -7,6 +7,7 @@ import com.team3.deokhugam.controller.book.docs.BookUpdateApi;
 import com.team3.deokhugam.controller.book.docs.BookDeleteApi;
 import com.team3.deokhugam.controller.book.docs.BookHardDeleteApi;
 import com.team3.deokhugam.controller.book.docs.BookInfoApi;
+import com.team3.deokhugam.controller.book.docs.BookIsbnOcrApi;
 import com.team3.deokhugam.dto.book.BookCreateRequest;
 import com.team3.deokhugam.dto.book.BookUpdateRequest;
 import com.team3.deokhugam.dto.book.BookDto;
@@ -88,6 +89,16 @@ public class BookController {
   @GetMapping("/info")
   public BookInfoDto findBookInfoByIsbn(@RequestParam String isbn) {
     return bookService.findBookInfoByIsbn(isbn);
+  }
+
+  @BookIsbnOcrApi
+  @PostMapping(
+      value = "/isbn/ocr",
+      consumes = MediaType.MULTIPART_FORM_DATA_VALUE,
+      produces = MediaType.TEXT_PLAIN_VALUE
+  )
+  public String recognizeIsbn(@RequestPart("image") MultipartFile image) {
+    return bookService.recognizeIsbn(image);
   }
 
   @BookFindByIdApi
