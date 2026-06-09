@@ -4,15 +4,20 @@ spring:
       on-profile: local
 
   datasource:
-    url: jdbc:postgresql://localhost:5432/deokhugam
+    url: jdbc:postgresql://postgres:5432/deokhugam
     username: deokhugam
     password: deokhugam1234
     driver-class-name: org.postgresql.Driver
 
   jpa:
     hibernate:
-      ddl-auto: create  # 로컬에서는 자동 생성
+      ddl-auto: none
+    defer-datasource-initialization: true
     show-sql: true
+  sql:
+    init:
+      mode: always
+      schema-locations: classpath:schema.sql
 
   batch:
     jdbc:

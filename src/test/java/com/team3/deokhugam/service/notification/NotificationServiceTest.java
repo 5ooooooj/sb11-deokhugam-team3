@@ -1,0 +1,351 @@
+package com.team3.deokhugam.service.notification;
+
+import com.team3.deokhugam.domain.notification.Notification;
+import com.team3.deokhugam.domain.notification.NotificationType;
+import com.team3.deokhugam.domain.review.Review;
+import com.team3.deokhugam.domain.user.User;
+import com.team3.deokhugam.dto.notification.NotificationDto;
+import com.team3.deokhugam.exception.notification.NotificationForbiddenException;
+import com.team3.deokhugam.global.dto.CursorPageResponse;
+import com.team3.deokhugam.repository.notification.NotificationRepository;
+import com.team3.deokhugam.repository.review.ReviewRepository;
+import com.team3.deokhugam.repository.user.UserRepository;
+
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
+
+import static org.assertj.core.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.BDDMockito.*;
+import static org.mockito.Mockito.*;
+
+@ExtendWith(MockitoExtension.class)
+public class NotificationServiceTest {
+
+  @Mock
+  private NotificationRepository notificationRepository;
+  @Mock
+  private ReviewRepository reviewRepository;
+  @Mock
+  private UserRepository userRepository;
+  @InjectMocks
+  private NotificationServiceImpl notificationService;
+
+  @Test
+  @DisplayName("댓글 알림 생성 성공")
+  void createCommentNotification_success() {
+    // given
+    UUID reviewId = UUID.randomUUID();
+    UUID commenterUserId = UUID.randomUUID();
+    UUID reviewOwnerId = UUID.randomUUID();
+
+    Review review = mock(Review.class);
+    User user = mock(User.class);
+    given(review.getUserId()).willReturn(reviewOwnerId);
+    given(reviewRepository.findById(reviewId)).willReturn(Optional.of(review));
+    given(userRepository.findById(reviewOwnerId)).willReturn(Optional.of(user));
+
+    // when
+    notificationService.createCommentNotification(reviewId, commenterUserId);
+
+    // then
+    verify(notificationRepository).save(any(Notification.class));
+  }
+
+  @Test
+  @DisplayName("좋아요 알림 생성 성공")
+  void createLikeNotification_success() {
+    // given
+    UUID reviewId = UUID.randomUUID();
+    UUID likerUserId = UUID.randomUUID();
+    UUID reviewOwnerId = UUID.randomUUID();
+
+    Review review = mock(Review.class);
+    User user = mock(User.class);
+    given(review.getUserId()).willReturn(reviewOwnerId);
+    given(reviewRepository.findById(reviewId)).willReturn(Optional.of(review));
+    given(userRepository.findById(reviewOwnerId)).willReturn(Optional.of(user));
+
+    // when
+    notificationService.createLikeNotification(reviewId, likerUserId);
+
+    // then
+    verify(notificationRepository).save(any(Notification.class));
+  }
+
+  @Test
+  @DisplayName("랭킹 알림 생성 성공")
+  void createRankingNotification_success() {
+    // given
+    UUID reviewId = UUID.randomUUID();
+    String period = "DAILY";
+    UUID reviewOwnerId = UUID.randomUUID();
+
+    Review review = mock(Review.class);
+    User user = mock(User.class);
+    given(review.getUserId()).willReturn(reviewOwnerId);
+    given(reviewRepository.findById(reviewId)).willReturn(Optional.of(review));
+    given(userRepository.findById(reviewOwnerId)).willReturn(Optional.of(user));
+
+    // when
+    notificationService.createRankingNotification(reviewId, period);
+
+    // then
+    verify(notificationRepository).save(any(Notification.class));
+  }
+
+  @Test
+  @DisplayName("단건 읽음 처리 성공")
+  void confirm_success() {
+    // given
+    UUID notificationId = UUID.randomUUID();
+    UUID userId = UUID.randomUUID();
+
+    User mockUser = mock(User.class);
+    Review mockReview = mock(Review.class);
+    given(mockUser.getId()).willReturn(userId);
+    given(mockReview.getId()).willReturn(UUID.randomUUID());
+
+    Notification notification = mock(Notification.class);
+    given(notification.getUser()).willReturn(mockUser);
+    given(notification.getReview()).willReturn(mockReview);
+    given(notificationRepository.findById(notificationId))
+        .willReturn(Optional.of(notification));
+
+    // when
+    notificationService.confirm(notificationId, userId);
+
+    // then
+    verify(notification).confirm();
+  }
+
+  @Test
+  @DisplayName("타인 알림 읽음 처리 시 예외")
+  void confirm_forbidden() {
+    // given
+    UUID notificationId = UUID.randomUUID();
+    UUID otherId = UUID.randomUUID();
+
+    Notification notification = mock(Notification.class);
+    given(notificationRepository.findById(notificationId))
+        .willReturn(Optional.of(notification));
+    willThrow(new NotificationForbiddenException())
+        .given(notification).validateOwner(otherId);
+
+    // when & then
+    assertThatThrownBy(() ->
+        notificationService.confirm(notificationId, otherId))
+        .isInstanceOf(NotificationForbiddenException.class);
+  }
+
+  @Test
+  @DisplayName("전체 읽음 처리 성공")
+  void confirmAll_success() {
+    // given
+    UUID userId = UUID.randomUUID();
+
+    // when
+    notificationService.confirmAll(userId);
+
+    // then
+    verify(notificationRepository).confirmAllByUserId(userId);
+  }
+
+  @Test
+  @DisplayName("알림 목록 조회 성공")
+  void findAll_success() {
+    // given
+    UUID userId = UUID.randomUUID();
+
+    User mockUser = mock(User.class);
+    Review mockReview = mock(Review.class);
+    given(mockUser.getId()).willReturn(UUID.randomUUID());
+    given(mockReview.getId()).willReturn(UUID.randomUUID());
+
+    Notification notification1 = mock(Notification.class);
+    Notification notification2 = mock(Notification.class);
+    given(notification1.getUser()).willReturn(mockUser);
+    given(notification1.getReview()).willReturn(mockReview);
+    given(notification2.getUser()).willReturn(mockUser);
+    given(notification2.getReview()).willReturn(mockReview);
+
+    List<Notification> notifications = List.of(notification1, notification2);
+    given(notificationRepository.findByUserIdWithCursor(
+        eq(userId), isNull(), any())
+    ).willReturn(notifications);
+
+    // when
+    CursorPageResponse<NotificationDto> result =
+        notificationService.findAll(userId, null, 10);
+
+    // then
+    assertThat(result.hasNext()).isFalse();
+    assertThat(result.content()).hasSize(2);
+  }
+  @Test
+  @DisplayName("존재하지 않는 리뷰 알림 생성 시 저장 안 함")
+  void createCommentNotification_reviewNotFound() {
+    // given
+    UUID reviewId = UUID.randomUUID();
+    UUID commenterUserId = UUID.randomUUID();
+
+    given(reviewRepository.findById(reviewId)).willReturn(Optional.empty());
+
+    // when
+    notificationService.createCommentNotification(reviewId, commenterUserId);
+
+    // then
+    verify(notificationRepository, never()).save(any());
+  }
+  @Test
+  @DisplayName("Notification create() null 검증 - user null")
+  void create_nullUser() {
+    assertThatThrownBy(() ->
+        Notification.create(null, mock(Review.class),
+            NotificationType.COMMENT, "메시지"))
+        .isInstanceOf(IllegalArgumentException.class);
+  }
+
+  @Test
+  @DisplayName("Notification create() null 검증 - type null")
+  void create_nullType() {
+    assertThatThrownBy(() ->
+        Notification.create(mock(User.class), mock(Review.class),
+            null, "메시지"))
+        .isInstanceOf(IllegalArgumentException.class);
+  }
+
+  @Test
+  @DisplayName("Notification create() null 검증 - message blank")
+  void create_blankMessage() {
+    assertThatThrownBy(() ->
+        Notification.create(mock(User.class), mock(Review.class),
+            NotificationType.COMMENT, ""))
+        .isInstanceOf(IllegalArgumentException.class);
+  }
+
+  @Test
+  @DisplayName("알림 목록 조회 - 다음 페이지 존재 (hasNext=true)")
+  void findAll_hasNext() {
+    // given
+    UUID userId = UUID.randomUUID();
+    int limit = 2;
+
+    User mockUser = mock(User.class);
+    Review mockReview = mock(Review.class);
+    given(mockUser.getId()).willReturn(UUID.randomUUID());
+    given(mockReview.getId()).willReturn(UUID.randomUUID());
+
+    Notification n1 = mock(Notification.class);
+    Notification n2 = mock(Notification.class);
+    Notification n3 = mock(Notification.class);
+    given(n1.getUser()).willReturn(mockUser);
+    given(n1.getReview()).willReturn(mockReview);
+    given(n2.getUser()).willReturn(mockUser);
+    given(n2.getReview()).willReturn(mockReview);
+    
+    given(notificationRepository.findByUserIdWithCursor(
+        eq(userId), isNull(), any())
+    ).willReturn(List.of(n1, n2, n3));
+
+    // when
+    CursorPageResponse<NotificationDto> result =
+        notificationService.findAll(userId, null, limit);
+
+    // then
+    assertThat(result.hasNext()).isTrue();
+    assertThat(result.content()).hasSize(limit);
+  }
+  @Test
+  @DisplayName("본인 리뷰에 댓글 달면 알림 생성 안 함")
+  void createCommentNotification_selfComment() {
+    // given
+    UUID reviewId = UUID.randomUUID();
+    UUID reviewOwnerId = UUID.randomUUID();
+
+    Review review = mock(Review.class);
+    given(review.getUserId()).willReturn(reviewOwnerId);
+    given(reviewRepository.findById(reviewId)).willReturn(Optional.of(review));
+
+    // when - 리뷰 작성자가 본인 리뷰에 댓글
+    notificationService.createCommentNotification(reviewId, reviewOwnerId);
+
+    // then - 알림 생성 안 함
+    verify(notificationRepository, never()).save(any(Notification.class));
+  }
+
+  @Test
+  @DisplayName("본인 리뷰에 좋아요 누르면 알림 생성 안 함")
+  void createLikeNotification_selfLike() {
+    // given
+    UUID reviewId = UUID.randomUUID();
+    UUID reviewOwnerId = UUID.randomUUID();
+
+    Review review = mock(Review.class);
+    given(review.getUserId()).willReturn(reviewOwnerId);
+    given(reviewRepository.findById(reviewId)).willReturn(Optional.of(review));
+
+    // when - 리뷰 작성자가 본인 리뷰에 좋아요
+    notificationService.createLikeNotification(reviewId, reviewOwnerId);
+
+    // then - 알림 생성 안 함
+    verify(notificationRepository, never()).save(any(Notification.class));
+  }
+
+
+  @Test
+  @DisplayName("랭킹 알림 중복 생성 방지 - 이미 알림 존재 시 저장 안 함")
+  void createRankingNotification_duplicate_notSaved() {
+    // given
+    UUID reviewId = UUID.randomUUID();
+    String period = "DAILY";
+    String message = "리뷰가 " + period + " TOP10에 선정되었습니다.";
+
+    given(notificationRepository.existsByReviewIdAndTypeAndMessage(
+        reviewId, NotificationType.POPULAR_REVIEW, message))
+        .willReturn(true);
+
+    // when
+    notificationService.createRankingNotification(reviewId, period);
+
+    // then
+    verify(notificationRepository, never()).save(any());
+  }
+
+  @Test
+  @DisplayName("랭킹 알림 생성 - 기간별로 다른 알림은 각각 생성된다")
+  void createRankingNotification_differentPeriod_saved() {
+    // given
+    UUID reviewId = UUID.randomUUID();
+    UUID reviewOwnerId = UUID.randomUUID();
+
+    Review review = mock(Review.class);
+    User user = mock(User.class);
+    given(review.getUserId()).willReturn(reviewOwnerId);
+    given(reviewRepository.findById(reviewId)).willReturn(Optional.of(review));
+    given(userRepository.findById(reviewOwnerId)).willReturn(Optional.of(user));
+
+    given(notificationRepository.existsByReviewIdAndTypeAndMessage(
+        eq(reviewId), eq(NotificationType.POPULAR_REVIEW), contains("DAILY")))
+        .willReturn(false);
+
+    given(notificationRepository.existsByReviewIdAndTypeAndMessage(
+        eq(reviewId), eq(NotificationType.POPULAR_REVIEW), contains("WEEKLY")))
+        .willReturn(true);
+
+    // when
+    notificationService.createRankingNotification(reviewId, "DAILY");
+    notificationService.createRankingNotification(reviewId, "WEEKLY");
+
+    // then - DAILY만 저장, WEEKLY는 중복이라 저장 안 함
+    verify(notificationRepository, times(1)).save(any());
+  }
+}
