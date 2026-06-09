@@ -32,10 +32,10 @@ public class OcrClient {
   private static final String SCALE_PART_NAME = "scale";
   private static final String OCR_ENGINE_PART_NAME = "OCREngine";
 
-  private static final String LANGUAGE_KOREAN = "kor";
+  private static final String LANGUAGE_ENGLISH = "eng";
   private static final String FALSE = "false";
   private static final String TRUE = "true";
-  private static final String OCR_ENGINE_1 = "1";
+  private static final String OCR_ENGINE_2 = "2";
 
   private final RestTemplate restTemplate;
   private final OcrProperties properties;
@@ -57,11 +57,11 @@ public class OcrClient {
 
     MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
     body.add(FILE_PART_NAME, toFileResource(image));
-    body.add(LANGUAGE_PART_NAME, LANGUAGE_KOREAN);
+    body.add(LANGUAGE_PART_NAME, LANGUAGE_ENGLISH);
     body.add(IS_OVERLAY_REQUIRED_PART_NAME, FALSE);
     body.add(DETECT_ORIENTATION_PART_NAME, TRUE);
     body.add(SCALE_PART_NAME, TRUE);
-    body.add(OCR_ENGINE_PART_NAME, OCR_ENGINE_1);
+    body.add(OCR_ENGINE_PART_NAME, OCR_ENGINE_2);
 
     try {
       return restTemplate.postForObject(
