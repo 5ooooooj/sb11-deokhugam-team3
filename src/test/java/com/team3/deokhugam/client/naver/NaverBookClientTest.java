@@ -44,7 +44,7 @@ public class NaverBookClientTest {
 
   @Test
   @DisplayName("ISBN으로 네이버 도서 API를 호출하고 응답을 반환한다")
-  void searchBuIsbn() {
+  void searchByIsbn() {
     // given
     String isbn = "9788965402602";
 
