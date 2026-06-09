@@ -54,7 +54,7 @@ public class S3IntegrationTest {
 
     @Bean
     @Primary
-    public S3Client localStackS3Client(AwsProperties props) {
+    public S3Client localStackS3Client() {
       return S3Client.builder()
           .endpointOverride(localstack.getEndpointOverride(LocalStackContainer.Service.S3))
           .credentialsProvider(
@@ -72,7 +72,7 @@ public class S3IntegrationTest {
 
     @Bean
     @Primary
-    public S3Presigner localStackS3Presigner(AwsProperties props) {
+    public S3Presigner localStackS3Presigner() {
       return S3Presigner.builder()
           .endpointOverride(localstack.getEndpointOverride(LocalStackContainer.Service.S3))
           .credentialsProvider(
