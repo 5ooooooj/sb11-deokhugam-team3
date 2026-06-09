@@ -16,7 +16,7 @@ CREATE TABLE IF NOT EXISTS users (
 -- books 테이블 생성 --
 CREATE TABLE IF NOT EXISTS books (
                                      id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
-                                     user_id UUID NOT NULL,
+                                     user_id UUID,
                                      title VARCHAR(255) NOT NULL,
                                      author VARCHAR(255) NOT NULL,
                                      description TEXT NOT NULL,
@@ -29,6 +29,7 @@ CREATE TABLE IF NOT EXISTS books (
                                      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
                                      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
                                      deleted_at TIMESTAMPTZ,
+                                     CONSTRAINT fk_books_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
 );
 
 -- reviews 테이블 생성 --

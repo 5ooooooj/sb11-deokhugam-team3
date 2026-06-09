@@ -21,7 +21,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class Book extends SoftDeletableEntity {
 
-  @Column(name = "user_id", nullable = false, updatable = false)
+  @Column(name = "user_id", updatable = false)
   private UUID userId;
 
   @Column(nullable = false)
@@ -88,7 +88,7 @@ public class Book extends SoftDeletableEntity {
   }
 
   public void validateOwner(UUID requestUserId) {
-    if (!Objects.equals(this.userId, requestUserId)) {
+    if (userId == null || !Objects.equals(this.userId, requestUserId)) {
       throw new BookForbiddenException();
     }
   }
