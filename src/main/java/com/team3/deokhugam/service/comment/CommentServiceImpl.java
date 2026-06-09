@@ -42,6 +42,7 @@ public class CommentServiceImpl implements CommentService {
 
     Comment comment = Comment.create(review, user, request.content());
     commentRepository.save(comment);
+    review.increaseCommentCount();
 
     notificationService.createCommentNotification(
         request.reviewId(), request.userId()
@@ -74,6 +75,7 @@ public class CommentServiceImpl implements CommentService {
 
     comment.validateOwner(requestUserId);
     comment.softDelete();
+    comment.getReview().decreaseCommentCount();
   }
 
   @Override
