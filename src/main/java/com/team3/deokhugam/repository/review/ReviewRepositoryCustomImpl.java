@@ -79,7 +79,10 @@ public class ReviewRepositoryCustomImpl implements ReviewRepositoryCustom {
     if (!request.hasKeyword()) {
       return null;
     }
-    return review.content.containsIgnoreCase(request.keyword());
+    String keyword = request.keyword();
+    return review.content.containsIgnoreCase(keyword)
+        .or(review.user.nickname.containsIgnoreCase(keyword))
+        .or(review.book.title.containsIgnoreCase(keyword));
   }
 
   private BooleanExpression cursorCondition(ReviewSearchRequest request) {
