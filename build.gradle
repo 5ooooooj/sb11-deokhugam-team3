@@ -62,7 +62,6 @@ jacocoTestReport {
                     'com/team3/deokhugam/controller/admin/**',
                     'com/team3/deokhugam/batch/scheduler/**',
                     'com/team3/deokhugam/batch/exception/**',
-                    '**/batch/**'
             ])
         }))
     }
@@ -81,7 +80,6 @@ jacocoTestCoverageVerification {
 }
 
 // jacoco 테스트 커버리지 80% 강제 코드
-// 추후 개발 어느정도 진행 되면 활성화
 //jacocoTestCoverageVerification {
 //	violationRules {
 //		rule {

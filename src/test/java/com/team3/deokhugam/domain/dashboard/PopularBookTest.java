@@ -1,9 +1,8 @@
-package com.team3.deokhugam.domain;
+package com.team3.deokhugam.domain.dashboard;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.team3.deokhugam.batch.global.Period;
-import com.team3.deokhugam.domain.dashboard.PopularBook;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.UUID;

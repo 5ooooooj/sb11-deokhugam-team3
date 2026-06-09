@@ -4,7 +4,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 
 import com.team3.deokhugam.batch.global.Period;
-import com.team3.deokhugam.domain.dashboard.PopularBook;
 import com.team3.deokhugam.domain.dashboard.PopularReview;
 import java.math.BigDecimal;
 import java.time.Instant;
