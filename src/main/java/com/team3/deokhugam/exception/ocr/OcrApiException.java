@@ -8,4 +8,8 @@ public class OcrApiException extends DeokhugamException {
   public OcrApiException() {
     super(ErrorCode.OCR_API_FAILED);
   }
+
+  public OcrApiException(Throwable cause) {
+    super(ErrorCode.OCR_API_FAILED, cause);
+  }
 }

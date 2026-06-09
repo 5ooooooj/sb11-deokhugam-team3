@@ -8,4 +8,8 @@ public class InvalidOcrImageException extends DeokhugamException {
   public InvalidOcrImageException() {
     super(ErrorCode.INVALID_OCR_IMAGE);
   }
+
+  public InvalidOcrImageException(Throwable cause) {
+    super(ErrorCode.INVALID_OCR_IMAGE, cause);
+  }
 }

@@ -70,7 +70,14 @@ public class OcrClient {
           OcrResultDto.class
       );
     } catch (RestClientException e) {
-      log.warn("OCR Space API 호출 실패 - filename: {}", image.getOriginalFilename(), e);
+      log.warn(
+          "OCR Space API 호출 실패 - apiUrl: {}, filename: {}, size: {}, contentType: {}",
+          properties.apiUrl(),
+          image.getOriginalFilename(),
+          image.getSize(),
+          image.getContentType(),
+          e
+      );
       throw new OcrApiException();
     }
   }
@@ -91,7 +98,7 @@ public class OcrClient {
           image.getSize()
       );
     } catch (IOException e) {
-      throw new InvalidOcrImageException();
+      throw new InvalidOcrImageException(e);
     }
   }
 
