@@ -3,6 +3,8 @@ package com.team3.deokhugam.service.book;
 import com.team3.deokhugam.client.naver.NaverBookClient;
 import com.team3.deokhugam.client.naver.dto.NaverBookItemDto;
 import com.team3.deokhugam.client.naver.dto.NaverBookSearchDto;
+import com.team3.deokhugam.client.ocr.OcrClient;
+import com.team3.deokhugam.client.ocr.dto.OcrResultDto;
 import com.team3.deokhugam.domain.book.Book;
 import com.team3.deokhugam.dto.book.BookCreateRequest;
 import com.team3.deokhugam.dto.book.BookCursor;
@@ -15,6 +17,8 @@ import com.team3.deokhugam.exception.book.BookAlreadyExistsException;
 import com.team3.deokhugam.exception.book.BookInfoNotFoundException;
 import com.team3.deokhugam.exception.book.BookNotFoundException;
 import com.team3.deokhugam.exception.book.InvalidBookIsbnException;
+import com.team3.deokhugam.exception.ocr.InvalidOcrImageException;
+import com.team3.deokhugam.exception.ocr.OcrIsbnNotFoundException;
 import com.team3.deokhugam.global.dto.CursorPageResponse;
 import com.team3.deokhugam.repository.book.BookRepository;
 import com.team3.deokhugam.service.s3.S3Service;
@@ -23,14 +27,17 @@ import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.List;
 import java.util.Locale;
+import java.util.Optional;
 import java.util.UUID;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
+import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.util.HtmlUtils;
 
@@ -40,10 +47,17 @@ import org.springframework.web.util.HtmlUtils;
 @Transactional(readOnly = true)
 public class BookService {
 
-  // -과 공백 제거 후 ISBN-10 or 13 허용, ISBN-10 은 맨뒤 X 허용
   private static final Pattern ISBN_PATTERN = Pattern.compile("^(\\d{9}[\\dX]|\\d{13})$");
 
-  // Naver pubdate는 yyyyMMdd 형식이므로 ISO_DATE 사용
+  private static final Pattern ISBN_WITH_LABEL_PATTERN =
+      Pattern.compile("(?i)ISBN(?:-1[03])?\\s*[:：]?\\s*([0-9Xx][0-9Xx\\s-]{8,25})");
+
+  private static final Pattern ISBN_13_FALLBACK_PATTERN =
+      Pattern.compile("(?<!\\d)(97[89][0-9\\s-]{10,25})(?!\\d)");
+
+  private static final Pattern ISBN_10_FALLBACK_PATTERN =
+      Pattern.compile("(?<!\\d)(\\d[0-9\\s-]{7,20}[0-9Xx])(?!\\d)");
+
   private static final DateTimeFormatter NAVER_PUBLISHED_DATE_FORMATTER =
       DateTimeFormatter.BASIC_ISO_DATE;
 
@@ -52,6 +66,8 @@ public class BookService {
   private final S3Service s3Service;
 
   private final NaverBookClient naverBookClient;
+
+  private final OcrClient ocrClient;
 
   @Transactional
   public BookDto create(UUID requestUserId, BookCreateRequest request,
@@ -102,6 +118,25 @@ public class BookService {
         .orElseThrow(BookInfoNotFoundException::new);
 
     return toBookInfoDto(item, normalizedIsbn);
+  }
+
+  public String recognizeIsbn(MultipartFile image) {
+    validateOcrImage(image);
+
+    OcrResultDto ocrResult = ocrClient.parseImage(image);
+
+    if (ocrResult == null || ocrResult.hasProcessingError()) {
+      throw new OcrIsbnNotFoundException();
+    }
+
+    String parsedText = ocrResult.mergedParsedText();
+
+    if (!StringUtils.hasText(parsedText)) {
+      throw new OcrIsbnNotFoundException();
+    }
+
+    return extractIsbn(parsedText)
+        .orElseThrow(OcrIsbnNotFoundException::new);
   }
 
   public CursorPageResponse<BookDto> search(BookSearchRequest request) {
@@ -256,6 +291,107 @@ public class BookService {
     } catch (DateTimeParseException e) {
       return null;
     }
+  }
+
+  private void validateOcrImage(MultipartFile image) {
+    if (image == null || image.isEmpty()) {
+      throw new InvalidOcrImageException();
+    }
+
+    String contentType = image.getContentType();
+
+    if (contentType == null || !contentType.toLowerCase(Locale.ROOT).startsWith("image/")) {
+      throw new InvalidOcrImageException();
+    }
+  }
+
+  private Optional<String> extractIsbn(String parsedText) {
+    return findValidIsbn(ISBN_WITH_LABEL_PATTERN, parsedText)
+        .or(() -> findValidIsbn(ISBN_13_FALLBACK_PATTERN, parsedText))
+        .or(() -> findValidIsbn(ISBN_10_FALLBACK_PATTERN, parsedText));
+  }
+
+  private Optional<String> findValidIsbn(Pattern pattern, String parsedText) {
+    Matcher matcher = pattern.matcher(parsedText);
+
+    while (matcher.find()) {
+      String normalizedCandidate = normalizeIsbnCandidate(matcher.group(1));
+
+      if (normalizedCandidate != null && isValidIsbn(normalizedCandidate)) {
+        return Optional.of(normalizedCandidate);
+      }
+    }
+
+    return Optional.empty();
+  }
+
+  private String normalizeIsbnCandidate(String candidate) {
+    if (candidate == null) {
+      return null;
+    }
+
+    String normalizedCandidate = candidate.replaceAll("[^0-9Xx]", "")
+        .toUpperCase(Locale.ROOT);
+
+    if (!ISBN_PATTERN.matcher(normalizedCandidate).matches()) {
+      return null;
+    }
+
+    return normalizedCandidate;
+  }
+
+  private boolean isValidIsbn(String isbn) {
+    if (isbn.length() == 10) {
+      return isValidIsbn10(isbn);
+    }
+
+    if (isbn.length() == 13) {
+      return isValidIsbn13(isbn);
+    }
+
+    return false;
+  }
+
+  private boolean isValidIsbn10(String isbn) {
+    int sum = 0;
+
+    for (int i = 0; i < 10; i++) {
+      char ch = isbn.charAt(i);
+      int value;
+
+      if (i == 9 && ch == 'X') {
+        value = 10;
+      } else if (Character.isDigit(ch)) {
+        value = ch - '0';
+      } else {
+        return false;
+      }
+
+      sum += value * (10 - i);
+    }
+
+    return sum % 11 == 0;
+  }
+
+  private boolean isValidIsbn13(String isbn) {
+    if (!isbn.startsWith("978") && !isbn.startsWith("979")) {
+      return false;
+    }
+
+    int sum = 0;
+
+    for (int i = 0; i < 13; i++) {
+      char ch = isbn.charAt(i);
+
+      if (!Character.isDigit(ch)) {
+        return false;
+      }
+
+      int digit = ch - '0';
+      sum += i % 2 == 0 ? digit : digit * 3;
+    }
+
+    return sum % 10 == 0;
   }
 
   private String uploadThumbnailIfPresent(
