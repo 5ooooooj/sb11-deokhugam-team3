@@ -264,12 +264,12 @@ public class BookService {
   private BookInfoDto toBookInfoDto(NaverBookItemDto item, String normalizedIsbn) {
     return new BookInfoDto(
         cleanHtml(item.title()),
-        cleanHtml(item.author()),
+        cleanNaverAuthor(item.author()),
         cleanHtml(item.description()),
         cleanHtml(item.publisher()),
         parsePublishedDate(item.pubdate()),
         normalizedIsbn,
-        item.image()
+        naverBookClient.downloadImageAsBase64(item.image())
     );
   }
 
@@ -279,6 +279,16 @@ public class BookService {
     }
 
     return HtmlUtils.htmlUnescape(value.replaceAll("<[^>]*>", "")).trim();
+  }
+
+  private String cleanNaverAuthor(String value) {
+    String cleaned = cleanHtml(value);
+
+    if(cleaned == null) {
+      return null;
+    }
+
+    return cleaned.replaceAll("\\s*\\^\\s*", ", ");
   }
 
   private LocalDate parsePublishedDate(String pubdate) {

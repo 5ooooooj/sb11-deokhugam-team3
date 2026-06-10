@@ -4,11 +4,12 @@ import com.team3.deokhugam.client.ocr.dto.OcrResultDto;
 import com.team3.deokhugam.exception.ocr.InvalidOcrImageException;
 import com.team3.deokhugam.exception.ocr.OcrApiException;
 import com.team3.deokhugam.global.config.OcrProperties;
-import java.io.IOException;
-import java.io.InputStream;
+import com.team3.deokhugam.service.image.ImageOptimizer;
+import com.team3.deokhugam.service.image.ImageOptimizer.OptimizedImage;
+import java.io.ByteArrayInputStream;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.core.io.InputStreamResource;
+import org.springframework.core.io.ByteArrayResource;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -36,27 +37,33 @@ public class OcrClient {
   private static final String FALSE = "false";
   private static final String TRUE = "true";
   private static final String OCR_ENGINE_2 = "2";
+  private static final long MAX_OCR_IMAGE_SIZE_BYTES = 1_500_000L;
 
   private final RestTemplate restTemplate;
   private final OcrProperties properties;
+  private final ImageOptimizer imageOptimizer;
 
   public OcrClient(
       @Qualifier("ocrRestTemplate") RestTemplate restTemplate,
-      OcrProperties properties
+      OcrProperties properties,
+      ImageOptimizer imageOptimizer
   ) {
     this.restTemplate = restTemplate;
     this.properties = properties;
+    this.imageOptimizer = imageOptimizer;
   }
 
   public OcrResultDto parseImage(MultipartFile image) {
     validateProperties();
+
+    OptimizedImage optimizedImage = optimizeImageForOcr(image);
 
     HttpHeaders headers = new HttpHeaders();
     headers.setContentType(MediaType.MULTIPART_FORM_DATA);
     headers.set(OCR_API_KEY_HEADER, properties.apiKey());
 
     MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
-    body.add(FILE_PART_NAME, toFileResource(image));
+    body.add(FILE_PART_NAME, toFileResource(optimizedImage));
     body.add(LANGUAGE_PART_NAME, LANGUAGE_ENGLISH);
     body.add(IS_OVERLAY_REQUIRED_PART_NAME, FALSE);
     body.add(DETECT_ORIENTATION_PART_NAME, TRUE);
@@ -71,11 +78,12 @@ public class OcrClient {
       );
     } catch (RestClientException e) {
       log.warn(
-          "OCR Space API 호출 실패 - apiUrl: {}, filename: {}, size: {}, contentType: {}",
+          "OCR Space API 호출 실패 - apiUrl: {}, filename: {}, originalSize: {}, uploadSize: {}, contentType: {}",
           properties.apiUrl(),
           image.getOriginalFilename(),
           image.getSize(),
-          image.getContentType(),
+          optimizedImage.size(),
+          optimizedImage.contentType(),
           e
       );
       throw new OcrApiException();
@@ -90,25 +98,36 @@ public class OcrClient {
     }
   }
 
-  private MultipartInputStreamFileResource toFileResource(MultipartFile image) {
-    try {
-      return new MultipartInputStreamFileResource(
-          image.getInputStream(),
-          image.getOriginalFilename(),
-          image.getSize()
-      );
-    } catch (IOException e) {
-      throw new InvalidOcrImageException(e);
-    }
+  private OptimizedImage optimizeImageForOcr(MultipartFile image) {
+    return imageOptimizer.optimize(image, MAX_OCR_IMAGE_SIZE_BYTES)
+        .orElseThrow(() -> {
+          log.warn(
+              "OCR 이미지 압축 실패 또는 크기 제한 초과 - filename: {}, size: {}, max: {}, contentType: {}",
+              image.getOriginalFilename(),
+              image.getSize(),
+              MAX_OCR_IMAGE_SIZE_BYTES,
+              image.getContentType()
+          );
+          return new InvalidOcrImageException();
+        });
   }
 
-  private static class MultipartInputStreamFileResource extends InputStreamResource {
+  private MultipartByteArrayResource toFileResource(OptimizedImage image) {
+    return new MultipartByteArrayResource(
+        image.bytes(),
+        image.filename(),
+        image.size()
+    );
+  }
+
+  private static class MultipartByteArrayResource extends ByteArrayResource {
+
     private final String filename;
     private final long contentLength;
 
-    public MultipartInputStreamFileResource(InputStream inputStream, String filename, long contentLength) {
-      super(inputStream);
-      this.filename = StringUtils.hasText(filename) ? filename : "ocr-image";
+    public MultipartByteArrayResource(byte[] byteArray, String filename, long contentLength) {
+      super(byteArray);
+      this.filename = StringUtils.hasText(filename) ? filename : "ocr-image.jpg";
       this.contentLength = contentLength;
     }
 
@@ -120,6 +139,11 @@ public class OcrClient {
     @Override
     public long contentLength() {
       return contentLength;
+    }
+
+    @Override
+    public ByteArrayInputStream getInputStream() {
+      return new ByteArrayInputStream(getByteArray());
     }
   }
 }

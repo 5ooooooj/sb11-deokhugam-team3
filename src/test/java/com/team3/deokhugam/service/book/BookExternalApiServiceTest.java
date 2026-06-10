@@ -81,7 +81,10 @@ class BookExternalApiServiceTest {
     assertThat(result.description()).isEqualTo("스프링 & AWS 실습서");
     assertThat(result.publishedDate()).isEqualTo(LocalDate.of(2019, 11, 29));
     assertThat(result.isbn()).isEqualTo(normalizedIsbn);
-    assertThat(result.thumbnailImage()).isEqualTo("https://example.com/book.jpg");
+
+    when(naverBookClient.downloadImageAsBase64("https://example.com/book.jpg"))
+        .thenReturn("base64-thumbnail");
+    assertThat(result.thumbnailImage()).isEqualTo("base64-thumbnail");
 
     verify(naverBookClient).searchByIsbn(normalizedIsbn);
   }
@@ -380,5 +383,35 @@ class BookExternalApiServiceTest {
         MediaType.IMAGE_JPEG_VALUE,
         "test-image".getBytes()
     );
+  }
+
+  @Test
+  @DisplayName("네이버 author 값의 ^ 구분자를 쉼표로 변환한다")
+  void findBookInfoByIsbnWithMultipleAuthors() {
+    // given
+    String isbn = "9788965402602";
+
+    NaverBookSearchDto response =
+        naverResponse(
+            naverItem(
+                "테스트 도서",
+                "윤영빈^서용욱^박인상^정상온",
+                "테스트 출판사",
+                "8965402609 9788965402602",
+                "테스트 설명",
+                "20260101"
+            )
+        );
+
+    when(naverBookClient.searchByIsbn(isbn)).thenReturn(response);
+    when(naverBookClient.downloadImageAsBase64("https://example.com/book.jpg"))
+        .thenReturn("base64-thumbnail");
+
+    // when
+    BookInfoDto result = bookService.findBookInfoByIsbn(isbn);
+
+    // then
+    assertThat(result.author()).isEqualTo("윤영빈, 서용욱, 박인상, 정상온");
+    assertThat(result.thumbnailImage()).isEqualTo("base64-thumbnail");
   }
 }
