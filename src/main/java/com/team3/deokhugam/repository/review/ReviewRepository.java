@@ -21,4 +21,10 @@ public interface ReviewRepository extends JpaRepository<Review, UUID>, ReviewRep
   @Modifying
   @Query("UPDATE Review r SET r.likeCount = r.likeCount - 1 WHERE r.id = :reviewId AND r.likeCount > 0")
   void decrementLikeCount(@Param("reviewId") UUID reviewId);
+
+  @Query("SELECT COALESCE(AVG(r.rating), 0) FROM Review r WHERE r.book.id = :bookId AND r.deletedAt IS NULL")
+  double findAverageRatingByBookId(@Param("bookId") UUID bookId);
+
+  @Query("SELECT COUNT(r) FROM Review r WHERE r.book.id = :bookId AND r.deletedAt IS NULL")
+  int countActiveByBookId(@Param("bookId") UUID bookId);
 }
