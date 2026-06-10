@@ -7,6 +7,7 @@ import java.awt.Color;
 import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.util.Optional;
 import javax.imageio.ImageIO;
 import org.junit.jupiter.api.DisplayName;
@@ -229,6 +230,136 @@ class ImageOptimizerTest {
     assertThat(result.get().filename()).isEqualTo("transparent.jpg");
     assertThat(result.get().contentType()).isEqualTo(MediaType.IMAGE_JPEG_VALUE);
     assertThat(result.get().size()).isLessThanOrEqualTo(maxBytes);
+  }
+
+  @Test
+  @DisplayName("MultipartFile 바이트 조회에 실패하면 Optional.empty를 반환한다")
+  void optimize_withMultipartFileGetBytesFailure_returnsEmpty() {
+    // given
+    MockMultipartFile image =
+        new MockMultipartFile(
+            "image",
+            "book.jpg",
+            MediaType.IMAGE_JPEG_VALUE,
+            "test-image".getBytes()
+        ) {
+          @Override
+          public byte[] getBytes() throws IOException {
+            throw new IOException("파일 읽기 실패");
+          }
+        };
+
+    // when
+    Optional<OptimizedImage> result = imageOptimizer.optimize(image, 1_500_000L);
+
+    // then
+    assertThat(result).isEmpty();
+  }
+
+  @Test
+  @DisplayName("이미지 contentType이지만 실제 이미지 바이트가 아니면 Optional.empty를 반환한다")
+  void optimize_withInvalidImageBytesAndImageContentType_returnsEmpty() {
+    // given
+    byte[] invalidImageBytes = "not-image".repeat(100).getBytes();
+
+    // when
+    Optional<OptimizedImage> result =
+        imageOptimizer.optimize(
+            invalidImageBytes,
+            "invalid.jpg",
+            MediaType.IMAGE_JPEG_VALUE,
+            10L
+        );
+
+    // then
+    assertThat(result).isEmpty();
+  }
+
+  @Test
+  @DisplayName("contentType이 대문자 IMAGE/JPEG여도 이미지로 처리한다")
+  void optimize_withUpperCaseImageContentType_returnsOriginalImage() throws Exception {
+    // given
+    byte[] imageBytes = createJpegImageBytes(100, 100);
+
+    // when
+    Optional<OptimizedImage> result =
+        imageOptimizer.optimize(
+            imageBytes,
+            "book.jpg",
+            "IMAGE/JPEG",
+            imageBytes.length + 1L
+        );
+
+    // then
+    assertThat(result).isPresent();
+    assertThat(result.get().bytes()).isEqualTo(imageBytes);
+    assertThat(result.get().filename()).isEqualTo("book.jpg");
+    assertThat(result.get().contentType()).isEqualTo("IMAGE/JPEG");
+    assertThat(result.get().size()).isEqualTo(imageBytes.length);
+  }
+
+  @Test
+  @DisplayName("파일명이 공백이면 기본 파일명을 사용한다")
+  void optimize_withBlankFilename_usesDefaultFilename() throws Exception {
+    // given
+    byte[] imageBytes = createJpegImageBytes(100, 100);
+
+    // when
+    Optional<OptimizedImage> result =
+        imageOptimizer.optimize(
+            imageBytes,
+            " ",
+            MediaType.IMAGE_JPEG_VALUE,
+            imageBytes.length + 1L
+        );
+
+    // then
+    assertThat(result).isPresent();
+    assertThat(result.get().filename()).isEqualTo("image.jpg");
+    assertThat(result.get().contentType()).isEqualTo(MediaType.IMAGE_JPEG_VALUE);
+    assertThat(result.get().size()).isEqualTo(imageBytes.length);
+  }
+
+  @Test
+  @DisplayName("압축이 필요한 이미지의 확장자는 jpg로 변환한다")
+  void optimize_withPngFilename_convertsFilenameToJpgAfterCompression() throws Exception {
+    // given
+    byte[] imageBytes = createJpegImageBytes(2000, 2000);
+    long maxBytes = imageBytes.length - 1L;
+
+    // when
+    Optional<OptimizedImage> result =
+        imageOptimizer.optimize(
+            imageBytes,
+            "book-cover.png",
+            MediaType.IMAGE_PNG_VALUE,
+            maxBytes
+        );
+
+    // then
+    assertThat(result).isPresent();
+    assertThat(result.get().filename()).isEqualTo("book-cover.jpg");
+    assertThat(result.get().contentType()).isEqualTo(MediaType.IMAGE_JPEG_VALUE);
+    assertThat(result.get().size()).isLessThanOrEqualTo(maxBytes);
+  }
+
+  @Test
+  @DisplayName("압축 후에도 제한 용량 이하로 줄일 수 없으면 Optional.empty를 반환한다")
+  void optimize_whenCannotCompressUnderMaxBytes_returnsEmpty() throws Exception {
+    // given
+    byte[] imageBytes = createJpegImageBytes(2000, 2000);
+
+    // when
+    Optional<OptimizedImage> result =
+        imageOptimizer.optimize(
+            imageBytes,
+            "book.jpg",
+            MediaType.IMAGE_JPEG_VALUE,
+            1L
+        );
+
+    // then
+    assertThat(result).isEmpty();
   }
 
   private byte[] createTransparentPngImageBytes(int width, int height) throws Exception {
