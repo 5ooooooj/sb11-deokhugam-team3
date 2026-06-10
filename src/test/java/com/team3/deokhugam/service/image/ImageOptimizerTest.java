@@ -128,4 +128,65 @@ class ImageOptimizerTest {
 
     return outputStream.toByteArray();
   }
+
+  @Test
+  @DisplayName("파일명이 null이면 기본 파일명을 사용한다")
+  void optimize_withNullFilename_usesDefaultFilename() throws Exception {
+    // given
+    byte[] imageBytes = createJpegImageBytes(100, 100);
+
+    // when
+    Optional<OptimizedImage> result =
+        imageOptimizer.optimize(
+            imageBytes,
+            null,
+            MediaType.IMAGE_JPEG_VALUE,
+            imageBytes.length + 1
+        );
+
+    // then
+    assertThat(result).isPresent();
+    assertThat(result.get().filename()).isEqualTo("image.jpg");
+  }
+
+  @Test
+  @DisplayName("contentType이 null이면 기본 이미지 contentType을 사용한다")
+  void optimize_withNullContentType_usesDefaultContentType() throws Exception {
+    // given
+    byte[] imageBytes = createJpegImageBytes(100, 100);
+
+    // when
+    Optional<OptimizedImage> result =
+        imageOptimizer.optimize(
+            imageBytes,
+            "book.jpg",
+            null,
+            imageBytes.length + 1
+        );
+
+    // then
+    assertThat(result).isPresent();
+    assertThat(result.get().contentType()).isEqualTo(MediaType.IMAGE_JPEG_VALUE);
+  }
+
+  @Test
+  @DisplayName("확장자가 없는 파일명은 jpg 확장자를 붙인다")
+  void optimize_withFilenameWithoutExtension_convertsToJpgFilename() throws Exception {
+    // given
+    byte[] imageBytes = createJpegImageBytes(2000, 2000);
+    long maxBytes = Math.max(20_000L, imageBytes.length / 3);
+
+    // when
+    Optional<OptimizedImage> result =
+        imageOptimizer.optimize(
+            imageBytes,
+            "book-cover",
+            MediaType.IMAGE_PNG_VALUE,
+            maxBytes
+        );
+
+    // then
+    assertThat(result).isPresent();
+    assertThat(result.get().filename()).isEqualTo("book-cover.jpg");
+  }
 }
