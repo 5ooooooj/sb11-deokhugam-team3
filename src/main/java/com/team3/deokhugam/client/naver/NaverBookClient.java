@@ -122,7 +122,7 @@ public class NaverBookClient {
           .map(optimizedImage -> Base64.getEncoder().encodeToString(optimizedImage.bytes()))
           .orElseGet(() -> {
             log.warn(
-                "네이버 썸네일 이미지 압축 실패 또는 크기 제한 초과 - originalSiz: {}, max: {}, imageUrl: {}",
+                "네이버 썸네일 이미지 압축 실패 또는 크기 제한 초과 - originalSize: {}, max: {}, imageUrl: {}",
                 imageBytes.length, MAX_THUMBNAIL_IMAGE_SIZE_BYTES, imageUrl
             );
             return null;

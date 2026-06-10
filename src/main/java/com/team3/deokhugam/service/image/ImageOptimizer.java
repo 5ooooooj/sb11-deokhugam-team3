@@ -77,8 +77,11 @@ public class ImageOptimizer {
       return Optional.empty();
     }
 
-    OptimizedImage smallestImage = null;
+    OptimizedImage smallestCandidate = null;
 
+    // 가장 작은 이미지가 아니라, 제한 용량 이하를 만족하는 고품질 이미지를 우선 선택합니다.
+    // TARGET_WIDTHS와 JPEG_QUALITIES는 큰 해상도/높은 품질 순서로 정렬되어 있으므로,
+    // 첫 번째로 maxBytes 이하를 만족하는 결과를 반환하면 OCR 인식률과 썸네일 품질을 더 잘 유지할 수 있습니다.
     for (int targetWidth : TARGET_WIDTHS) {
       BufferedImage resizedImage = resizeIfNeeded(sourceImage, targetWidth);
 
@@ -97,8 +100,8 @@ public class ImageOptimizer {
                 compressedBytes.length
             );
 
-        if (smallestImage == null || optimizedImage.size() < smallestImage.size()) {
-          smallestImage = optimizedImage;
+        if (smallestCandidate == null || optimizedImage.size() < smallestCandidate.size()) {
+          smallestCandidate = optimizedImage;
         }
 
         if (optimizedImage.size() <= maxBytes) {
@@ -107,8 +110,8 @@ public class ImageOptimizer {
       }
     }
 
-    if (smallestImage != null && smallestImage.size() <= maxBytes) {
-      return Optional.of(smallestImage);
+    if (smallestCandidate != null && smallestCandidate.size() <= maxBytes) {
+      return Optional.of(smallestCandidate);
     }
 
     return Optional.empty();
