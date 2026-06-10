@@ -61,6 +61,10 @@ public class BookService {
   private static final DateTimeFormatter NAVER_PUBLISHED_DATE_FORMATTER =
       DateTimeFormatter.BASIC_ISO_DATE;
 
+  private static final int MAX_DESCRIPTION_LENGTH = 1000;
+
+  private static final String DESCRIPTION_ELLIPSIS = "...";
+
   private final BookRepository bookRepository;
 
   private final S3Service s3Service;
@@ -265,7 +269,7 @@ public class BookService {
     return new BookInfoDto(
         cleanHtml(item.title()),
         cleanNaverAuthor(item.author()),
-        cleanHtml(item.description()),
+        normalizeDescription(item.description()),
         cleanHtml(item.publisher()),
         parsePublishedDate(item.pubdate()),
         normalizedIsbn,
@@ -284,11 +288,29 @@ public class BookService {
   private String cleanNaverAuthor(String value) {
     String cleaned = cleanHtml(value);
 
-    if(cleaned == null) {
+    if (cleaned == null) {
       return null;
     }
 
     return cleaned.replaceAll("\\s*\\^\\s*", ", ");
+  }
+
+  private String normalizeDescription(String value) {
+    String cleaned = cleanHtml(value);
+
+    if (cleaned == null) {
+      return null;
+    }
+
+    String normalized = cleaned.replaceAll("\\s+", " ").trim();
+
+    if (normalized.length() <= MAX_DESCRIPTION_LENGTH) {
+      return normalized;
+    }
+
+    int maxContentLength = MAX_DESCRIPTION_LENGTH - DESCRIPTION_ELLIPSIS.length();
+
+    return normalized.substring(0, maxContentLength).trim() + DESCRIPTION_ELLIPSIS;
   }
 
   private LocalDate parsePublishedDate(String pubdate) {

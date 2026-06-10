@@ -12,6 +12,7 @@ import static org.springframework.test.web.client.response.MockRestResponseCreat
 import com.team3.deokhugam.client.naver.dto.NaverBookSearchDto;
 import com.team3.deokhugam.exception.naver.NaverApiException;
 import com.team3.deokhugam.global.config.NaverProperties;
+import com.team3.deokhugam.service.image.ImageOptimizer;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -28,6 +29,7 @@ public class NaverBookClientTest {
 
   private RestTemplate restTemplate;
   private MockRestServiceServer server;
+  private ImageOptimizer imageOptimizer;
   private NaverBookClient naverBookClient;
 
   @BeforeEach
@@ -38,7 +40,8 @@ public class NaverBookClientTest {
     naverBookClient =
         new NaverBookClient(
             restTemplate,
-            new NaverProperties(CLIENT_ID, CLIENT_SECRET, BOOK_API_URL, 3000, 1)
+            new NaverProperties(CLIENT_ID, CLIENT_SECRET, BOOK_API_URL, 3000, 1),
+            imageOptimizer
         );
   }
 
@@ -97,7 +100,8 @@ public class NaverBookClientTest {
     NaverBookClient client =
         new NaverBookClient(
             restTemplate,
-            new NaverProperties("", CLIENT_SECRET, BOOK_API_URL, 3000, 1)
+            new NaverProperties("", CLIENT_SECRET, BOOK_API_URL, 3000, 1),
+            imageOptimizer
         );
 
     // when, then

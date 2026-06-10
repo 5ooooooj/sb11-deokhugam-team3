@@ -71,6 +71,9 @@ class BookExternalApiServiceTest {
 
     when(naverBookClient.searchByIsbn(normalizedIsbn)).thenReturn(response);
 
+    when(naverBookClient.downloadImageAsBase64("https://example.com/book.jpg"))
+        .thenReturn("base64-thumbnail");
+
     // when
     BookInfoDto result = bookService.findBookInfoByIsbn(isbn);
 
@@ -81,12 +84,10 @@ class BookExternalApiServiceTest {
     assertThat(result.description()).isEqualTo("스프링 & AWS 실습서");
     assertThat(result.publishedDate()).isEqualTo(LocalDate.of(2019, 11, 29));
     assertThat(result.isbn()).isEqualTo(normalizedIsbn);
-
-    when(naverBookClient.downloadImageAsBase64("https://example.com/book.jpg"))
-        .thenReturn("base64-thumbnail");
     assertThat(result.thumbnailImage()).isEqualTo("base64-thumbnail");
 
     verify(naverBookClient).searchByIsbn(normalizedIsbn);
+    verify(naverBookClient).downloadImageAsBase64("https://example.com/book.jpg");
   }
 
   @Test
@@ -413,5 +414,40 @@ class BookExternalApiServiceTest {
     // then
     assertThat(result.author()).isEqualTo("윤영빈, 서용욱, 박인상, 정상온");
     assertThat(result.thumbnailImage()).isEqualTo("base64-thumbnail");
+  }
+
+  @Test
+  @DisplayName("네이버 description이 1000자를 초과하면 말줄임표를 붙여 1000자 이하로 응답한다")
+  void findBookInfoByIsbnWithLongDescription() {
+    // given
+    String isbn = "9788965402602";
+    String longDescription = "가".repeat(1001);
+
+    NaverBookSearchDto response =
+        naverResponse(
+            naverItem(
+                "테스트 도서",
+                "테스트 저자",
+                "테스트 출판사",
+                "8965402609 9788965402602",
+                longDescription,
+                "20260101"
+            )
+        );
+
+    when(naverBookClient.searchByIsbn(isbn)).thenReturn(response);
+    when(naverBookClient.downloadImageAsBase64("https://example.com/book.jpg"))
+        .thenReturn("base64-thumbnail");
+
+    // when
+    BookInfoDto result = bookService.findBookInfoByIsbn(isbn);
+
+    // then
+    assertThat(result.description()).hasSize(1000);
+    assertThat(result.description()).endsWith("...");
+    assertThat(result.thumbnailImage()).isEqualTo("base64-thumbnail");
+
+    verify(naverBookClient).searchByIsbn(isbn);
+    verify(naverBookClient).downloadImageAsBase64("https://example.com/book.jpg");
   }
 }

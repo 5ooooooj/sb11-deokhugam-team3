@@ -12,6 +12,7 @@ import static org.springframework.test.web.client.response.MockRestResponseCreat
 import com.team3.deokhugam.client.ocr.dto.OcrResultDto;
 import com.team3.deokhugam.exception.ocr.OcrApiException;
 import com.team3.deokhugam.global.config.OcrProperties;
+import com.team3.deokhugam.service.image.ImageOptimizer;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -28,17 +29,20 @@ public class OcrClientTest {
 
   private RestTemplate restTemplate;
   private MockRestServiceServer server;
+  private ImageOptimizer imageOptimizer;
   private OcrClient ocrClient;
 
   @BeforeEach
   void setUp() {
     restTemplate = new RestTemplate();
     server = MockRestServiceServer.createServer(restTemplate);
+    imageOptimizer = new ImageOptimizer();
 
     ocrClient =
         new OcrClient(
             restTemplate,
-            new OcrProperties(OCR_API_KEY, OCR_API_URL, 15000, 1)
+            new OcrProperties(OCR_API_KEY, OCR_API_URL, 15000, 1),
+            imageOptimizer
         );
   }
 
@@ -102,7 +106,8 @@ public class OcrClientTest {
     OcrClient client =
         new OcrClient(
             restTemplate,
-            new OcrProperties("", OCR_API_URL, 15000, 1)
+            new OcrProperties("", OCR_API_URL, 15000, 1),
+            imageOptimizer
         );
 
     // when, then
