@@ -7,6 +7,7 @@ import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.util.Iterator;
+import java.util.Locale;
 import java.util.Optional;
 import javax.imageio.IIOImage;
 import javax.imageio.ImageIO;
@@ -51,6 +52,10 @@ public class ImageOptimizer {
       long maxBytes
   ) {
     if (imageBytes == null || imageBytes.length == 0) {
+      return Optional.empty();
+    }
+
+    if (hasNonImageContentType(contentType)) {
       return Optional.empty();
     }
 
@@ -206,6 +211,11 @@ public class ImageOptimizer {
     } finally {
       writer.dispose();
     }
+  }
+
+  private boolean hasNonImageContentType(String contentType) {
+    return StringUtils.hasText(contentType)
+        && !contentType.toLowerCase(Locale.ROOT).startsWith("image/");
   }
 
   private String resolveFilename(String originalFilename) {
