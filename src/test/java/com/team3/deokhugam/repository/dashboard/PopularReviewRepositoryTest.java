@@ -157,4 +157,41 @@ class PopularReviewRepositoryTest extends BaseRepositoryTest {
 
     assertThat(count).isEqualTo(2);
   }
+
+  @Test
+  @DisplayName("성공: 동순위 인기 리뷰는 리뷰 등록일 최신순(createdAt Desc)으로 정렬")
+  void findPopularReviewsByPeriod_sameRank_orderedByReviewCreatedAtDesc() {
+    // given: 동순위(ranking=1) 데이터 추가
+    em.persist(PopularReview.builder()
+        .reviewId(reviewId2)
+        .period(Period.MONTHLY)
+        .score(BigDecimal.valueOf(100))
+        .ranking(1)
+        .likeCount(10)
+        .commentCount(5)
+        .calculatedAt(Instant.now())
+        .build());
+
+    em.persist(PopularReview.builder()
+        .reviewId(reviewId1)
+        .period(Period.MONTHLY)
+        .score(BigDecimal.valueOf(100))
+        .ranking(1)
+        .likeCount(10)
+        .commentCount(5)
+        .calculatedAt(Instant.now())
+        .build());
+
+    em.flush();
+    em.clear();
+
+    // when
+    List<PopularReviewDto> result = popularReviewRepository
+        .findPopularReviewsByPeriod(Period.MONTHLY, PageRequest.of(0, 10));
+
+    // then: review2가 더 나중에 등록됐으므로 앞에 와야 함
+    assertThat(result).hasSize(2);
+    assertThat(result.get(0).reviewId()).isEqualTo(reviewId2);
+    assertThat(result.get(1).reviewId()).isEqualTo(reviewId1);
+  }
 }
