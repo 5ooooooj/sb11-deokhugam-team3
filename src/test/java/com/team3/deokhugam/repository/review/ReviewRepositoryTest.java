@@ -332,4 +332,70 @@ class ReviewRepositoryTest {
     assertThatThrownBy(() -> reviewRepository.search(request))
         .isInstanceOf(DeokhugamException.class);
   }
+
+  @Test
+  @DisplayName("keyword로 작성자 닉네임 부분 일치 검색이 동작한다")
+  void searchByKeyword_nickname() {
+    User user = entityManager.persist(
+        new User("nick-search-" + UUID.randomUUID() + "@test.com", "repo-닉네임검색대상", "Password1!"));
+    Book book = persistBook();
+
+    reviewRepository.saveAll(List.of(
+        review().user(user).book(book).content("아무 내용").build()
+    ));
+
+    ReviewSearchRequest request = ReviewSearchRequest.of(
+        null, null, "repo-닉네임검색대상",
+        ReviewOrderBy.CREATED_AT, Sort.Direction.DESC,
+        null, 10, UUID.randomUUID()
+    );
+
+    List<Review> result = reviewRepository.search(request);
+
+    assertThat(result).hasSize(1);
+  }
+
+  @Test
+  @DisplayName("keyword로 도서 제목 부분 일치 검색이 동작한다")
+  void searchByKeyword_bookTitle() {
+    User user = persistUser();
+    Book book = entityManager.persist(new Book(
+        UUID.randomUUID(), "repo-도서제목검색대상", "테스트 저자", "테스트 설명",
+        "테스트 출판사", LocalDate.of(2026, 1, 1), null, null));
+
+    reviewRepository.saveAll(List.of(
+        review().user(user).book(book).content("아무 내용").build()
+    ));
+
+    ReviewSearchRequest request = ReviewSearchRequest.of(
+        null, null, "repo-도서제목검색대상",
+        ReviewOrderBy.CREATED_AT, Sort.Direction.DESC,
+        null, 10, UUID.randomUUID()
+    );
+
+    List<Review> result = reviewRepository.search(request);
+
+    assertThat(result).hasSize(1);
+  }
+
+  @Test
+  @DisplayName("likeCount 증가 시 updatedAt이 변경되지 않는다")
+  void incrementLikeCount_doesNotChangeUpdatedAt() {
+    Review review = review().user(persistUser()).book(persistBook()).build();
+    Review saved = reviewRepository.save(review);
+    entityManager.flush();
+    entityManager.clear();
+
+    Instant before = reviewRepository.findById(saved.getId()).orElseThrow().getUpdatedAt();
+    entityManager.clear();
+
+    reviewRepository.incrementLikeCount(saved.getId());
+    entityManager.flush();
+    entityManager.clear();
+
+    Review found = reviewRepository.findById(saved.getId()).orElseThrow();
+
+    assertThat(found.getLikeCount()).isEqualTo(1);
+    assertThat(found.getUpdatedAt()).isEqualTo(before);
+  }
 }

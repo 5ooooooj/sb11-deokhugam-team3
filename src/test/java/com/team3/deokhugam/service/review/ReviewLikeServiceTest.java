@@ -53,7 +53,7 @@ class ReviewLikeServiceTest {
   }
 
   @Test
-  @DisplayName("좋아요가 없던 리뷰에 누르면 추가되고 like_count가 +1, liked=true")
+  @DisplayName("좋아요가 없던 리뷰에 누르면 추가되고 like_count 증가 쿼리가 호출되며 liked=true")
   void toggleLike_add() {
     when(reviewRepository.findById(reviewId)).thenReturn(Optional.of(review));
     when(reviewLikeRepository.findByReview_IdAndUser_Id(reviewId, userId))
@@ -66,14 +66,13 @@ class ReviewLikeServiceTest {
     assertThat(result.liked()).isTrue();
     assertThat(result.reviewId()).isEqualTo(reviewId);
     assertThat(result.userId()).isEqualTo(userId);
-    assertThat(review.getLikeCount()).isEqualTo(1);
     verify(reviewLikeRepository).saveAndFlush(any(ReviewLike.class));
+    verify(reviewRepository).incrementLikeCount(reviewId);
   }
 
   @Test
-  @DisplayName("이미 좋아요한 리뷰에 다시 누르면 취소되고 like_count가 -1, liked=false")
+  @DisplayName("이미 좋아요한 리뷰에 다시 누르면 취소되고 like_count 감소 쿼리가 호출되며 liked=false")
   void toggleLike_cancel() {
-    review.increaseLikeCount();
     ReviewLike existing = ReviewLike.create(review, new User("a@b.com", "닉", "pw"));
     when(reviewRepository.findById(reviewId)).thenReturn(Optional.of(review));
     when(reviewLikeRepository.findByReview_IdAndUser_Id(reviewId, userId))
@@ -82,8 +81,8 @@ class ReviewLikeServiceTest {
     ReviewLikeDto result = reviewLikeService.toggleLike(reviewId, userId);
 
     assertThat(result.liked()).isFalse();
-    assertThat(review.getLikeCount()).isZero();
     verify(reviewLikeRepository).delete(existing);
+    verify(reviewRepository).decrementLikeCount(reviewId);
     verify(notificationService, never()).createLikeNotification(any(), any());
   }
 

@@ -17,6 +17,8 @@ import com.team3.deokhugam.repository.book.BookRepository;
 import com.team3.deokhugam.repository.review.ReviewLikeRepository;
 import com.team3.deokhugam.repository.review.ReviewRepository;
 import com.team3.deokhugam.repository.user.UserRepository;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import java.util.HashSet;
@@ -55,6 +57,7 @@ public class ReviewService {
     Review review = Review.create(user, book, request.rating(), request.content());
 
     Review saved = reviewRepository.save(review);
+    recalculateBookRating(saved.getBookId());
     return ReviewDto.from(saved);
   }
 
@@ -63,6 +66,7 @@ public class ReviewService {
       ReviewUpdateRequest request) {
     Review review = findOwnedReview(reviewId, requestUserId);
     review.update(request.rating(), request.content());
+    recalculateBookRating(review.getBookId());
     boolean likedByMe =
         reviewLikeRepository.existsByReview_IdAndUser_Id(reviewId, requestUserId);
     return ReviewDto.from(review, likedByMe);
@@ -72,12 +76,15 @@ public class ReviewService {
   public void deleteReview(UUID reviewId, UUID requestUserId) {
     Review review = findOwnedReview(reviewId, requestUserId);
     review.softDelete();
+    recalculateBookRating(review.getBookId());
   }
 
   @Transactional
   public void hardDeleteReview(UUID reviewId, UUID requestUserId) {
     Review review = findOwnedReview(reviewId, requestUserId);
+    UUID bookId = review.getBookId();
     reviewRepository.delete(review);
+    recalculateBookRating(bookId);
   }
 
   @Transactional(readOnly = true)
@@ -124,6 +131,13 @@ public class ReviewService {
         totalElements,
         hasNext
     );
+  }
+
+  private void recalculateBookRating(UUID bookId) {
+    double average = reviewRepository.findAverageRatingByBookId(bookId);
+    int reviewCount = reviewRepository.countActiveByBookId(bookId);
+    BigDecimal rating = BigDecimal.valueOf(average).setScale(2, RoundingMode.HALF_UP);
+    bookRepository.updateRatingStats(bookId, rating, reviewCount);
   }
 
   private String buildNextCursor(Review review, ReviewOrderBy orderBy) {

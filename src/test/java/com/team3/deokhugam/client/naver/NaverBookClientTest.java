@@ -8,13 +8,34 @@ import static org.springframework.test.web.client.match.MockRestRequestMatchers.
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withServerError;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
+import static org.springframework.test.web.client.response.MockRestResponseCreators.withStatus;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
+import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 
 import com.team3.deokhugam.client.naver.dto.NaverBookSearchDto;
 import com.team3.deokhugam.exception.naver.NaverApiException;
 import com.team3.deokhugam.global.config.NaverProperties;
+import com.team3.deokhugam.service.image.ImageOptimizer;
+import com.team3.deokhugam.service.image.ImageOptimizer.OptimizedImage;
+
+import java.util.Base64;
+import java.util.Optional;
+import java.awt.Color;
+import java.awt.Graphics2D;
+import java.awt.image.BufferedImage;
+import java.io.ByteArrayOutputStream;
+import javax.imageio.ImageIO;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.client.MockRestServiceServer;
@@ -28,6 +49,7 @@ public class NaverBookClientTest {
 
   private RestTemplate restTemplate;
   private MockRestServiceServer server;
+  private ImageOptimizer imageOptimizer;
   private NaverBookClient naverBookClient;
 
   @BeforeEach
@@ -35,10 +57,13 @@ public class NaverBookClientTest {
     restTemplate = new RestTemplate();
     server = MockRestServiceServer.createServer(restTemplate);
 
+    imageOptimizer = org.mockito.Mockito.mock(ImageOptimizer.class);
+
     naverBookClient =
         new NaverBookClient(
             restTemplate,
-            new NaverProperties(CLIENT_ID, CLIENT_SECRET, BOOK_API_URL, 3000, 1)
+            new NaverProperties(CLIENT_ID, CLIENT_SECRET, BOOK_API_URL, 3000, 1),
+            imageOptimizer
         );
   }
 
@@ -97,7 +122,8 @@ public class NaverBookClientTest {
     NaverBookClient client =
         new NaverBookClient(
             restTemplate,
-            new NaverProperties("", CLIENT_SECRET, BOOK_API_URL, 3000, 1)
+            new NaverProperties("", CLIENT_SECRET, BOOK_API_URL, 3000, 1),
+            imageOptimizer
         );
 
     // when, then
@@ -119,6 +145,259 @@ public class NaverBookClientTest {
     // when, then
     assertThatThrownBy(() -> naverBookClient.searchByIsbn(isbn))
         .isInstanceOf(NaverApiException.class);
+
+    server.verify();
+  }
+
+  @Test
+  @DisplayName("네이버 썸네일 URL이 비어 있으면 null을 반환한다")
+  void downloadImageAsBase64WithBlankUrl() {
+    // when
+    String result = naverBookClient.downloadImageAsBase64(" ");
+
+    // then
+    assertThat(result).isNull();
+  }
+
+  @Test
+  @DisplayName("네이버 썸네일 URL 형식이 올바르지 않으면 null을 반환한다")
+  void downloadImageAsBase64WithInvalidUrl() {
+    // when
+    String result = naverBookClient.downloadImageAsBase64("http://[invalid-url");
+
+    // then
+    assertThat(result).isNull();
+  }
+
+  @Test
+  @DisplayName("네이버 썸네일 URL 스킴이 http 또는 https가 아니면 null을 반환한다")
+  void downloadImageAsBase64WithUnsupportedScheme() {
+    // when
+    String result = naverBookClient.downloadImageAsBase64("ftp://example.com/book.jpg");
+
+    // then
+    assertThat(result).isNull();
+  }
+
+  @Test
+  @DisplayName("네이버 썸네일 다운로드가 실패하면 null을 반환한다")
+  void downloadImageAsBase64WithDownloadFailure() {
+    // given
+    String imageUrl = "https://example.com/book.jpg";
+
+    server.expect(once(), requestTo(imageUrl))
+        .andExpect(method(HttpMethod.GET))
+        .andRespond(withServerError());
+
+    // when
+    String result = naverBookClient.downloadImageAsBase64(imageUrl);
+
+    // then
+    assertThat(result).isNull();
+
+    server.verify();
+  }
+
+  @Test
+  @DisplayName("네이버 썸네일 다운로드에 성공하면 Base64 문자열을 반환한다")
+  void downloadImageAsBase64WithSuccess() {
+    // given
+    String imageUrl = "https://example.com/book.jpg";
+    byte[] downloadedImageBytes = "downloaded-image".getBytes();
+    byte[] optimizedImageBytes = "optimized-image".getBytes();
+
+    server.expect(once(), requestTo(imageUrl))
+        .andExpect(method(HttpMethod.GET))
+        .andRespond(withSuccess(downloadedImageBytes, MediaType.IMAGE_JPEG));
+
+    when(imageOptimizer.optimize(
+        any(byte[].class),
+        anyString(),
+        anyString(),
+        anyLong()
+    )).thenReturn(
+        Optional.of(
+            new OptimizedImage(
+                optimizedImageBytes,
+                "book.jpg",
+                MediaType.IMAGE_JPEG_VALUE,
+                optimizedImageBytes.length
+            )
+        )
+    );
+
+    // when
+    String result = naverBookClient.downloadImageAsBase64(imageUrl);
+
+    // then
+    assertThat(result).isEqualTo(Base64.getEncoder().encodeToString(optimizedImageBytes));
+
+    server.verify();
+  }
+
+  private byte[] createJpegImageBytes(int width, int height) throws Exception {
+    BufferedImage image = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
+    Graphics2D graphics = image.createGraphics();
+
+    try {
+      graphics.setColor(Color.WHITE);
+      graphics.fillRect(0, 0, width, height);
+      graphics.setColor(Color.BLACK);
+      graphics.drawString("ISBN 978-89-6540-260-2", 10, 20);
+    } finally {
+      graphics.dispose();
+    }
+
+    ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+    ImageIO.write(image, "jpg", outputStream);
+
+    return outputStream.toByteArray();
+  }
+
+  @Test
+  @DisplayName("네이버 썸네일 응답 body가 비어 있으면 null을 반환한다")
+  void downloadImageAsBase64WithEmptyBody() {
+    // given
+    String imageUrl = "https://example.com/book.jpg";
+
+    server.expect(once(), requestTo(imageUrl))
+        .andExpect(method(HttpMethod.GET))
+        .andRespond(withSuccess(new byte[0], MediaType.IMAGE_JPEG));
+
+    // when
+    String result = naverBookClient.downloadImageAsBase64(imageUrl);
+
+    // then
+    assertThat(result).isNull();
+
+    verify(imageOptimizer, never()).optimize(
+        any(byte[].class),
+        anyString(),
+        anyString(),
+        anyLong()
+    );
+
+    server.verify();
+  }
+
+  @Test
+  @DisplayName("네이버 썸네일 최적화에 실패하면 null을 반환한다")
+  void downloadImageAsBase64WithOptimizationFailure() {
+    // given
+    String imageUrl = "https://example.com/book.jpg";
+    byte[] downloadedImageBytes = "downloaded-image".getBytes();
+
+    server.expect(once(), requestTo(imageUrl))
+        .andExpect(method(HttpMethod.GET))
+        .andRespond(withSuccess(downloadedImageBytes, MediaType.IMAGE_JPEG));
+
+    when(imageOptimizer.optimize(
+        any(byte[].class),
+        eq("book.jpg"),
+        eq(MediaType.IMAGE_JPEG_VALUE),
+        anyLong()
+    )).thenReturn(Optional.empty());
+
+    // when
+    String result = naverBookClient.downloadImageAsBase64(imageUrl);
+
+    // then
+    assertThat(result).isNull();
+
+    verify(imageOptimizer).optimize(
+        any(byte[].class),
+        eq("book.jpg"),
+        eq(MediaType.IMAGE_JPEG_VALUE),
+        anyLong()
+    );
+
+    server.verify();
+  }
+
+  @Test
+  @DisplayName("네이버 썸네일 URL path가 없으면 기본 파일명을 사용한다")
+  void downloadImageAsBase64WithEmptyPathUsesDefaultFilename() {
+    // given
+    String imageUrl = "https://example.com";
+    byte[] downloadedImageBytes = "downloaded-image".getBytes();
+    byte[] optimizedImageBytes = "optimized-image".getBytes();
+
+    server.expect(once(), requestTo(imageUrl))
+        .andExpect(method(HttpMethod.GET))
+        .andRespond(withSuccess(downloadedImageBytes, MediaType.IMAGE_JPEG));
+
+    when(imageOptimizer.optimize(
+        any(byte[].class),
+        eq("naver-thumbnail.jpg"),
+        eq(MediaType.IMAGE_JPEG_VALUE),
+        anyLong()
+    )).thenReturn(
+        Optional.of(
+            new OptimizedImage(
+                optimizedImageBytes,
+                "naver-thumbnail.jpg",
+                MediaType.IMAGE_JPEG_VALUE,
+                optimizedImageBytes.length
+            )
+        )
+    );
+
+    // when
+    String result = naverBookClient.downloadImageAsBase64(imageUrl);
+
+    // then
+    assertThat(result).isEqualTo(Base64.getEncoder().encodeToString(optimizedImageBytes));
+
+    verify(imageOptimizer).optimize(
+        any(byte[].class),
+        eq("naver-thumbnail.jpg"),
+        eq(MediaType.IMAGE_JPEG_VALUE),
+        anyLong()
+    );
+
+    server.verify();
+  }
+
+  @Test
+  @DisplayName("네이버 썸네일 응답 Content-Type이 없으면 null contentType으로 최적화한다")
+  void downloadImageAsBase64WithNullContentType() {
+    // given
+    String imageUrl = "https://example.com/book.jpg";
+    byte[] downloadedImageBytes = "downloaded-image".getBytes();
+    byte[] optimizedImageBytes = "optimized-image".getBytes();
+
+    server.expect(once(), requestTo(imageUrl))
+        .andExpect(method(HttpMethod.GET))
+        .andRespond(withStatus(HttpStatus.OK).body(downloadedImageBytes));
+
+    when(imageOptimizer.optimize(
+        any(byte[].class),
+        eq("book.jpg"),
+        isNull(),
+        anyLong()
+    )).thenReturn(
+        Optional.of(
+            new OptimizedImage(
+                optimizedImageBytes,
+                "book.jpg",
+                MediaType.IMAGE_JPEG_VALUE,
+                optimizedImageBytes.length
+            )
+        )
+    );
+
+    // when
+    String result = naverBookClient.downloadImageAsBase64(imageUrl);
+
+    // then
+    assertThat(result).isEqualTo(Base64.getEncoder().encodeToString(optimizedImageBytes));
+
+    verify(imageOptimizer).optimize(
+        any(byte[].class),
+        eq("book.jpg"),
+        isNull(),
+        anyLong()
+    );
 
     server.verify();
   }
