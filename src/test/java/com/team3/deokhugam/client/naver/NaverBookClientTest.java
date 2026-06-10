@@ -8,10 +8,15 @@ import static org.springframework.test.web.client.match.MockRestRequestMatchers.
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withServerError;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
+import static org.springframework.test.web.client.response.MockRestResponseCreators.withStatus;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 
 import com.team3.deokhugam.client.naver.dto.NaverBookSearchDto;
 import com.team3.deokhugam.exception.naver.NaverApiException;
@@ -30,6 +35,7 @@ import javax.imageio.ImageIO;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.client.MockRestServiceServer;
@@ -246,5 +252,153 @@ public class NaverBookClientTest {
     ImageIO.write(image, "jpg", outputStream);
 
     return outputStream.toByteArray();
+  }
+
+  @Test
+  @DisplayName("네이버 썸네일 응답 body가 비어 있으면 null을 반환한다")
+  void downloadImageAsBase64WithEmptyBody() {
+    // given
+    String imageUrl = "https://example.com/book.jpg";
+
+    server.expect(once(), requestTo(imageUrl))
+        .andExpect(method(HttpMethod.GET))
+        .andRespond(withSuccess(new byte[0], MediaType.IMAGE_JPEG));
+
+    // when
+    String result = naverBookClient.downloadImageAsBase64(imageUrl);
+
+    // then
+    assertThat(result).isNull();
+
+    verify(imageOptimizer, never()).optimize(
+        any(byte[].class),
+        anyString(),
+        anyString(),
+        anyLong()
+    );
+
+    server.verify();
+  }
+
+  @Test
+  @DisplayName("네이버 썸네일 최적화에 실패하면 null을 반환한다")
+  void downloadImageAsBase64WithOptimizationFailure() {
+    // given
+    String imageUrl = "https://example.com/book.jpg";
+    byte[] downloadedImageBytes = "downloaded-image".getBytes();
+
+    server.expect(once(), requestTo(imageUrl))
+        .andExpect(method(HttpMethod.GET))
+        .andRespond(withSuccess(downloadedImageBytes, MediaType.IMAGE_JPEG));
+
+    when(imageOptimizer.optimize(
+        any(byte[].class),
+        eq("book.jpg"),
+        eq(MediaType.IMAGE_JPEG_VALUE),
+        anyLong()
+    )).thenReturn(Optional.empty());
+
+    // when
+    String result = naverBookClient.downloadImageAsBase64(imageUrl);
+
+    // then
+    assertThat(result).isNull();
+
+    verify(imageOptimizer).optimize(
+        any(byte[].class),
+        eq("book.jpg"),
+        eq(MediaType.IMAGE_JPEG_VALUE),
+        anyLong()
+    );
+
+    server.verify();
+  }
+
+  @Test
+  @DisplayName("네이버 썸네일 URL path가 없으면 기본 파일명을 사용한다")
+  void downloadImageAsBase64WithEmptyPathUsesDefaultFilename() {
+    // given
+    String imageUrl = "https://example.com";
+    byte[] downloadedImageBytes = "downloaded-image".getBytes();
+    byte[] optimizedImageBytes = "optimized-image".getBytes();
+
+    server.expect(once(), requestTo(imageUrl))
+        .andExpect(method(HttpMethod.GET))
+        .andRespond(withSuccess(downloadedImageBytes, MediaType.IMAGE_JPEG));
+
+    when(imageOptimizer.optimize(
+        any(byte[].class),
+        eq("naver-thumbnail.jpg"),
+        eq(MediaType.IMAGE_JPEG_VALUE),
+        anyLong()
+    )).thenReturn(
+        Optional.of(
+            new OptimizedImage(
+                optimizedImageBytes,
+                "naver-thumbnail.jpg",
+                MediaType.IMAGE_JPEG_VALUE,
+                optimizedImageBytes.length
+            )
+        )
+    );
+
+    // when
+    String result = naverBookClient.downloadImageAsBase64(imageUrl);
+
+    // then
+    assertThat(result).isEqualTo(Base64.getEncoder().encodeToString(optimizedImageBytes));
+
+    verify(imageOptimizer).optimize(
+        any(byte[].class),
+        eq("naver-thumbnail.jpg"),
+        eq(MediaType.IMAGE_JPEG_VALUE),
+        anyLong()
+    );
+
+    server.verify();
+  }
+
+  @Test
+  @DisplayName("네이버 썸네일 응답 Content-Type이 없으면 null contentType으로 최적화한다")
+  void downloadImageAsBase64WithNullContentType() {
+    // given
+    String imageUrl = "https://example.com/book.jpg";
+    byte[] downloadedImageBytes = "downloaded-image".getBytes();
+    byte[] optimizedImageBytes = "optimized-image".getBytes();
+
+    server.expect(once(), requestTo(imageUrl))
+        .andExpect(method(HttpMethod.GET))
+        .andRespond(withStatus(HttpStatus.OK).body(downloadedImageBytes));
+
+    when(imageOptimizer.optimize(
+        any(byte[].class),
+        eq("book.jpg"),
+        isNull(),
+        anyLong()
+    )).thenReturn(
+        Optional.of(
+            new OptimizedImage(
+                optimizedImageBytes,
+                "book.jpg",
+                MediaType.IMAGE_JPEG_VALUE,
+                optimizedImageBytes.length
+            )
+        )
+    );
+
+    // when
+    String result = naverBookClient.downloadImageAsBase64(imageUrl);
+
+    // then
+    assertThat(result).isEqualTo(Base64.getEncoder().encodeToString(optimizedImageBytes));
+
+    verify(imageOptimizer).optimize(
+        any(byte[].class),
+        eq("book.jpg"),
+        isNull(),
+        anyLong()
+    );
+
+    server.verify();
   }
 }

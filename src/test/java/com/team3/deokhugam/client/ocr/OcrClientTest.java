@@ -9,6 +9,15 @@ import static org.springframework.test.web.client.match.MockRestRequestMatchers.
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withServerError;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
 
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+import java.util.Optional;
+
+import com.team3.deokhugam.exception.ocr.InvalidOcrImageException;
 import com.team3.deokhugam.client.ocr.dto.OcrResultDto;
 import com.team3.deokhugam.exception.ocr.OcrApiException;
 import com.team3.deokhugam.global.config.OcrProperties;
@@ -136,5 +145,36 @@ public class OcrClientTest {
         .isInstanceOf(OcrApiException.class);
 
     server.verify();
+  }
+
+  @Test
+  @DisplayName("OCR 이미지 최적화에 실패하면 InvalidOcrImageException이 발생한다")
+  void parseImageWithOptimizationFailure() {
+    // given
+    MockMultipartFile image =
+        new MockMultipartFile(
+            "image",
+            "book.jpg",
+            MediaType.IMAGE_JPEG_VALUE,
+            "test-image".getBytes()
+        );
+
+    ImageOptimizer failingImageOptimizer = mock(ImageOptimizer.class);
+
+    OcrClient client =
+        new OcrClient(
+            restTemplate,
+            new OcrProperties(OCR_API_KEY, OCR_API_URL, 15000, 1),
+            failingImageOptimizer
+        );
+
+    when(failingImageOptimizer.optimize(eq(image), anyLong()))
+        .thenReturn(Optional.empty());
+
+    // when, then
+    assertThatThrownBy(() -> client.parseImage(image))
+        .isInstanceOf(InvalidOcrImageException.class);
+
+    verify(failingImageOptimizer).optimize(eq(image), anyLong());
   }
 }

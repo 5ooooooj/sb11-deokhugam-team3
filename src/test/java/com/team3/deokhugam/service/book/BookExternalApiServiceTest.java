@@ -450,4 +450,38 @@ class BookExternalApiServiceTest {
     verify(naverBookClient).searchByIsbn(isbn);
     verify(naverBookClient).downloadImageAsBase64("https://example.com/book.jpg");
   }
+
+  @Test
+  @DisplayName("네이버 author와 description이 null이면 null로 응답한다")
+  void findBookInfoByIsbnWithNullAuthorAndDescription() {
+    // given
+    String isbn = "9788965402602";
+
+    NaverBookSearchDto response =
+        naverResponse(
+            naverItem(
+                "테스트 도서",
+                null,
+                "테스트 출판사",
+                "8965402609 9788965402602",
+                null,
+                "20260101"
+            )
+        );
+
+    when(naverBookClient.searchByIsbn(isbn)).thenReturn(response);
+    when(naverBookClient.downloadImageAsBase64("https://example.com/book.jpg"))
+        .thenReturn("base64-thumbnail");
+
+    // when
+    BookInfoDto result = bookService.findBookInfoByIsbn(isbn);
+
+    // then
+    assertThat(result.author()).isNull();
+    assertThat(result.description()).isNull();
+    assertThat(result.thumbnailImage()).isEqualTo("base64-thumbnail");
+
+    verify(naverBookClient).searchByIsbn(isbn);
+    verify(naverBookClient).downloadImageAsBase64("https://example.com/book.jpg");
+  }
 }

@@ -130,6 +130,22 @@ class ImageOptimizerTest {
   }
 
   @Test
+  @DisplayName("byte 배열이 null이면 Optional.empty를 반환한다")
+  void optimize_withNullBytes_returnsEmpty() {
+    // when
+    Optional<OptimizedImage> result =
+        imageOptimizer.optimize(
+            null,
+            "book.jpg",
+            MediaType.IMAGE_JPEG_VALUE,
+            1_500_000L
+        );
+
+    // then
+    assertThat(result).isEmpty();
+  }
+
+  @Test
   @DisplayName("파일명이 null이면 기본 파일명을 사용한다")
   void optimize_withNullFilename_usesDefaultFilename() throws Exception {
     // given
@@ -170,11 +186,11 @@ class ImageOptimizerTest {
   }
 
   @Test
-  @DisplayName("확장자가 없는 파일명은 jpg 확장자를 붙인다")
+  @DisplayName("확장자가 없는 파일명은 압축 후 jpg 확장자를 붙인다")
   void optimize_withFilenameWithoutExtension_convertsToJpgFilename() throws Exception {
     // given
     byte[] imageBytes = createJpegImageBytes(2000, 2000);
-    long maxBytes = Math.max(20_000L, imageBytes.length / 3);
+    long maxBytes = imageBytes.length -1L;
 
     // when
     Optional<OptimizedImage> result =
@@ -188,5 +204,52 @@ class ImageOptimizerTest {
     // then
     assertThat(result).isPresent();
     assertThat(result.get().filename()).isEqualTo("book-cover.jpg");
+    assertThat(result.get().contentType()).isEqualTo(MediaType.IMAGE_JPEG_VALUE);
+    assertThat(result.get().size()).isLessThanOrEqualTo(maxBytes);
+  }
+
+  @Test
+  @DisplayName("투명 PNG 이미지는 JPEG 압축을 위해 RGB 이미지로 변환된다")
+  void optimize_withTransparentPng_convertsToJpeg() throws Exception {
+    // given
+    byte[] imageBytes = createTransparentPngImageBytes(1200, 1200);
+    long maxBytes = Math.max(10_000L, imageBytes.length - 1L);
+
+    // when
+    Optional<OptimizedImage> result =
+        imageOptimizer.optimize(
+            imageBytes,
+            "transparent.png",
+            MediaType.IMAGE_PNG_VALUE,
+            maxBytes
+        );
+
+    // then
+    assertThat(result).isPresent();
+    assertThat(result.get().filename()).isEqualTo("transparent.jpg");
+    assertThat(result.get().contentType()).isEqualTo(MediaType.IMAGE_JPEG_VALUE);
+    assertThat(result.get().size()).isLessThanOrEqualTo(maxBytes);
+  }
+
+  private byte[] createTransparentPngImageBytes(int width, int height) throws Exception {
+    BufferedImage image = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
+    Graphics2D graphics = image.createGraphics();
+
+    try {
+      graphics.setColor(new Color(255, 255, 255, 0));
+      graphics.fillRect(0, 0, width, height);
+      graphics.setColor(new Color(0, 0, 0, 180));
+
+      for (int y = 0; y < height; y += 40) {
+        graphics.drawString("ISBN 978-89-6540-260-2 테스트 텍스트", 20, y + 20);
+      }
+    } finally {
+      graphics.dispose();
+    }
+
+    ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+    ImageIO.write(image, "png", outputStream);
+
+    return outputStream.toByteArray();
   }
 }
