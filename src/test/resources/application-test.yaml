@@ -12,6 +12,11 @@ spring:
     driver-class-name: org.postgresql.Driver
     username: deokhugam
     password: deokhugam1234
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 5
+      connection-timeout: 30000
+      idle-timeout: 600000
 
   jpa:
     defer-datasource-initialization: true

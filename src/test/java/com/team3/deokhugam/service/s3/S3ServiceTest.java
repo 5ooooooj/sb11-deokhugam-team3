@@ -8,6 +8,7 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
+import com.team3.deokhugam.exception.s3.EmptyFileUploadException;
 import com.team3.deokhugam.exception.s3.S3DeleteException;
 import com.team3.deokhugam.exception.s3.S3UploadException;
 import com.team3.deokhugam.global.config.AwsProperties;
@@ -111,5 +112,18 @@ public class S3ServiceTest {
 
     assertThatThrownBy(() -> s3Service.delete(KEY))
         .isInstanceOf(S3DeleteException.class);
+  }
+
+  @Test
+  @DisplayName("실패: 빈 파일 업로드 시도")
+  void 빈_파일_업로드_실패() {
+    // given
+    MockMultipartFile emptyFile = new MockMultipartFile(
+        "image", "empty.jpg", "image/jpeg", new byte[0]
+    );
+
+    // when & then
+    assertThatThrownBy(() -> s3Service.upload(emptyFile, KEY))
+        .isInstanceOf(EmptyFileUploadException.class);
   }
 }
