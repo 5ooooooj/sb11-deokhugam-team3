@@ -16,9 +16,9 @@ public interface CommentService {
 
   void delete(UUID commentId, UUID requestUserId);
 
-  void hardDelete(UUID commentId);
+  void hardDelete(UUID commentId, UUID requestUserId);
 
   CommentDto findById(UUID commentId);
 
-  CursorPageResponse<CommentDto> findAll(UUID reviewId, Instant after, int size);
+  CursorPageResponse<CommentDto> findAll(UUID reviewId, Instant after, int limit);
 }

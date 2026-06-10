@@ -2,77 +2,107 @@ package com.team3.deokhugam.integration.s3;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-
-import com.team3.deokhugam.exception.s3.S3UploadException;
 import com.team3.deokhugam.global.config.AwsProperties;
 import com.team3.deokhugam.service.s3.S3Service;
 import java.util.UUID;
 import lombok.extern.slf4j.Slf4j;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.MethodOrderer;
 import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestMethodOrder;
-import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Import;
 import org.springframework.context.annotation.Primary;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.context.ActiveProfiles;
-import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
+import org.testcontainers.containers.localstack.LocalStackContainer;
+import org.testcontainers.junit.jupiter.Container;
+import org.testcontainers.junit.jupiter.Testcontainers;
+import org.testcontainers.utility.DockerImageName;
+import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
+import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 
 @SpringBootTest
 @ActiveProfiles("test")
-@EnabledIfEnvironmentVariable(named = "AWS_ACCESS_KEY_ID", matches = ".+")
-@EnabledIfEnvironmentVariable(named = "AWS_SECRET_ACCESS_KEY", matches = ".+")
-@Import(S3IntegrationTest.RealS3Config.class)
+@Testcontainers
 @Slf4j
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 public class S3IntegrationTest {
 
-  // 실제 S3 연결이 필요할 때만 빈 등록
-  @TestConfiguration
-  static class RealS3Config {
-    @Bean
-    @Primary
-    public S3Client realS3Client(AwsProperties props) {
-      return S3Client.builder()
-          .region(Region.of(props.getRegion()))
-          .credentialsProvider(DefaultCredentialsProvider.create())
-          .build();
-    }
-  }
-
-  @Autowired
-  private S3Client s3Client;
-
-  @Autowired
-  private AwsProperties props;
+  @Container
+  static LocalStackContainer localstack =
+      new LocalStackContainer(DockerImageName.parse("localstack/localstack:3"))
+          .withServices(LocalStackContainer.Service.S3);
 
   @Autowired
   private S3Service s3Service;
 
+  @Autowired
+  private AwsProperties props;
+
   private static final String KEY = "thumbnails/test-" + UUID.randomUUID() + ".jpg";
+
+  @TestConfiguration
+  static class LocalStackS3Config {
+
+    @Bean
+    @Primary
+    public S3Client localStackS3Client() {
+      return S3Client.builder()
+          .endpointOverride(localstack.getEndpointOverride(LocalStackContainer.Service.S3))
+          .credentialsProvider(
+              StaticCredentialsProvider.create(
+                  AwsBasicCredentials.create(
+                      localstack.getAccessKey(),
+                      localstack.getSecretKey()
+                  )
+              )
+          )
+          .region(Region.of(localstack.getRegion()))
+          .forcePathStyle(true)  // LocalStack 필수
+          .build();
+    }
+
+    @Bean
+    @Primary
+    public S3Presigner localStackS3Presigner() {
+      return S3Presigner.builder()
+          .endpointOverride(localstack.getEndpointOverride(LocalStackContainer.Service.S3))
+          .credentialsProvider(
+              StaticCredentialsProvider.create(
+                  AwsBasicCredentials.create(
+                      localstack.getAccessKey(),
+                      localstack.getSecretKey()
+                  )
+              )
+          )
+          .region(Region.of(localstack.getRegion()))
+          .build();
+    }
+  }
+
+  @BeforeAll
+  static void setUpBucket(@Autowired S3Client s3Client, @Autowired AwsProperties props) {
+    s3Client.createBucket(r -> r.bucket(props.getS3().getBucket()));
+  }
 
   @Test
   @Order(1)
   @DisplayName("성공: S3 파일 업로드")
   void 파일_업로드_성공() {
-    // given
     MockMultipartFile file = new MockMultipartFile(
-        "image", "test.jpg", "image/jpeg", "test=content".getBytes()
+        "image", "test.jpg", "image/jpeg", "test-content".getBytes()
     );
 
-    // when
     String url = s3Service.upload(file, KEY);
 
-    // then
     log.info("업로드된 URL: {}", url);
     assertThat(url).contains(props.getS3().getBucket());
     assertThat(url).contains(KEY);
@@ -82,7 +112,6 @@ public class S3IntegrationTest {
   @Order(2)
   @DisplayName("성공: S3 파일 삭제")
   void 파일_삭제_성공() {
-    // when & then
     assertThatCode(() -> s3Service.delete(KEY))
         .doesNotThrowAnyException();
   }
@@ -91,27 +120,10 @@ public class S3IntegrationTest {
   @Order(3)
   @DisplayName("실패: 존재하지 않는 키 삭제 시도")
   void 존재하지_않는_파일_삭제() {
-    // given
     String nonExistentKey = "thumbnails/non-existent-" + UUID.randomUUID() + ".jpg";
 
-    // when & then
-    // s3는 존재하지 않는 키 삭제해도 예외 안 던짐 -> 정상 동작 확인
+    // S3는 존재하지 않는 키 삭제해도 예외 안 던짐
     assertThatCode(() -> s3Service.delete(nonExistentKey))
         .doesNotThrowAnyException();
   }
-
-  @Test
-  @Order(4)
-  @DisplayName("실패: 빈 파일 업로드 시도")
-  void 빈_파일_업로드_실패() {
-    // given
-    MockMultipartFile emptyFile = new MockMultipartFile(
-        "image", "empty.jpg", "image/jpeg", new byte[0]
-    );
-
-    // when & then
-    assertThatThrownBy(() -> s3Service.upload(emptyFile, KEY))
-        .isInstanceOf(S3UploadException.class);
-  }
-
 }

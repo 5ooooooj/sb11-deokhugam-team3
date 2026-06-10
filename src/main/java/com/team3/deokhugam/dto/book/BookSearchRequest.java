@@ -8,29 +8,27 @@ public record BookSearchRequest(
     String keyword,
     BookOrderBy orderBy,
     Sort.Direction direction,
-    String cursor,
-    Instant after,
+    BookCursor cursor,
     int limit
 ) {
 
   private static final BookOrderBy DEFAULT_ORDER_BY = BookOrderBy.TITLE;
   private static final Sort.Direction DEFAULT_DIRECTION = Sort.Direction.DESC;
   private static final int DEFAULT_LIMIT = 50;
+  private static final int MAX_LIMIT = 100;
 
   public static BookSearchRequest of(
       String keyword,
-      String orderBy,
-      String direction,
+      BookOrderBy orderBy,
+      Sort.Direction direction,
       String cursor,
-      Instant after,
       Integer limit
   ) {
     return new BookSearchRequest(
         normalizeBlank(keyword),
-        parseOrderBy(orderBy),
-        parseDirection(direction),
-        normalizeBlank(cursor),
-        after,
+        resolveOrderBy(orderBy),
+        resolveDirection(direction),
+        parseCursor(cursor),
         parseLimit(limit)
     );
   }
@@ -42,8 +40,7 @@ public record BookSearchRequest(
         orderBy,
         direction,
         cursor,
-        after,
-        parseLimit(limit)
+        limit
     );
   }
 
@@ -52,35 +49,30 @@ public record BookSearchRequest(
   }
 
   public boolean hasCursor() {
-    return cursor != null && after != null && !cursor.isBlank();
+    return cursor != null;
   }
 
-  private static String normalizeKeyword(String keyword) {
-    if (keyword == null || keyword.isBlank()) {
-      return null;
-    }
-
-    return keyword.trim();
-  }
-
-  private static BookOrderBy parseOrderBy(String orderBy) {
-    if (orderBy == null || orderBy.isBlank()) {
+  private static BookOrderBy resolveOrderBy(BookOrderBy orderBy) {
+    if (orderBy == null) {
       return DEFAULT_ORDER_BY;
     }
 
-    return BookOrderBy.from(orderBy);
+    return orderBy;
   }
 
-  private static Sort.Direction parseDirection(String direction) {
-    if (direction == null || direction.isBlank()) {
+  private static Sort.Direction resolveDirection(Sort.Direction direction) {
+    if (direction == null) {
       return DEFAULT_DIRECTION;
     }
+    return direction;
+  }
 
-    try {
-      return Sort.Direction.fromString(direction);
-    } catch (IllegalArgumentException e) {
-      throw new InvalidBookSearchConditionException();
+  private static BookCursor parseCursor(String cursor) {
+    if (cursor == null || cursor.isBlank()) {
+      return null;
     }
+
+    return BookCursor.decode(cursor);
   }
 
   private static int parseLimit(Integer limit) {
@@ -88,7 +80,7 @@ public record BookSearchRequest(
       return DEFAULT_LIMIT;
     }
 
-    if (limit <= 0) {
+    if (limit <= 0 || limit > MAX_LIMIT) {
       throw new InvalidBookSearchConditionException();
     }
 

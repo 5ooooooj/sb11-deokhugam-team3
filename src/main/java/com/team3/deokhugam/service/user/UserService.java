@@ -5,7 +5,6 @@ import com.team3.deokhugam.dto.user.UserDto;
 import com.team3.deokhugam.domain.user.User;
 import com.team3.deokhugam.dto.user.UserUpdateRequest;
 import com.team3.deokhugam.exception.user.EmailAlreadyExistsException;
-import com.team3.deokhugam.exception.user.UserForbiddenException;
 import com.team3.deokhugam.exception.user.UserNotFoundException;
 import com.team3.deokhugam.global.lock.annotation.ApplicationLock;
 import com.team3.deokhugam.global.lock.domain.LockName;
@@ -80,5 +79,26 @@ public class UserService {
     user.updateNickname(request.nickname());
 
     return UserDto.from(user);
+  }
+
+  @Transactional
+  public void deleteUser(UUID userId, UUID loginUserId){
+    userPermissionValidator.validateSelf(userId, loginUserId);
+
+    User user = userRepository.findActiveById(userId)
+        .orElseThrow(UserNotFoundException::new);
+
+    user.softDelete();
+  }
+
+  // swagger, test를 위해서만 사용. 실제로는 논리삭제 후 batch로 삭제
+  @Transactional
+  public void hardDeleteUser(UUID userId, UUID loginUserId) {
+    userPermissionValidator.validateSelf(userId, loginUserId);
+
+    User user = userRepository.findById(userId)
+        .orElseThrow(UserNotFoundException::new);
+
+    userRepository.delete(user);
   }
 }

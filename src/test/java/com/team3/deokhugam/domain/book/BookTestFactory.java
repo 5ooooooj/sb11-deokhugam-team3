@@ -7,7 +7,7 @@ import java.util.UUID;
 import org.springframework.test.util.ReflectionTestUtils;
 
 public class BookTestFactory {
-
+  private UUID userId = UUID.fromString("00000000-0000-0000-0000-000000000001");
   private String title = "테스트 도서";
   private String author = "테스트 저자";
   private String description = "테스트 설명";
@@ -25,6 +25,11 @@ public class BookTestFactory {
 
   public static BookTestFactory book() {
     return new BookTestFactory();
+  }
+
+  public BookTestFactory userId(UUID userId) {
+    this.userId = userId;
+    return this;
   }
 
   public BookTestFactory title(String title) {
@@ -84,6 +89,7 @@ public class BookTestFactory {
 
   public Book build() {
     Book book = new Book(
+        userId,
         title,
         author,
         description,

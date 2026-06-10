@@ -21,18 +21,22 @@ public record ReviewDto(
 ) {
 
   public static ReviewDto from(Review review) {
+    return from(review, false);
+  }
+
+  public static ReviewDto from(Review review, boolean likedByMe) {
     return new ReviewDto(
         review.getId(),
         review.getBookId(),
-        null,
-        null,
+        review.getBook().getTitle(),
+        review.getBook().getThumbnailUrl(),
         review.getUserId(),
-        null,
+        review.getUser().getNickname(),
         review.getContent(),
         review.getRating(),
         review.getLikeCount(),
         review.getCommentCount(),
-        false,
+        likedByMe,
         review.getCreatedAt(),
         review.getUpdatedAt()
     );

@@ -1,6 +1,7 @@
 package com.team3.deokhugam.domain.book;
 
 import com.team3.deokhugam.domain.base.SoftDeletableEntity;
+import com.team3.deokhugam.exception.book.BookForbiddenException;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Table;
@@ -8,6 +9,8 @@ import jakarta.persistence.Table;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 
+import java.util.Objects;
+import java.util.UUID;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -18,48 +21,75 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class Book extends SoftDeletableEntity {
 
-    @Column(nullable = false)
-    private String title;
+  @Column(name = "user_id", updatable = false)
+  private UUID userId;
 
-    @Column(nullable = false)
-    private String author;
+  @Column(nullable = false)
+  private String title;
 
-    @Column(nullable = false, columnDefinition = "TEXT")
-    private String description;
+  @Column(nullable = false)
+  private String author;
 
-    @Column(nullable = false)
-    private String publisher;
+  @Column(nullable = false, columnDefinition = "TEXT")
+  private String description;
 
-    @Column(name = "published_date", nullable = false)
-    private LocalDate publishedDate;
+  @Column(nullable = false)
+  private String publisher;
 
-    @Column(unique = true)
-    private String isbn;
+  @Column(name = "published_date", nullable = false)
+  private LocalDate publishedDate;
 
-    @Column(name = "thumbnail_url")
-    private String thumbnailUrl;
+  @Column(unique = true)
+  private String isbn;
 
-    @Column(name = "review_count", nullable = false)
-    private int reviewCount = 0;
+  @Column(name = "thumbnail_url")
+  private String thumbnailUrl;
 
-    @Column(nullable = false, precision = 3, scale = 2)
-    private BigDecimal rating = BigDecimal.ZERO;
+  @Column(name = "review_count", nullable = false)
+  private int reviewCount = 0;
 
-    public Book(
-            String title,
-            String author,
-            String description,
-            String publisher,
-            LocalDate publishedDate,
-            String isbn,
-            String thumbnailUrl
-    ) {
-        this.title = title;
-        this.author = author;
-        this.description = description;
-        this.publisher = publisher;
-        this.publishedDate = publishedDate;
-        this.isbn = isbn;
-        this.thumbnailUrl = thumbnailUrl;
+  @Column(nullable = false, precision = 3, scale = 2)
+  private BigDecimal rating = BigDecimal.ZERO;
+
+  public Book(
+      UUID userId,
+      String title,
+      String author,
+      String description,
+      String publisher,
+      LocalDate publishedDate,
+      String isbn,
+      String thumbnailUrl
+  ) {
+    this.userId = userId;
+    this.title = title;
+    this.author = author;
+    this.description = description;
+    this.publisher = publisher;
+    this.publishedDate = publishedDate;
+    this.isbn = isbn;
+    this.thumbnailUrl = thumbnailUrl;
+  }
+
+  public void update(
+      String title,
+      String author,
+      String description,
+      String publisher,
+      LocalDate publishedDate,
+      String thumbnailUrl
+  ) {
+    this.title = title;
+    this.author = author;
+    this.description = description;
+    this.publisher = publisher;
+    this.publishedDate = publishedDate;
+    this.thumbnailUrl = thumbnailUrl;
+  }
+
+  public void validateOwner(UUID requestUserId) {
+    if (userId == null || !Objects.equals(this.userId, requestUserId)) {
+      throw new BookForbiddenException();
     }
+  }
 }

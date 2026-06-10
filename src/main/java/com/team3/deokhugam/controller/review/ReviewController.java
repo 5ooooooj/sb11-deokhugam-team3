@@ -1,18 +1,28 @@
 package com.team3.deokhugam.controller.review;
 
+import com.team3.deokhugam.dto.dashboard.PopularReviewDto;
 import com.team3.deokhugam.dto.review.ReviewCreateRequest;
 import com.team3.deokhugam.dto.review.ReviewDto;
+import com.team3.deokhugam.dto.review.ReviewLikeDto;
+import com.team3.deokhugam.dto.review.ReviewOrderBy;
+import com.team3.deokhugam.dto.review.ReviewSearchRequest;
 import com.team3.deokhugam.dto.review.ReviewUpdateRequest;
+import com.team3.deokhugam.global.dto.CursorPageResponse;
+import com.team3.deokhugam.service.dashboard.PopularReviewService;
+import com.team3.deokhugam.service.review.ReviewLikeService;
 import com.team3.deokhugam.service.review.ReviewService;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import java.time.Instant;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -23,6 +33,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @Tag(name = "리뷰 관리", description = "리뷰 관련 API")
@@ -32,6 +43,8 @@ import org.springframework.web.bind.annotation.RestController;
 public class ReviewController {
 
   private final ReviewService reviewService;
+  private final ReviewLikeService reviewLikeService;
+  private final PopularReviewService popularReviewService;
 
   @Operation(summary = "리뷰 등록", description = "새로운 리뷰를 등록합니다.")
   @ApiResponses({
@@ -63,6 +76,34 @@ public class ReviewController {
       @RequestHeader("Deokhugam-Request-User-ID") UUID requestUserId) {
     ReviewDto response = reviewService.getReview(reviewId, requestUserId);
     return ResponseEntity.ok(response);
+  }
+
+  @Operation(summary = "리뷰 목록 조회", description = "검색 조건에 맞는 리뷰 목록을 조회합니다.")
+  @ApiResponses({
+      @ApiResponse(responseCode = "200", description = "리뷰 목록 조회 성공"),
+      @ApiResponse(responseCode = "400", description = "잘못된 요청 (정렬 기준 오류, 페이지네이션 파라미터 오류, 요청자 ID 누락)"),
+      @ApiResponse(responseCode = "500", description = "서버 내부 오류")
+  })
+  @GetMapping
+  public CursorPageResponse<ReviewDto> searchReviews(
+      @Parameter(description = "작성자 ID", example = "123e4567-e89b-12d3-a456-426614174000")
+      @RequestParam(required = false) UUID userId,
+      @Parameter(description = "도서 ID", example = "123e4567-e89b-12d3-a456-426614174000")
+      @RequestParam(required = false) UUID bookId,
+      @Parameter(description = "검색 키워드 (내용)", example = "재밌어요")
+      @RequestParam(required = false) String keyword,
+      @Parameter(description = "정렬 기준 (createdAt | rating)", example = "createdAt")
+      @RequestParam(required = false, defaultValue = "createdAt") ReviewOrderBy orderBy,
+      @Parameter(description = "정렬 방향 (ASC | DESC)", example = "DESC")
+      @RequestParam(required = false, defaultValue = "DESC") Sort.Direction direction,
+      @Parameter(description = "다음 페이지 커서 (이전 응답의 nextCursor 값을 그대로 사용)")
+      @RequestParam(required = false) String cursor,
+      @Parameter(description = "페이지 크기 (미지정 시 50)", example = "50")
+      @RequestParam(required = false) Integer limit,
+      @RequestHeader("Deokhugam-Request-User-ID") UUID requestUserId) {
+    ReviewSearchRequest request = ReviewSearchRequest.of(
+        userId, bookId, keyword, orderBy, direction, cursor, limit, requestUserId);
+    return reviewService.searchReviews(request);
   }
 
   @Operation(summary = "리뷰 수정", description = "본인이 작성한 리뷰를 수정합니다.")
@@ -111,5 +152,42 @@ public class ReviewController {
       @RequestHeader("Deokhugam-Request-User-ID") UUID requestUserId) {
     reviewService.hardDeleteReview(reviewId, requestUserId);
     return ResponseEntity.noContent().build();
+  }
+
+  @Operation(summary = "리뷰 좋아요", description = "리뷰에 좋아요를 추가하거나 취소합니다.")
+  @ApiResponses({
+      @ApiResponse(responseCode = "200", description = "리뷰 좋아요 성공",
+          content = @Content(schema = @Schema(implementation = ReviewLikeDto.class))),
+      @ApiResponse(responseCode = "400", description = "잘못된 요청 (요청자 ID 누락)"),
+      @ApiResponse(responseCode = "404", description = "리뷰 정보 없음"),
+      @ApiResponse(responseCode = "500", description = "서버 내부 오류")
+  })
+  @PostMapping("/{reviewId}/like")
+  public ResponseEntity<ReviewLikeDto> likeReview(
+      @PathVariable UUID reviewId,
+      @RequestHeader("Deokhugam-Request-User-ID") UUID requestUserId) {
+    ReviewLikeDto response = reviewLikeService.toggleLike(reviewId, requestUserId);
+    return ResponseEntity.ok(response);
+  }
+
+  @Operation(summary = "인기 리뷰 목록 조회", description = "기간별 인기 리뷰 목록을 조회합니다")
+  @ApiResponses({
+      @ApiResponse(
+          responseCode = "200", description = "인기 리뷰 목록 조회 성공"),
+      @ApiResponse(
+          responseCode = "400", description = "잘못된 요청 (랭킹 기간 오류)"),
+      @ApiResponse(
+          responseCode = "500", description = "서버 내부 오류")
+  })
+  @GetMapping("/popular")
+  public CursorPageResponse<PopularReviewDto> getPopularReviews(
+      @RequestParam(defaultValue = "DAILY") String period,
+      // 프로토타입엔 정렬, 페이지네이션이 없지만 api 명세서 기준으로 있으므로 파라미터는 받괴 실제 사용 x, 여유되면 추후 구현
+      @RequestParam(defaultValue = "ASC") String direction,
+      @RequestParam(required = false) String cursor,
+      @RequestParam(required = false) Instant after,
+      @RequestParam(defaultValue = "50") int limit
+  ) {
+    return popularReviewService.getPopularReviews(period, limit);
   }
 }
