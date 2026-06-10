@@ -3,55 +3,79 @@ package com.team3.deokhugam.batch.step.reader;
 import com.team3.deokhugam.batch.global.DateCalculateUtil;
 import com.team3.deokhugam.batch.global.Period;
 import com.team3.deokhugam.batch.dto.PopularBookRawData;
+import jakarta.persistence.EntityManager;
 import jakarta.persistence.EntityManagerFactory;
 import java.time.Instant;
-import java.util.Map;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
-import org.springframework.batch.item.database.JpaPagingItemReader;
-import org.springframework.batch.item.database.builder.JpaPagingItemReaderBuilder;
+import org.springframework.batch.item.ExecutionContext;
+import org.springframework.batch.item.support.AbstractItemStreamItemReader;
 import org.springframework.stereotype.Component;
 
 @Component
 @RequiredArgsConstructor
 public class PopularBookReader {
 
+  private static final int MAX_ITEM_COUNT = 100;
   private final EntityManagerFactory entityManagerFactory;
 
-  public JpaPagingItemReader<PopularBookRawData> create(Period period) {
+  public AbstractItemStreamItemReader<PopularBookRawData> create(Period period) {
+    return new AbstractItemStreamItemReader<>() {
+      private List<PopularBookRawData> buffer;
+      private int index;
+
+      @Override
+      public void open(ExecutionContext executionContext) {
+        super.open(executionContext);
+        buffer = fetchData(period);
+        index = 0;
+      }
+
+      @Override
+      public PopularBookRawData read() {
+        if (buffer == null || index >= buffer.size()) return null;
+        return buffer.get(index++);
+      }
+    };
+  }
+
+  private List<PopularBookRawData> fetchData(Period period) {
     Instant startDate = DateCalculateUtil.getStartDate(period);
-
-    JpaPagingItemReaderBuilder<PopularBookRawData> builder =
-        new JpaPagingItemReaderBuilder<PopularBookRawData>()
-            .name("popularBookReader_" + period.name())
-            .entityManagerFactory(entityManagerFactory)
-            .pageSize(500);
-
-    if (startDate == null) {
-      builder.queryString("""
-        SELECT new com.team3.deokhugam.batch.dto.PopularBookRawData(
-          r.book.id,
-          CAST(COUNT(r) AS int),
-          CAST(AVG(r.rating) AS bigdecimal )
-        )
-        FROM Review r
-        GROUP BY r.book.id
-        ORDER BY r.book.id
-        """);
-    } else {
-      builder.queryString("""
-        SELECT new com.team3.deokhugam.batch.dto.PopularBookRawData(
-          r.book.id,
-          CAST(COUNT(r) AS int),
-          CAST(AVG(r.rating) AS bigdecimal)
-        )
-        FROM Review r
-        WHERE r.createdAt >= :startDate
-        GROUP BY r.book.id
-        ORDER BY r.book.id
-        """)
-          .parameterValues(Map.of("startDate", startDate));
+    EntityManager em = entityManagerFactory.createEntityManager();
+    try {
+      if (startDate == null) {
+        return em.createQuery("""
+            SELECT new com.team3.deokhugam.batch.dto.PopularBookRawData(
+              r.book.id,
+              CAST(COUNT(r) AS int),
+              CAST(AVG(r.rating) AS bigdecimal),
+              CAST((COUNT(r) * 0.4 + AVG(r.rating) * 0.6) AS bigdecimal)
+            )
+            FROM Review r
+            GROUP BY r.book.id
+            ORDER BY (COUNT(r) * 0.4 + AVG(r.rating) * 0.6) DESC
+            """, PopularBookRawData.class)
+            .setMaxResults(MAX_ITEM_COUNT)
+            .getResultList();
+      } else {
+        return em.createQuery("""
+            SELECT new com.team3.deokhugam.batch.dto.PopularBookRawData(
+              r.book.id,
+              CAST(COUNT(r) AS int),
+              CAST(AVG(r.rating) AS bigdecimal),
+              CAST((COUNT(r) * 0.4 + AVG(r.rating) * 0.6) AS bigdecimal)
+            )
+            FROM Review r
+            WHERE r.createdAt >= :startDate
+            GROUP BY r.book.id
+            ORDER BY (COUNT(r) * 0.4 + AVG(r.rating) * 0.6) DESC
+            """, PopularBookRawData.class)
+            .setParameter("startDate", startDate)
+            .setMaxResults(MAX_ITEM_COUNT)
+            .getResultList();
+      }
+    } finally {
+      em.close();
     }
-
-    return builder.build();
   }
 }

@@ -1,27 +1,58 @@
 package com.team3.deokhugam.batch.step.writer;
 
+import com.team3.deokhugam.batch.dto.PopularBookRawData;
+import com.team3.deokhugam.batch.global.Period;
+import com.team3.deokhugam.batch.global.RankCalculateUtil;
+import com.team3.deokhugam.batch.persistenceService.PopularBookRankingPersistenceService;
 import com.team3.deokhugam.domain.dashboard.PopularBook;
-import java.util.ArrayList;
+import java.time.Instant;
+import java.time.ZoneOffset;
 import java.util.List;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
+import java.util.stream.Collectors;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.batch.core.StepExecution;
 import org.springframework.batch.core.StepExecutionListener;
 import org.springframework.batch.item.ItemWriter;
 import org.springframework.lang.Nullable;
 
-@Getter
-@NoArgsConstructor
+@Slf4j
+@RequiredArgsConstructor
 public class PopularBookWriter implements StepExecutionListener {
 
-  private final List<PopularBook> accumulated = new ArrayList<>();
+  private final Period period;
+  private final PopularBookRankingPersistenceService persistenceService;
+  private Instant calculatedAt;
 
   @Override
   public void beforeStep(@Nullable StepExecution stepExecution) {
-    accumulated.clear();
+    if (stepExecution != null && stepExecution.getStartTime() != null) {
+      calculatedAt = stepExecution.getStartTime().toInstant(ZoneOffset.UTC);
+    } else {
+      calculatedAt = Instant.now();
+    }
   }
+  public ItemWriter<PopularBookRawData> create() {
+    return chunk -> {
+      try {
+        List<PopularBook> items = chunk.getItems().stream()
+            .map(item -> PopularBook.builder()
+                .bookId(item.bookId())
+                .period(period)
+                .score(item.score())
+                .reviewCount(item.reviewCount())
+                .rating(item.ratingAvg())
+                .calculatedAt(calculatedAt)
+                .build())
+            .collect(Collectors.toList());
 
-  public ItemWriter<PopularBook> create() {
-    return chunk -> accumulated.addAll(chunk.getItems());
+        RankCalculateUtil.assignRanks(items, PopularBook::getScore, PopularBook::assignRank);
+        persistenceService.deleteAndSave(period, items);
+        log.info("PopularBookWriter 저장 완료 period={}, size={}", period, items.size());
+      } catch (Exception e) {
+        log.error("PopularBookWriter 저장 실패 period={}", period, e);
+        throw e;
+      }
+    };
   }
 }
