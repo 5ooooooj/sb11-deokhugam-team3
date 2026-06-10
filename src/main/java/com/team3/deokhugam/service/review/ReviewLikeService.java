@@ -39,15 +39,15 @@ public class ReviewLikeService {
 
   private ReviewLikeDto cancelLike(Review review, UUID userId, ReviewLike like) {
     reviewLikeRepository.delete(like);
-    review.decreaseLikeCount();
+    reviewRepository.decrementLikeCount(review.getId());
     return new ReviewLikeDto(review.getId(), userId, false);
   }
 
   private ReviewLikeDto addLike(Review review, UUID userId) {
     try {
       User userRef = userRepository.getReferenceById(userId);
-      reviewLikeRepository.saveAndFlush(ReviewLike.create(review, userRef)); // 제약 즉시 검증
-      review.increaseLikeCount();
+      reviewLikeRepository.saveAndFlush(ReviewLike.create(review, userRef));
+      reviewRepository.incrementLikeCount(review.getId());
       notificationService.createLikeNotification(review.getId(), userId);
       return new ReviewLikeDto(review.getId(), userId, true);
     } catch (DataIntegrityViolationException e) {

@@ -35,6 +35,10 @@ public interface PopularReviewRepository extends JpaRepository<PopularReview, UU
 
   int countByPeriod(Period period);
 
+  List<PopularReview> findByPeriod(Period period);
+
+  List<PopularReview> findByPeriodOrderByScoreDesc(Period period);
+
   @Modifying(clearAutomatically = true)
   @Query("DELETE FROM PopularReview p WHERE p.period = :period")
   void deleteByPeriod(Period period);

@@ -38,6 +38,8 @@ dependencies {
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
     testImplementation 'org.springframework.batch:spring-batch-test'
     testImplementation 'org.jeasy:easy-random-core:5.0.0'
+    testImplementation 'org.testcontainers:localstack:1.21.3'
+    testImplementation 'org.testcontainers:junit-jupiter:1.21.3'
     testCompileOnly 'org.projectlombok:lombok'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
     testAnnotationProcessor 'org.projectlombok:lombok'
@@ -62,7 +64,6 @@ jacocoTestReport {
                     'com/team3/deokhugam/controller/admin/**',
                     'com/team3/deokhugam/batch/scheduler/**',
                     'com/team3/deokhugam/batch/exception/**',
-                    '**/batch/**'
             ])
         }))
     }
@@ -81,7 +82,6 @@ jacocoTestCoverageVerification {
 }
 
 // jacoco 테스트 커버리지 80% 강제 코드
-// 추후 개발 어느정도 진행 되면 활성화
 //jacocoTestCoverageVerification {
 //	violationRules {
 //		rule {
