@@ -35,8 +35,14 @@ public class DashboardBatchScheduler {
   private final Job popularBookWeeklyJob;
   private final Job popularBookMonthlyJob;
   private final Job popularBookAllTimeJob;
-  private final Job popularReviewJob;
-  private final Job powerUserJob;
+  private final Job popularReviewDailyJob;
+  private final Job popularReviewWeeklyJob;
+  private final Job popularReviewMonthlyJob;
+  private final Job popularReviewAllTimeJob;
+  private final Job powerUserDailyJob;
+  private final Job powerUserWeeklyJob;
+  private final Job powerUserMonthlyJob;
+  private final Job powerUserAllTimeJob;
 
   public DashboardBatchScheduler(
       PopularReviewRepository popularReviewRepository,
@@ -46,8 +52,14 @@ public class DashboardBatchScheduler {
       @Qualifier("popularBookWeeklyJob") Job popularBookWeeklyJob,
       @Qualifier("popularBookMonthlyJob") Job popularBookMonthlyJob,
       @Qualifier("popularBookAllTimeJob") Job popularBookAllTimeJob,
-      @Qualifier("popularReviewJob") Job popularReviewJob,
-      @Qualifier("powerUserJob") Job powerUserJob) {
+      @Qualifier("popularReviewDailyJob") Job popularReviewDailyJob,
+      @Qualifier("popularReviewWeeklyJob") Job popularReviewWeeklyJob,
+      @Qualifier("popularReviewMonthlyJob") Job popularReviewMonthlyJob,
+      @Qualifier("popularReviewAllTimeJob") Job popularReviewAllTimeJob,
+      @Qualifier("powerUserDailyJob") Job powerUserDailyJob,
+      @Qualifier("powerUserWeeklyJob") Job powerUserWeeklyJob,
+      @Qualifier("powerUserMonthlyJob") Job powerUserMonthlyJob,
+      @Qualifier("powerUserAllTimeJob") Job powerUserAllTimeJob) {
     this.popularReviewRepository = popularReviewRepository;
     this.notificationService = notificationService;
     this.jobLauncher = jobLauncher;
@@ -55,8 +67,14 @@ public class DashboardBatchScheduler {
     this.popularBookWeeklyJob = popularBookWeeklyJob;
     this.popularBookMonthlyJob = popularBookMonthlyJob;
     this.popularBookAllTimeJob = popularBookAllTimeJob;
-    this.popularReviewJob = popularReviewJob;
-    this.powerUserJob = powerUserJob;
+    this.popularReviewDailyJob = popularReviewDailyJob;
+    this.popularReviewWeeklyJob = popularReviewWeeklyJob;
+    this.popularReviewMonthlyJob = popularReviewMonthlyJob;
+    this.popularReviewAllTimeJob = popularReviewAllTimeJob;
+    this.powerUserDailyJob = powerUserDailyJob;
+    this.powerUserWeeklyJob = powerUserWeeklyJob;
+    this.powerUserMonthlyJob = powerUserMonthlyJob;
+    this.powerUserAllTimeJob = powerUserAllTimeJob;
   }
 
   @Scheduled(cron = "0 0 0 * * *", zone = "Asia/Seoul")
@@ -66,7 +84,7 @@ public class DashboardBatchScheduler {
         .addLocalDateTime("runAt", LocalDateTime.now())
         .toJobParameters();
 
-    // 인기 도서: 각 기간별 독립 실행
+    // 인기 도서
     for (Job job : List.of(popularBookDailyJob, popularBookWeeklyJob,
         popularBookMonthlyJob, popularBookAllTimeJob)) {
       try {
@@ -76,16 +94,28 @@ public class DashboardBatchScheduler {
       }
     }
 
-    // 인기 리뷰, 파워 유저 수정 전, 기존 로직 유지
+    // 인기 리뷰
     boolean popularReviewJobSucceeded = false;
     try {
-      runJob(popularReviewJob, params);
+      for (Job job : List.of(popularReviewDailyJob, popularReviewWeeklyJob,
+          popularReviewMonthlyJob, popularReviewAllTimeJob)) {
+        runJob(job, params);
+      }
       popularReviewJobSucceeded = true;
-      runJob(powerUserJob, params);
-  } catch (BatchJobExecutionException e) {
-      log.error("[배치] Job 실패로 인해 일부 배치가 중단되었습니다: {}", e.getMessage());
-    } finally {
-      if (popularReviewJobSucceeded) {
+    } catch (BatchJobExecutionException e) {
+      log.error("[배치] 인기 리뷰 Job 실패: {}", e.getMessage());
+    }
+
+    // 파워 유저 (인기 리뷰 전체 성공 시에만 실행)
+    if (popularReviewJobSucceeded) {
+      try {
+        for (Job job : List.of(powerUserDailyJob, powerUserWeeklyJob,
+            powerUserMonthlyJob, powerUserAllTimeJob)) {
+          runJob(job, params);
+        }
+      } catch (BatchJobExecutionException e) {
+        log.error("[배치] 파워 유저 Job 실패: {}", e.getMessage());
+      } finally {
         sendRankingNotifications();
       }
     }
@@ -109,17 +139,17 @@ public class DashboardBatchScheduler {
 
   private void sendRankingNotifications() {
     for (Period period : Period.values()) {
-        List<PopularReviewDto> top10 = popularReviewRepository
-            .findPopularReviewsByPeriod(period, PageRequest.of(0, 10));
+      List<PopularReviewDto> top10 = popularReviewRepository
+          .findPopularReviewsByPeriod(period, PageRequest.of(0, 10));
 
-        for (PopularReviewDto review : top10) {
-          try {
-            notificationService.createRankingNotification(review.reviewId(), period.name());
-          } catch (Exception e) {
-            log.error("[배치] 랭킹 알림 발송 실패 - period: {}, reviewId: {}, error: {}",
-                period, review.reviewId(), e.getMessage());
-          }
+      for (PopularReviewDto review : top10) {
+        try {
+          notificationService.createRankingNotification(review.reviewId(), period.name());
+        } catch (Exception e) {
+          log.error("[배치] 랭킹 알림 발송 실패 - period: {}, reviewId: {}, error: {}",
+              period, review.reviewId(), e.getMessage());
         }
+      }
     }
   }
 }

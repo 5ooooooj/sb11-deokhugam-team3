@@ -31,8 +31,14 @@ public class DashboardBatchController {
   private final Job popularBookWeeklyJob;
   private final Job popularBookMonthlyJob;
   private final Job popularBookAllTimeJob;
-  private final Job popularReviewJob;
-  private final Job powerUserJob;
+  private final Job popularReviewDailyJob;
+  private final Job popularReviewWeeklyJob;
+  private final Job popularReviewMonthlyJob;
+  private final Job popularReviewAllTimeJob;
+  private final Job powerUserDailyJob;
+  private final Job powerUserWeeklyJob;
+  private final Job powerUserMonthlyJob;
+  private final Job powerUserAllTimeJob;
   private final DashboardBatchScheduler dashboardBatchScheduler;
 
   public DashboardBatchController(
@@ -41,16 +47,28 @@ public class DashboardBatchController {
       @Qualifier("popularBookWeeklyJob") Job popularBookWeeklyJob,
       @Qualifier("popularBookMonthlyJob") Job popularBookMonthlyJob,
       @Qualifier("popularBookAllTimeJob") Job popularBookAllTimeJob,
-      @Qualifier("popularReviewJob") Job popularReviewJob,
-      @Qualifier("powerUserJob") Job powerUserJob,
+      @Qualifier("popularReviewDailyJob") Job popularReviewDailyJob,
+      @Qualifier("popularReviewWeeklyJob") Job popularReviewWeeklyJob,
+      @Qualifier("popularReviewMonthlyJob") Job popularReviewMonthlyJob,
+      @Qualifier("popularReviewAllTimeJob") Job popularReviewAllTimeJob,
+      @Qualifier("powerUserDailyJob") Job powerUserDailyJob,
+      @Qualifier("powerUserWeeklyJob") Job powerUserWeeklyJob,
+      @Qualifier("powerUserMonthlyJob") Job powerUserMonthlyJob,
+      @Qualifier("powerUserAllTimeJob") Job powerUserAllTimeJob,
       DashboardBatchScheduler dashboardBatchScheduler) {
     this.jobLauncher = jobLauncher;
     this.popularBookDailyJob = popularBookDailyJob;
     this.popularBookWeeklyJob = popularBookWeeklyJob;
     this.popularBookMonthlyJob = popularBookMonthlyJob;
     this.popularBookAllTimeJob = popularBookAllTimeJob;
-    this.popularReviewJob = popularReviewJob;
-    this.powerUserJob = powerUserJob;
+    this.popularReviewDailyJob = popularReviewDailyJob;
+    this.popularReviewWeeklyJob = popularReviewWeeklyJob;
+    this.popularReviewMonthlyJob = popularReviewMonthlyJob;
+    this.popularReviewAllTimeJob = popularReviewAllTimeJob;
+    this.powerUserDailyJob = powerUserDailyJob;
+    this.powerUserWeeklyJob = powerUserWeeklyJob;
+    this.powerUserMonthlyJob = powerUserMonthlyJob;
+    this.powerUserAllTimeJob = powerUserAllTimeJob;
     this.dashboardBatchScheduler = dashboardBatchScheduler;
   }
 
@@ -91,12 +109,28 @@ public class DashboardBatchController {
   @PostMapping("/popular-reviews")
   public ResponseEntity<String> runPopularReviewJob() throws Exception {
     JobParameters params = new JobParametersBuilder()
-        .addLocalDate("targetDate", LocalDate.now())
+        .addLocalDate("targetDate", LocalDate.now(KST))
         .addLong("timestamp", System.currentTimeMillis())
         .toJobParameters();
 
-    jobLauncher.run(popularReviewJob, params);
-    return ResponseEntity.ok("인기 리뷰 배치 실행 완료");
+    List<String> failed = new ArrayList<>();
+    for (Job job : List.of(popularReviewDailyJob, popularReviewWeeklyJob,
+        popularReviewMonthlyJob, popularReviewAllTimeJob)) {
+      try {
+        JobExecution execution = jobLauncher.run(job, params);
+        if (execution.getStatus().isUnsuccessful()) {
+          failed.add(job.getName());
+          log.error("[배치] 인기 리뷰 Job 실패 - {}: {}", job.getName(), execution.getStatus());
+        }
+      } catch (Exception e) {
+        failed.add(job.getName());
+        log.error("[배치] 인기 리뷰 Job 실패 - {}: {}", job.getName(), e.getMessage());
+      }
+    }
+
+    return failed.isEmpty()
+        ? ResponseEntity.ok("인기 리뷰 배치 실행 완료")
+        : ResponseEntity.ok("인기 리뷰 배치 부분 실패: " + failed);
   }
 
   @Operation(summary = "인기 유저 배치 수동 실행", description = "인기 유저 배치 수동 실행")
@@ -104,12 +138,28 @@ public class DashboardBatchController {
   @PostMapping("/power-users")
   public ResponseEntity<String> runPowerUserJob() throws Exception {
     JobParameters params = new JobParametersBuilder()
-        .addLocalDate("targetDate", LocalDate.now())
+        .addLocalDate("targetDate", LocalDate.now(KST))
         .addLong("timestamp", System.currentTimeMillis())
         .toJobParameters();
 
-    jobLauncher.run(powerUserJob, params);
-    return ResponseEntity.ok("인기 유저 배치 실행 완료");
+    List<String> failed = new ArrayList<>();
+    for (Job job : List.of(powerUserDailyJob, powerUserWeeklyJob,
+        powerUserMonthlyJob, powerUserAllTimeJob)) {
+      try {
+        JobExecution execution = jobLauncher.run(job, params);
+        if (execution.getStatus().isUnsuccessful()) {
+          failed.add(job.getName());
+          log.error("[배치] 파워 유저 Job 실패 - {}: {}", job.getName(), execution.getStatus());
+        }
+      } catch (Exception e) {
+        failed.add(job.getName());
+        log.error("[배치] 파워 유저 Job 실패 - {}: {}", job.getName(), e.getMessage());
+      }
+    }
+
+    return failed.isEmpty()
+        ? ResponseEntity.ok("파워 유저 배치 실행 완료")
+        : ResponseEntity.ok("파워 유저 배치 부분 실패: " + failed);
   }
 
   @Operation(summary = "전체 배치 실행", description = "대시보드 배치 전체 수동 실행")
@@ -118,5 +168,4 @@ public class DashboardBatchController {
     dashboardBatchScheduler.runDashboardBatch();
     return ResponseEntity.ok("배치 실행 완료");
   }
-
 }
