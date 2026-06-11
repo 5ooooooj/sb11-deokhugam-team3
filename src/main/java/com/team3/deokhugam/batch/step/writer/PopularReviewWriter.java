@@ -29,7 +29,7 @@ public class PopularReviewWriter implements StepExecutionListener {
   public void beforeStep(@Nullable StepExecution stepExecution) {
     if (stepExecution != null && stepExecution.getStartTime() != null) {
       calculatedAt = stepExecution.getStartTime()
-          .atZone(ZoneId.systemDefault())
+          .atZone(ZoneId.of("Asia/Seoul"))
           .toInstant();
     } else {
       calculatedAt = Instant.now();
