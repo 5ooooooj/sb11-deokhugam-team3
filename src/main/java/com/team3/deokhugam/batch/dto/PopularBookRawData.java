@@ -6,5 +6,6 @@ import java.util.UUID;
 public record PopularBookRawData (
     UUID bookId,
     int reviewCount,
-    BigDecimal ratingAvg
+    BigDecimal ratingAvg,
+    BigDecimal score
 ){}

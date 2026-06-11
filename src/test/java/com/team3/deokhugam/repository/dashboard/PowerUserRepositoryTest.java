@@ -139,4 +139,44 @@ class PowerUserRepositoryTest extends BaseRepositoryTest {
 
     assertThat(count).isEqualTo(0);
   }
+
+  @Test
+  @DisplayName("동순위 파워유저는 가입일 오래된 순(createdAt ASC)으로 정렬된다")
+  void findPowerUsersByPeriod_sameRank_orderedByCreatedAtAsc() {
+    // given: user1이 user2보다 먼저 저장됐으므로 createdAt이 더 오래됨
+    // 동순위(ranking=1) 데이터 추가
+    em.persist(PowerUser.builder()
+        .userId(userId1)
+        .period(Period.MONTHLY)
+        .score(BigDecimal.valueOf(100))
+        .ranking(1)
+        .reviewScoreSum(BigDecimal.valueOf(60))
+        .likeCount(10)
+        .commentCount(5)
+        .calculatedAt(Instant.now())
+        .build());
+
+    em.persist(PowerUser.builder()
+        .userId(userId2)
+        .period(Period.MONTHLY)
+        .score(BigDecimal.valueOf(100))
+        .ranking(1)  // 동순위
+        .reviewScoreSum(BigDecimal.valueOf(60))
+        .likeCount(10)
+        .commentCount(5)
+        .calculatedAt(Instant.now())
+        .build());
+
+    em.flush();
+    em.clear();
+
+    // when
+    List<PowerUserDto> result = powerUserRepository
+        .findPowerUsersByPeriod(Period.MONTHLY, PageRequest.of(0, 10));
+
+    // then
+    assertThat(result).hasSize(2);
+    assertThat(result.get(0).userId()).isEqualTo(userId1); // 더 오래된 유저 먼저
+    assertThat(result.get(1).userId()).isEqualTo(userId2);
+  }
 }

@@ -1,85 +1,90 @@
 package com.team3.deokhugam.batch.step.writer;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatNoException;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
+import com.team3.deokhugam.batch.dto.PopularBookRawData;
 import com.team3.deokhugam.batch.global.Period;
+import com.team3.deokhugam.batch.persistenceService.PopularBookRankingPersistenceService;
 import com.team3.deokhugam.domain.dashboard.PopularBook;
 import java.math.BigDecimal;
-import java.time.Instant;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
+import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.batch.core.StepExecution;
 import org.springframework.batch.item.Chunk;
-import org.springframework.batch.item.ItemWriter;
 
 @ExtendWith(MockitoExtension.class)
 class PopularBookWriterTest {
+
+  @Mock
+  private PopularBookRankingPersistenceService persistenceService;
 
   private PopularBookWriter popularBookWriter;
 
   @BeforeEach
   void setUp() {
-    popularBookWriter = new PopularBookWriter();
-    popularBookWriter.beforeStep(mock(StepExecution.class));
+    popularBookWriter = new PopularBookWriter(Period.DAILY, persistenceService);
+    StepExecution stepExecution = mock(StepExecution.class);
+    when(stepExecution.getStartTime()).thenReturn(LocalDateTime.now());
+    popularBookWriter.beforeStep(stepExecution);
   }
 
   @Test
-  @DisplayName("성공: chunk 아이템을 누적")
-  void write_success() throws Exception {
-    // given
-    List<PopularBook> items = List.of(
-        createPopularBook(UUID.randomUUID(), BigDecimal.valueOf(3.0)),
-        createPopularBook(UUID.randomUUID(), BigDecimal.valueOf(5.0)),
-        createPopularBook(UUID.randomUUID(), BigDecimal.valueOf(1.0))
+  @DisplayName("성공: 0건일 때 afterStep에서 deleteAndSave 호출됨")
+  void afterStep_noItems_deleteAndSaveCalled() {
+    StepExecution stepExecution = mock(StepExecution.class);
+    doReturn(0L).when(stepExecution).getReadCount();
+
+    popularBookWriter.afterStep(stepExecution);
+
+    verify(persistenceService).deleteAndSave(eq(Period.DAILY), eq(List.of()));
+  }
+
+  @Test
+  @DisplayName("성공: readCount > 0이면 afterStep에서 deleteAndSave 호출 안 됨")
+  void afterStep_hasItems_deleteAndSaveNotCalled() {
+    StepExecution stepExecution = mock(StepExecution.class);
+    doReturn(1L).when(stepExecution).getReadCount();
+
+    popularBookWriter.afterStep(stepExecution);
+
+    verify(persistenceService, never()).deleteAndSave(any(), any());
+  }
+
+  @Test
+  @DisplayName("성공: afterStep에 null 전달 시 예외 없이 처리됨")
+  void afterStep_null_noException() {
+    assertThatNoException().isThrownBy(() -> popularBookWriter.afterStep(null));
+  }
+
+  @Test
+  @DisplayName("성공: beforeStep에 null 전달 시 Instant.now()로 설정됨")
+  void beforeStep_null_usesInstantNow() throws Exception {
+    PopularBookWriter writer = new PopularBookWriter(Period.DAILY, persistenceService);
+    writer.beforeStep(null);
+
+    List<PopularBookRawData> items = List.of(
+        new PopularBookRawData(UUID.randomUUID(), 1, BigDecimal.valueOf(5.0), BigDecimal.valueOf(5.0))
     );
-    Chunk<PopularBook> chunk = new Chunk<>(items);
-    ItemWriter<PopularBook> writer = popularBookWriter.create();
+    writer.create().write(new Chunk<>(items));
 
-    writer.write(chunk);
-
-    assertThat(popularBookWriter.getAccumulated()).containsExactlyElementsOf(items);
-  }
-
-  @Test
-  @DisplayName("성공: 빈 chunk를 처리")
-  void write_emptyChunk() throws Exception {
-    // given
-    Chunk<PopularBook> chunk = new Chunk<>(List.of());
-
-    // when
-    popularBookWriter.create().write(chunk);
-
-    // then
-    assertThat(popularBookWriter.getAccumulated()).isEmpty();
-  }
-
-  @Test
-  @DisplayName("성공: 여러 chunk가 누적됨")
-  void write_multipleChunks() throws Exception {
-    PopularBook item1 = createPopularBook(UUID.randomUUID(), BigDecimal.valueOf(3.0));
-    PopularBook item2 = createPopularBook(UUID.randomUUID(), BigDecimal.valueOf(5.0));
-    ItemWriter<PopularBook> writer = popularBookWriter.create();
-
-    writer.write(new Chunk<>(List.of(item1)));
-    writer.write(new Chunk<>(List.of(item2)));
-
-    assertThat(popularBookWriter.getAccumulated()).containsExactly(item1, item2);
-  }
-
-  private PopularBook createPopularBook(UUID bookId, BigDecimal score) {
-    return PopularBook.builder()
-        .bookId(bookId)
-        .period(Period.DAILY)
-        .score(score)
-        .reviewCount(0)
-        .rating(BigDecimal.ZERO)
-        .calculatedAt(Instant.now())
-        .build();
+    ArgumentCaptor<List<PopularBook>> captor = ArgumentCaptor.forClass(List.class);
+    verify(persistenceService).deleteAndSave(eq(Period.DAILY), captor.capture());
+    assertThat(captor.getValue().get(0).getCalculatedAt()).isNotNull();
   }
 }

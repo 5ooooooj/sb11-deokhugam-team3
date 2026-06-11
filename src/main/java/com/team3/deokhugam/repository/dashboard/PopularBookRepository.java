@@ -23,7 +23,7 @@ public interface PopularBookRepository extends JpaRepository<PopularBook, UUID> 
         FROM PopularBook pb
         JOIN Book b ON pb.bookId = b.id
         WHERE pb.period = :period
-        ORDER BY pb.ranking ASC
+        ORDER BY pb.ranking ASC, b.createdAt DESC, b.id DESC
         """)
   List<PopularBookDto> findPopularBooksByPeriod(
       @Param("period") Period period,

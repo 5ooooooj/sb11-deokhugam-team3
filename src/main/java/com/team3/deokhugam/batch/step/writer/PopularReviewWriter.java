@@ -1,27 +1,70 @@
 package com.team3.deokhugam.batch.step.writer;
 
+import com.team3.deokhugam.batch.dto.PopularReviewRawData;
+import com.team3.deokhugam.batch.global.Period;
+import com.team3.deokhugam.batch.global.RankCalculateUtil;
+import com.team3.deokhugam.batch.persistenceService.PopularReviewRankingPersistenceService;
 import com.team3.deokhugam.domain.dashboard.PopularReview;
-import java.util.ArrayList;
+import java.time.Instant;
+import java.time.ZoneId;
 import java.util.List;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
+import java.util.stream.Collectors;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.batch.core.ExitStatus;
 import org.springframework.batch.core.StepExecution;
 import org.springframework.batch.core.StepExecutionListener;
 import org.springframework.batch.item.ItemWriter;
 import org.springframework.lang.Nullable;
 
-@Getter
-@NoArgsConstructor
+@Slf4j
+@RequiredArgsConstructor
 public class PopularReviewWriter implements StepExecutionListener {
 
-  private final List<PopularReview> accumulated = new ArrayList<>();
+  private final Period period;
+  private final PopularReviewRankingPersistenceService persistenceService;
+  private Instant calculatedAt;
 
   @Override
   public void beforeStep(@Nullable StepExecution stepExecution) {
-    accumulated.clear();
+    if (stepExecution != null && stepExecution.getStartTime() != null) {
+      calculatedAt = stepExecution.getStartTime()
+          .atZone(ZoneId.of("Asia/Seoul"))
+          .toInstant();
+    } else {
+      calculatedAt = Instant.now();
+    }
   }
 
-  public ItemWriter<PopularReview> create() {
-    return chunk -> accumulated.addAll(chunk.getItems());
+  @Override
+  public ExitStatus afterStep(@Nullable StepExecution stepExecution) {
+    if (stepExecution != null && stepExecution.getReadCount() == 0L) {
+      persistenceService.deleteAndSave(period, List.of());
+    }
+    return null;
+  }
+
+  public ItemWriter<PopularReviewRawData> create() {
+    return chunk -> {
+      try {
+        List<PopularReview> items = chunk.getItems().stream()
+            .map(item -> PopularReview.builder()
+                .reviewId(item.reviewId())
+                .period(period)
+                .score(item.score())
+                .likeCount(item.likeCount())
+                .commentCount(item.commentCount())
+                .calculatedAt(calculatedAt)
+                .build())
+            .collect(Collectors.toList());
+
+        RankCalculateUtil.assignRanks(items, PopularReview::getScore, PopularReview::assignRank);
+        persistenceService.deleteAndSave(period, items);
+        log.info("PopularReviewWriter 저장 완료 period={}, size={}", period, items.size());
+      } catch (Exception e) {
+        log.error("PopularReviewWriter 저장 실패 period={}", period, e);
+        throw e;
+      }
+    };
   }
 }

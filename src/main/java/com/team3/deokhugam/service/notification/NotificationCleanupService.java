@@ -15,7 +15,7 @@ public class NotificationCleanupService {
 
   @Transactional
   public void deleteExpiredNotifications() {
-    Instant threshold = Instant.now().minus(30, ChronoUnit.DAYS);
+    Instant threshold = Instant.now().minus(7, ChronoUnit.DAYS);
     notificationRepository.deleteExpiredNotifications(threshold);
   }
 }
