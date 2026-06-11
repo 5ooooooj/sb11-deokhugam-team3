@@ -29,15 +29,18 @@ public class PopularBookJobConfig {
     return buildJob(Period.DAILY);
   }
 
-  @Bean public Job popularBookWeeklyJob() {
+  @Bean
+  public Job popularBookWeeklyJob() {
     return buildJob(Period.WEEKLY);
   }
 
-  @Bean public Job popularBookMonthlyJob() {
+  @Bean
+  public Job popularBookMonthlyJob() {
     return buildJob(Period.MONTHLY);
   }
 
-  @Bean public Job popularBookAllTimeJob() {
+  @Bean
+  public Job popularBookAllTimeJob() {
     return buildJob(Period.ALL_TIME);
   }
 

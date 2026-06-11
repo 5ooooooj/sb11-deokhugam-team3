@@ -43,19 +43,42 @@ import org.springframework.transaction.support.TransactionTemplate;
 @ActiveProfiles("test")
 public class PopularBookJobTest {
 
-  @Autowired private JobRepository jobRepository;
+  @Autowired
+  private JobRepository jobRepository;
 
-  @Autowired @Qualifier("popularBookDailyJob") private Job popularBookDailyJob;
-  @Autowired @Qualifier("popularBookWeeklyJob") private Job popularBookWeeklyJob;
-  @Autowired @Qualifier("popularBookMonthlyJob") private Job popularBookMonthlyJob;
-  @Autowired @Qualifier("popularBookAllTimeJob") private Job popularBookAllTimeJob;
+  @Autowired
+  @Qualifier("popularBookDailyJob")
+  private Job popularBookDailyJob;
 
-  @Autowired private PopularBookRepository popularBookRepository;
-  @Autowired private ReviewRepository reviewRepository;
-  @Autowired private BookRepository bookRepository;
-  @Autowired private UserRepository userRepository;
-  @Autowired private EntityManager entityManager;
-  @Autowired private PlatformTransactionManager transactionManager;
+  @Autowired
+  @Qualifier("popularBookWeeklyJob")
+  private Job popularBookWeeklyJob;
+
+  @Autowired
+  @Qualifier("popularBookMonthlyJob")
+  private Job popularBookMonthlyJob;
+
+  @Autowired
+  @Qualifier("popularBookAllTimeJob")
+  private Job popularBookAllTimeJob;
+
+  @Autowired
+  private PopularBookRepository popularBookRepository;
+
+  @Autowired
+  private ReviewRepository reviewRepository;
+
+  @Autowired
+  private BookRepository bookRepository;
+
+  @Autowired
+  private UserRepository userRepository;
+
+  @Autowired
+  private EntityManager entityManager;
+
+  @Autowired
+  private PlatformTransactionManager transactionManager;
 
   private TransactionTemplate transactionTemplate;
   private static final ZoneId KST = ZoneId.of("Asia/Seoul");

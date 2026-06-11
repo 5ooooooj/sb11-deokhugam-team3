@@ -7,6 +7,7 @@ import jakarta.persistence.EntityManager;
 import jakarta.persistence.EntityManagerFactory;
 import java.time.Instant;
 import java.util.List;
+import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import org.springframework.batch.item.ExecutionContext;
 import org.springframework.batch.item.support.AbstractItemStreamItemReader;
@@ -25,7 +26,7 @@ public class PopularBookReader {
       private int index;
 
       @Override
-      public void open(ExecutionContext executionContext) {
+      public void open(@NonNull ExecutionContext executionContext) {
         super.open(executionContext);
         buffer = fetchData(period);
         index = 0;
@@ -41,41 +42,39 @@ public class PopularBookReader {
 
   private List<PopularBookRawData> fetchData(Period period) {
     Instant startDate = DateCalculateUtil.getStartDate(period);
-    EntityManager em = entityManagerFactory.createEntityManager();
-    try {
+
+    try (EntityManager em = entityManagerFactory.createEntityManager()) {
       if (startDate == null) {
         return em.createQuery("""
-            SELECT new com.team3.deokhugam.batch.dto.PopularBookRawData(
-              r.book.id,
-              CAST(COUNT(r) AS int),
-              CAST(AVG(r.rating) AS bigdecimal),
-              CAST((COUNT(r) * 0.4 + AVG(r.rating) * 0.6) AS bigdecimal)
-            )
-            FROM Review r
-            GROUP BY r.book.id, r.book.createdAt
-            ORDER BY (COUNT(r) * 0.4 + AVG(r.rating) * 0.6) DESC, r.book.createdAt DESC, r.book.id DESC
-            """, PopularBookRawData.class)
+        SELECT new com.team3.deokhugam.batch.dto.PopularBookRawData(
+          r.book.id,
+          CAST(COUNT(r) AS int),
+          CAST(AVG(r.rating) AS bigdecimal),
+          CAST((COUNT(r) * 0.4 + AVG(r.rating) * 0.6) AS bigdecimal)
+        )
+        FROM Review r
+        GROUP BY r.book.id, r.book.createdAt
+        ORDER BY (COUNT(r) * 0.4 + AVG(r.rating) * 0.6) DESC, r.book.createdAt DESC, r.book.id DESC
+        """, PopularBookRawData.class)
             .setMaxResults(MAX_ITEM_COUNT)
             .getResultList();
       } else {
         return em.createQuery("""
-            SELECT new com.team3.deokhugam.batch.dto.PopularBookRawData(
-              r.book.id,
-              CAST(COUNT(r) AS int),
-              CAST(AVG(r.rating) AS bigdecimal),
-              CAST((COUNT(r) * 0.4 + AVG(r.rating) * 0.6) AS bigdecimal)
-            )
-            FROM Review r
-            WHERE r.createdAt >= :startDate
-            GROUP BY r.book.id, r.book.createdAt
-            ORDER BY (COUNT(r) * 0.4 + AVG(r.rating) * 0.6) DESC, r.book.createdAt DESC, r.book.id DESC
-            """, PopularBookRawData.class)
+        SELECT new com.team3.deokhugam.batch.dto.PopularBookRawData(
+          r.book.id,
+          CAST(COUNT(r) AS int),
+          CAST(AVG(r.rating) AS bigdecimal),
+          CAST((COUNT(r) * 0.4 + AVG(r.rating) * 0.6) AS bigdecimal)
+        )
+        FROM Review r
+        WHERE r.createdAt >= :startDate
+        GROUP BY r.book.id, r.book.createdAt
+        ORDER BY (COUNT(r) * 0.4 + AVG(r.rating) * 0.6) DESC, r.book.createdAt DESC, r.book.id DESC
+        """, PopularBookRawData.class)
             .setParameter("startDate", startDate)
             .setMaxResults(MAX_ITEM_COUNT)
             .getResultList();
       }
-    } finally {
-      em.close();
     }
-  }
+}
 }
