@@ -15,6 +15,7 @@ import com.team3.deokhugam.batch.global.Period;
 import com.team3.deokhugam.batch.persistenceService.PopularReviewRankingPersistenceService;
 import com.team3.deokhugam.domain.dashboard.PopularReview;
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.List;
@@ -37,7 +38,10 @@ class PopularReviewWriterTest {
 
   private PopularReviewWriter popularReviewWriter;
 
-  private final LocalDateTime fixedStart = LocalDateTime.of(2026, 6, 10, 0 ,0 ,0);
+  private final LocalDateTime fixedStart = LocalDateTime.of(2026, 6, 10, 0 , 0 , 0);
+
+  private static final double COMMENT_WEIGHT = 0.3;
+  private static final double LIKE_WEIGHT = 0.7;
 
   @BeforeEach
   void setUp() {
@@ -52,7 +56,7 @@ class PopularReviewWriterTest {
   void write_validItems_savesWithExactCalculatedAt() throws Exception {
     // given
     List<PopularReviewRawData> items = List.of(
-        new PopularReviewRawData(UUID.randomUUID(), 3, 5, BigDecimal.valueOf(3.0 * 0.3 + 5.0 * 0.7))
+        new PopularReviewRawData(UUID.randomUUID(), 3, 5, calculateScore(3, 5))
     );
 
     // when - Chunk를 생성하여 배치의 write 로직 실행
@@ -105,13 +109,15 @@ class PopularReviewWriterTest {
     writer.beforeStep(null);
 
     List<PopularReviewRawData> items = List.of(
-        new PopularReviewRawData(UUID.randomUUID(), 3, 5, BigDecimal.valueOf(3.0 * 0.3 + 5.0 * 0.7))
+        new PopularReviewRawData(UUID.randomUUID(), 3, 5, calculateScore(3, 5))
     );
     writer.create().write(new Chunk<>(items));
 
     ArgumentCaptor<List<PopularReview>> captor = ArgumentCaptor.forClass(List.class);
     verify(persistenceService).deleteAndSave(eq(Period.DAILY), captor.capture());
-    assertThat(captor.getValue().get(0).getCalculatedAt()).isNotNull();
+    Instant actual = captor.getValue().get(0).getCalculatedAt();
+    assertThat(actual).isNotNull();
+    assertThat(actual).isBetween(Instant.now().minusSeconds(1), Instant.now().plusSeconds(1));
   }
 
   @Test
@@ -129,6 +135,11 @@ class PopularReviewWriterTest {
     verify(persistenceService).deleteAndSave(eq(Period.DAILY), captor.capture());
     assertThat(captor.getValue()).hasSize(3);
     assertThat(captor.getValue()).allMatch(r -> r.getRanking() > 0);
+    // score 내림차순 정렬 기준으로 랭킹 검증
+    List<PopularReview> saved = captor.getValue();
+    assertThat(saved.get(0).getRanking()).isEqualTo(1);
+    assertThat(saved.get(1).getRanking()).isEqualTo(2);
+    assertThat(saved.get(2).getRanking()).isEqualTo(3);
   }
 
   @Test
@@ -140,4 +151,9 @@ class PopularReviewWriterTest {
     verify(persistenceService).deleteAndSave(eq(Period.DAILY), captor.capture());
     assertThat(captor.getValue()).isEmpty();
   }
+
+  private BigDecimal calculateScore(int commentCount, int likeCount) {
+    return BigDecimal.valueOf(commentCount * COMMENT_WEIGHT + likeCount * LIKE_WEIGHT);
+  }
+
 }

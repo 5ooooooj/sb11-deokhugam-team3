@@ -84,7 +84,7 @@ public class DashboardBatchScheduler {
 
     JobParameters params = new JobParametersBuilder()
         .addLocalDate("targetDate", LocalDate.now(KST))
-        .addLocalDateTime("runAt", LocalDateTime.now())
+        .addLocalDateTime("runAt", LocalDateTime.now(KST))
         .toJobParameters();
 
     // 인기 도서
@@ -110,7 +110,7 @@ public class DashboardBatchScheduler {
       }
     }
 
-    // 파워 유저 (인기 리뷰 전체 성공 시에만 실행)
+    // 파워 유저
     for (Job job : List.of(powerUserDailyJob, powerUserWeeklyJob, powerUserMonthlyJob, powerUserAllTimeJob)) {
       try {
         runJob(job, params);
@@ -121,7 +121,12 @@ public class DashboardBatchScheduler {
     }
 
     if (popularReviewJobsSucceeded) {
-      sendRankingNotifications();
+      try {
+        sendRankingNotifications();
+      } catch (Exception e) {
+        log.error("[배치] 랭킹 알림 발송 단계 전체 오류 발생", e);
+        failedJobs.add("NOTIFICATION_STAGE_FAILED");
+      }
     } else {
       log.warn("[배치] 인기 리뷰 배치 중 실패 항목이 존재하여 랭킹 알림 발송(sendRankingNotifications)을 건너뜁니다.");
     }
@@ -147,16 +152,22 @@ public class DashboardBatchScheduler {
 
   private void sendRankingNotifications() {
     for (Period period : Period.values()) {
-      List<PopularReviewDto> top10 = popularReviewRepository
-          .findPopularReviewsByPeriod(period, PageRequest.of(0, 10));
+      try {
+        List<PopularReviewDto> top10 = popularReviewRepository
+            .findPopularReviewsByPeriod(period, PageRequest.of(0, 10));
 
-      for (PopularReviewDto review : top10) {
-        try {
-          notificationService.createRankingNotification(review.reviewId(), period.name());
-        } catch (Exception e) {
-          log.error("[배치] 랭킹 알림 발송 실패 - period: {}, reviewId: {}, error: {}",
-              period, review.reviewId(), e.getMessage());
+        for (PopularReviewDto review : top10) {
+          try {
+            notificationService.createRankingNotification(review.reviewId(), period.name());
+          } catch (Exception e) {
+            log.error("[배치] 랭킹 개별 알림 발송 실패 - period: {}, reviewId: {}, error: {}",
+                period, review.reviewId(), e.getMessage());
+          }
         }
+      } catch (Exception e) {
+        // 특정 Period 조회 중 DB 에러가 나더라도 catch하고 다음 Period로
+        log.error("[배치] 랭킹 알림 조회 및 생성 실패 - 특정 기간 데이터 처리 불가 period: {}, error: {}",
+            period, e.getMessage());
       }
     }
   }

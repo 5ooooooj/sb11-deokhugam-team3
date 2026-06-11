@@ -36,6 +36,11 @@ class PowerUserWriterTest {
 
   private PowerUserWriter powerUserWriter;
 
+  private static final double COMMENT_WEIGHT = 0.3;
+  private static final double LIKE_WEIGHT = 0.2;
+  private static final double REVIEW_WEIGHT = 0.5;
+
+
   @BeforeEach
   void setUp() {
     powerUserWriter = new PowerUserWriter(Period.DAILY, persistenceService);
@@ -80,7 +85,7 @@ class PowerUserWriterTest {
 
     List<PowerUserRawData> items = List.of(
         new PowerUserRawData(UUID.randomUUID(), BigDecimal.valueOf(4.0), 2, 3,
-            BigDecimal.valueOf(4.0 * 0.5 + 2 * 0.2 + 3 * 0.3))
+            calculateScore(BigDecimal.valueOf(4.0), 2, 3))
     );
     writer.create().write(new Chunk<>(items));
 
@@ -94,11 +99,11 @@ class PowerUserWriterTest {
   void write_success() throws Exception {
     List<PowerUserRawData> items = List.of(
         new PowerUserRawData(UUID.randomUUID(), BigDecimal.valueOf(4.0), 2, 3,
-            BigDecimal.valueOf(4.0 * 0.5 + 2 * 0.2 + 3 * 0.3)),
+            calculateScore(BigDecimal.valueOf(4.0) , 2, 3)),
         new PowerUserRawData(UUID.randomUUID(), BigDecimal.valueOf(2.0), 1, 1,
-            BigDecimal.valueOf(2.0 * 0.5 + 1 * 0.2 + 1 * 0.3)),
+            calculateScore(BigDecimal.valueOf(2.0) , 1, 1)),
         new PowerUserRawData(UUID.randomUUID(), BigDecimal.valueOf(1.0), 0, 1,
-            BigDecimal.valueOf(1.0 * 0.5 + 0 * 0.2 + 1 * 0.3))
+            calculateScore(BigDecimal.valueOf(1.0) , 0, 1))
     );
 
     powerUserWriter.create().write(new Chunk<>(items));
@@ -117,5 +122,12 @@ class PowerUserWriterTest {
     ArgumentCaptor<List<PowerUser>> captor = ArgumentCaptor.forClass(List.class);
     verify(persistenceService).deleteAndSave(eq(Period.DAILY), captor.capture());
     assertThat(captor.getValue()).isEmpty();
+  }
+
+  private BigDecimal calculateScore(BigDecimal reviewScoreSum, int likeCount, int commentCount) {
+    double activityScore = (likeCount * LIKE_WEIGHT) + (commentCount * COMMENT_WEIGHT);
+
+    return reviewScoreSum.multiply(BigDecimal.valueOf(REVIEW_WEIGHT))
+        .add(BigDecimal.valueOf(activityScore));
   }
 }
