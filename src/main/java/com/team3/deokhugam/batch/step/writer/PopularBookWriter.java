@@ -36,7 +36,7 @@ public class PopularBookWriter implements StepExecutionListener {
 
   @Override
   public ExitStatus afterStep(@Nullable StepExecution stepExecution) {
-    if (stepExecution != null && stepExecution.getReadCount() == 0) {
+    if (stepExecution != null && stepExecution.getReadCount() == 0L) {
       persistenceService.deleteAndSave(period, List.of());
     }
     return null;

@@ -5,10 +5,12 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.batch.core.Job;
+import org.springframework.batch.core.JobExecution;
 import org.springframework.batch.core.JobParameters;
 import org.springframework.batch.core.JobParametersBuilder;
 import org.springframework.batch.core.launch.JobLauncher;
@@ -52,12 +54,15 @@ public class DashboardBatchController {
     this.dashboardBatchScheduler = dashboardBatchScheduler;
   }
 
+  private static final ZoneId KST = ZoneId.of("Asia/Seoul");
+
   @Operation(summary = "인기 도서 배치 수동 실행", description = "인기 도서 배치 수동 실행")
   @ApiResponse(responseCode = "200", description = "배치 성공")
   @PostMapping("/popular-books")
   public ResponseEntity<String> runPopularBookJob() throws Exception {
+
     JobParameters params = new JobParametersBuilder()
-        .addLocalDate("targetDate", LocalDate.now())
+        .addLocalDate("targetDate", LocalDate.now(KST))
         .addLong("timestamp", System.currentTimeMillis())
         .toJobParameters();
 
@@ -65,7 +70,11 @@ public class DashboardBatchController {
     for (Job job : List.of(popularBookDailyJob, popularBookWeeklyJob,
         popularBookMonthlyJob, popularBookAllTimeJob)) {
       try {
-        jobLauncher.run(job, params);
+        JobExecution execution = jobLauncher.run(job, params);
+        if (execution.getStatus().isUnsuccessful()) {
+          failed.add(job.getName());
+          log.error("[배치] 인기 도서 Job 실패 - {}: {}", job.getName(), execution.getStatus());
+        }
       } catch (Exception e) {
         failed.add(job.getName());
         log.error("[배치] 인기 도서 Job 실패 - {}: {}", job.getName(), e.getMessage());

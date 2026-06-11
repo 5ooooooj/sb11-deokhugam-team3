@@ -6,6 +6,7 @@ import com.team3.deokhugam.dto.dashboard.PopularReviewDto;
 import com.team3.deokhugam.repository.dashboard.PopularReviewRepository;
 import com.team3.deokhugam.service.notification.NotificationService;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
@@ -62,6 +63,7 @@ public class DashboardBatchScheduler {
   public void runDashboardBatch() {
     JobParameters params = new JobParametersBuilder()
         .addLocalDate("targetDate", LocalDate.now(KST))
+        .addLocalDateTime("runAt", LocalDateTime.now())
         .toJobParameters();
 
     // 인기 도서: 각 기간별 독립 실행
