@@ -20,6 +20,7 @@ import jakarta.persistence.EntityManager;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
@@ -29,42 +30,82 @@ import org.junit.jupiter.api.Test;
 import org.springframework.batch.core.BatchStatus;
 import org.springframework.batch.core.Job;
 import org.springframework.batch.core.JobExecution;
-import org.springframework.batch.core.JobParameters;
 import org.springframework.batch.core.JobParametersBuilder;
-import org.springframework.batch.test.JobLauncherTestUtils;
+import org.springframework.batch.core.launch.support.TaskExecutorJobLauncher;
+import org.springframework.batch.core.repository.JobRepository;
 import org.springframework.batch.test.JobRepositoryTestUtils;
-import org.springframework.batch.test.context.SpringBatchTest;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.core.task.SyncTaskExecutor;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 
-@SpringBatchTest
 @SpringBootTest
 @ActiveProfiles("test")
 public class PowerUserJobTest {
 
-  @Autowired private JobLauncherTestUtils jobLauncherTestUtils;
-  @Autowired private JobRepositoryTestUtils jobRepositoryTestUtils;
-  @Autowired private Job powerUserJob;
-  @Autowired private PowerUserRepository powerUserRepository;
-  @Autowired private PopularReviewRepository popularReviewRepository;
-  @Autowired private ReviewRepository reviewRepository;
-  @Autowired private ReviewLikeRepository reviewLikeRepository;
-  @Autowired private CommentRepository commentRepository;
-  @Autowired private BookRepository bookRepository;
-  @Autowired private UserRepository userRepository;
-  @Autowired private EntityManager entityManager;
-  @Autowired private PlatformTransactionManager transactionManager;
+  @Autowired
+  private
+  JobRepository jobRepository;
+
+  @Autowired
+  @Qualifier("powerUserDailyJob")
+  private Job powerUserDailyJob;
+
+  @Autowired
+  @Qualifier("powerUserWeeklyJob")
+  private Job powerUserWeeklyJob;
+
+  @Autowired
+  @Qualifier("powerUserMonthlyJob")
+  private Job powerUserMonthlyJob;
+
+  @Autowired
+  @Qualifier("powerUserAllTimeJob")
+  private Job powerUserAllTimeJob;
+
+  @Autowired
+  private PowerUserRepository powerUserRepository;
+
+  @Autowired
+  private PopularReviewRepository popularReviewRepository;
+
+  @Autowired
+  private ReviewRepository reviewRepository;
+
+  @Autowired
+  private ReviewLikeRepository reviewLikeRepository;
+
+  @Autowired
+  private CommentRepository commentRepository;
+
+  @Autowired
+  private BookRepository bookRepository;
+
+  @Autowired
+  private UserRepository userRepository;
+
+  @Autowired
+  private EntityManager entityManager;
+
+  @Autowired
+  private PlatformTransactionManager transactionManager;
 
   private TransactionTemplate transactionTemplate;
 
   @BeforeEach
   void setUp() {
-    jobLauncherTestUtils.setJob(powerUserJob);
     transactionTemplate = new TransactionTemplate(transactionManager);
-    jobRepositoryTestUtils.removeJobExecutions();
+    new JobRepositoryTestUtils(jobRepository).removeJobExecutions();
+    powerUserRepository.deleteAll();
+    popularReviewRepository.deleteAll();
+    commentRepository.deleteAll();
+    reviewLikeRepository.deleteAll();
+    reviewRepository.deleteAll();
+    bookRepository.deleteAll();
+    userRepository.deleteAll();
   }
 
   @AfterEach
@@ -76,6 +117,18 @@ public class PowerUserJobTest {
     reviewRepository.deleteAll();
     bookRepository.deleteAll();
     userRepository.deleteAll();
+  }
+
+  private JobExecution launchJob(Job job) throws Exception {
+    TaskExecutorJobLauncher syncLauncher = new TaskExecutorJobLauncher();
+    syncLauncher.setJobRepository(jobRepository);
+    syncLauncher.setTaskExecutor(new SyncTaskExecutor());
+    syncLauncher.afterPropertiesSet();
+
+    return syncLauncher.run(job, new JobParametersBuilder()
+        .addLocalDateTime("runAt", LocalDateTime.now())
+        .addLong("nonce", System.nanoTime())
+        .toJobParameters());
   }
 
   private User saveUser() {
@@ -96,7 +149,6 @@ public class PowerUserJobTest {
         reviewRepository.save(Review.create(user, book, 5, "테스트 리뷰")));
   }
 
-  // PopularReview 세팅
   private void savePopularReview(Review review, Period period, BigDecimal score) {
     transactionTemplate.execute(status -> {
       entityManager.createNativeQuery(
@@ -125,12 +177,10 @@ public class PowerUserJobTest {
   }
 
   @Test
-  @DisplayName("성공: Job 실행 후 POWER_USERS에 기간별 결과가 저장")
+  @DisplayName("성공: 각 Period Job 실행 후 기간별 결과가 저장")
   void job_success() throws Exception {
-    // given
     User user = saveUser();
-    Book book = saveBook();
-    Review review = saveReview(user, book);
+    Review review = saveReview(user, saveBook());
 
     savePopularReview(review, Period.DAILY, BigDecimal.valueOf(3.5));
     savePopularReview(review, Period.WEEKLY, BigDecimal.valueOf(3.5));
@@ -141,15 +191,12 @@ public class PowerUserJobTest {
     addLikes(review, liker);
     addComment(review, liker);
 
-    // when
-    JobExecution execution = jobLauncherTestUtils.launchJob(
-        new JobParametersBuilder()
-            .addLocalDate("targetDate", LocalDate.now())
-            .toJobParameters()
-    );
+    launchJob(powerUserDailyJob);
+    launchJob(powerUserWeeklyJob);
+    launchJob(powerUserMonthlyJob);
+    JobExecution allTimeExecution = launchJob(powerUserAllTimeJob);
 
-    // then
-    assertThat(execution.getStatus()).isEqualTo(BatchStatus.COMPLETED);
+    assertThat(allTimeExecution.getStatus()).isEqualTo(BatchStatus.COMPLETED);
     assertThat(powerUserRepository.findByPeriod(Period.DAILY)).isNotEmpty();
     assertThat(powerUserRepository.findByPeriod(Period.WEEKLY)).isNotEmpty();
     assertThat(powerUserRepository.findByPeriod(Period.MONTHLY)).isNotEmpty();
@@ -159,67 +206,38 @@ public class PowerUserJobTest {
   @Test
   @DisplayName("성공: Job 재실행 시 기존 데이터를 삭제하고 새로 저장")
   void job_rerun_success() throws Exception {
-    // given
     User user = saveUser();
     Review review = saveReview(user, saveBook());
     savePopularReview(review, Period.DAILY, BigDecimal.valueOf(2.0));
-    savePopularReview(review, Period.WEEKLY, BigDecimal.valueOf(2.0));
-    savePopularReview(review, Period.MONTHLY, BigDecimal.valueOf(2.0));
-    savePopularReview(review, Period.ALL_TIME, BigDecimal.valueOf(2.0));
 
-    JobParameters params1 = new JobParametersBuilder()
-        .addLocalDate("targetDate", LocalDate.now().minusDays(1))
-        .toJobParameters();
-    jobLauncherTestUtils.launchJob(params1);
+    launchJob(powerUserDailyJob);
+    long countAfterFirst = powerUserRepository.findByPeriod(Period.DAILY).size();
 
-    long countAfterFirst = powerUserRepository.count();
+    JobExecution execution = launchJob(powerUserDailyJob);
 
-    // when
-    JobParameters params2 = new JobParametersBuilder()
-        .addLocalDate("targetDate", LocalDate.now())
-        .toJobParameters();
-    JobExecution execution = jobLauncherTestUtils.launchJob(params2);
-
-    // then
     assertThat(execution.getStatus()).isEqualTo(BatchStatus.COMPLETED);
-    assertThat(powerUserRepository.count()).isEqualTo(countAfterFirst);
+    assertThat(powerUserRepository.findByPeriod(Period.DAILY)).hasSize((int) countAfterFirst);
   }
 
   @Test
   @DisplayName("성공: 활동이 없으면 빈 결과로 Job이 완료")
   void job_noActivity_success() throws Exception {
-    // when
-    JobExecution execution = jobLauncherTestUtils.launchJob(
-        new JobParametersBuilder()
-            .addLocalDate("targetDate", LocalDate.now())
-            .toJobParameters()
-    );
+    JobExecution execution = launchJob(powerUserDailyJob);
 
-    // then
     assertThat(execution.getStatus()).isEqualTo(BatchStatus.COMPLETED);
-    assertThat(powerUserRepository.count()).isZero();
+    assertThat(powerUserRepository.findByPeriod(Period.DAILY)).isEmpty();
   }
 
   @Test
   @DisplayName("성공: 1위 유저의 rank가 1로 저장")
   void job_rankIsOne_forTopUser() throws Exception {
-    // given
     User user = saveUser();
     Review review = saveReview(user, saveBook());
     savePopularReview(review, Period.DAILY, BigDecimal.valueOf(4.0));
-    savePopularReview(review, Period.WEEKLY,  BigDecimal.valueOf(4.0));
-    savePopularReview(review, Period.MONTHLY,  BigDecimal.valueOf(4.0));
-    savePopularReview(review, Period.ALL_TIME,  BigDecimal.valueOf(4.0));
 
-    // when
-    JobExecution execution = jobLauncherTestUtils.launchJob(
-        new JobParametersBuilder()
-            .addLocalDate("targetDate", LocalDate.now())
-            .toJobParameters()
-    );
+    JobExecution execution = launchJob(powerUserDailyJob);
+
     assertThat(execution.getStatus()).isEqualTo(BatchStatus.COMPLETED);
-
-    // then
     List<PowerUser> dailyResults = powerUserRepository.findByPeriod(Period.DAILY);
     assertThat(dailyResults).hasSize(1);
     assertThat(dailyResults.get(0).getRanking()).isEqualTo(1);
@@ -228,41 +246,24 @@ public class PowerUserJobTest {
   @Test
   @DisplayName("성공: 다수 유저 있을 때 점수 기반 순위가 올바르게 저장됨")
   void job_globalRankIsCorrect_forMultipleUsers() throws Exception {
-    // given
     User user1 = saveUser();
     User user2 = saveUser();
     User user3 = saveUser();
 
-    Book book = saveBook();
-    Review review1 = saveReview(user1, book);
+    Review review1 = saveReview(user1, saveBook());
     Review review2 = saveReview(user2, saveBook());
-    Review review3 = saveReview(user3, saveBook());
 
-    savePopularReview(review1, Period.DAILY,  BigDecimal.valueOf(4.0));
-    savePopularReview(review1, Period.WEEKLY,  BigDecimal.valueOf(4.0));
-    savePopularReview(review1, Period.MONTHLY,  BigDecimal.valueOf(4.0));
-    savePopularReview(review1, Period.ALL_TIME,  BigDecimal.valueOf(4.0));
+    savePopularReview(review1, Period.DAILY, BigDecimal.valueOf(4.0));
+    savePopularReview(review2, Period.DAILY, BigDecimal.valueOf(2.0));
 
-    savePopularReview(review2, Period.DAILY,  BigDecimal.valueOf(2.0));
-    savePopularReview(review2, Period.WEEKLY, BigDecimal.valueOf(2.0));
-    savePopularReview(review2, Period.MONTHLY, BigDecimal.valueOf(2.0));
-    savePopularReview(review2, Period.ALL_TIME, BigDecimal.valueOf(2.0));
-
-    // user1이 review2에 좋아요+댓글, user2가 review1에 좋아요
     addLikes(review2, user1);
     addComment(review2, user1);
     addLikes(review1, user2);
     addComment(review1, user3);
 
-    // when
-    JobExecution execution = jobLauncherTestUtils.launchJob(
-        new JobParametersBuilder()
-            .addLocalDate("targetDate", LocalDate.now())
-            .toJobParameters()
-    );
-    assertThat(execution.getStatus()).isEqualTo(BatchStatus.COMPLETED);
+    JobExecution execution = launchJob(powerUserDailyJob);
 
-    // then
+    assertThat(execution.getStatus()).isEqualTo(BatchStatus.COMPLETED);
     List<PowerUser> results = powerUserRepository.findByPeriodOrderByScoreDesc(Period.DAILY);
     assertThat(results).hasSizeGreaterThanOrEqualTo(3);
     assertThat(results.get(0).getUserId()).isEqualTo(user1.getId());
@@ -272,15 +273,35 @@ public class PowerUserJobTest {
   }
 
   @Test
+  @DisplayName("성공: 동점 유저는 같은 rank 부여 (1, 1, 3)")
+  void job_sameScore_sameRank() throws Exception {
+    User user1 = saveUser();
+    User user2 = saveUser();
+    User user3 = saveUser();
+
+    Review review1 = saveReview(user1, saveBook());
+    Review review2 = saveReview(user2, saveBook());
+    Review review3 = saveReview(user3, saveBook());
+
+    savePopularReview(review1, Period.DAILY, BigDecimal.valueOf(2.0));
+    savePopularReview(review2, Period.DAILY, BigDecimal.valueOf(2.0));
+    savePopularReview(review3, Period.DAILY, BigDecimal.valueOf(1.0));
+
+    JobExecution execution = launchJob(powerUserDailyJob);
+
+    assertThat(execution.getStatus()).isEqualTo(BatchStatus.COMPLETED);
+    List<PowerUser> results = powerUserRepository.findByPeriodOrderByScoreDesc(Period.DAILY);
+    assertThat(results).hasSize(3);
+    assertThat(results.stream().filter(r -> r.getRanking() == 1).count()).isEqualTo(2);
+    assertThat(results.stream().filter(r -> r.getRanking() == 3).count()).isEqualTo(1);
+  }
+
+  @Test
   @DisplayName("성공: 논리 삭제된 리뷰도 파워 유저 점수 계산에 포함")
   void job_includesDeletedReviewAuthor() throws Exception {
-    // given
     User user = saveUser();
     Review review = saveReview(user, saveBook());
     savePopularReview(review, Period.DAILY, BigDecimal.valueOf(3.0));
-    savePopularReview(review, Period.WEEKLY, BigDecimal.valueOf(3.0));
-    savePopularReview(review, Period.MONTHLY, BigDecimal.valueOf(3.0));
-    savePopularReview(review, Period.ALL_TIME, BigDecimal.valueOf(3.0));
 
     transactionTemplate.execute(status -> {
       entityManager.createQuery(
@@ -291,16 +312,33 @@ public class PowerUserJobTest {
       return null;
     });
 
-    // when
-    JobExecution execution = jobLauncherTestUtils.launchJob(
-        new JobParametersBuilder()
-            .addLocalDate("targetDate", LocalDate.now())
-            .toJobParameters()
-    );
+    JobExecution execution = launchJob(powerUserDailyJob);
 
-    // then
     assertThat(execution.getStatus()).isEqualTo(BatchStatus.COMPLETED);
-    // Reader 쿼리에 Review.deletedAt 필터 없으므로 논리 삭제 리뷰도 포함
     assertThat(powerUserRepository.findByPeriod(Period.DAILY)).hasSize(1);
+  }
+
+  @Test
+  @DisplayName("성공: 기존 데이터 있을 때 활동 0건이면 stale 데이터 삭제")
+  void job_staleDataCleared_whenNoActivity() throws Exception {
+    User user = saveUser();
+    transactionTemplate.execute(status -> {
+      PowerUser stale = PowerUser.builder()
+          .userId(user.getId())
+          .period(Period.DAILY)
+          .score(BigDecimal.valueOf(1.0))
+          .reviewScoreSum(BigDecimal.ZERO)
+          .likeCount(0)
+          .commentCount(0)
+          .calculatedAt(Instant.now())
+          .build();
+      powerUserRepository.save(stale);
+      return null;
+    });
+
+    JobExecution execution = launchJob(powerUserDailyJob);
+
+    assertThat(execution.getStatus()).isEqualTo(BatchStatus.COMPLETED);
+    assertThat(powerUserRepository.findByPeriod(Period.DAILY)).isEmpty();
   }
 }
