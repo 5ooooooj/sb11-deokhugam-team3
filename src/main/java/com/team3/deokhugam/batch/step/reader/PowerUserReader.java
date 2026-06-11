@@ -86,7 +86,6 @@ public class PowerUserReader {
             )
             FROM User u
             LEFT JOIN Review r ON r.user.id = u.id
-                               AND r.createdAt >= :startDate
             LEFT JOIN PopularReview pr ON pr.reviewId = r.id
                                        AND pr.period = :period
             LEFT JOIN ReviewLike rl ON rl.user.id = u.id

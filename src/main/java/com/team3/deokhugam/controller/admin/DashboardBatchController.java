@@ -3,6 +3,7 @@ package com.team3.deokhugam.controller.admin;
 import com.team3.deokhugam.batch.scheduler.DashboardBatchScheduler;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import java.time.LocalDate;
 import java.time.ZoneId;
@@ -15,6 +16,7 @@ import org.springframework.batch.core.JobParameters;
 import org.springframework.batch.core.JobParametersBuilder;
 import org.springframework.batch.core.launch.JobLauncher;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -40,6 +42,8 @@ public class DashboardBatchController {
   private final Job powerUserMonthlyJob;
   private final Job powerUserAllTimeJob;
   private final DashboardBatchScheduler dashboardBatchScheduler;
+
+  private static final ZoneId KST = ZoneId.of("Asia/Seoul");
 
   public DashboardBatchController(
       JobLauncher jobLauncher,
@@ -72,100 +76,101 @@ public class DashboardBatchController {
     this.dashboardBatchScheduler = dashboardBatchScheduler;
   }
 
-  private static final ZoneId KST = ZoneId.of("Asia/Seoul");
-
-  @Operation(summary = "인기 도서 배치 수동 실행", description = "인기 도서 배치 수동 실행")
-  @ApiResponse(responseCode = "200", description = "배치 성공")
+  @Operation(summary = "인기 도서 배치 수동 실행", description = "인기 도서 배치들을 수동으로 순차 실행합니다.")
+  @ApiResponses({
+      @ApiResponse(responseCode = "200", description = "모든 인기 도서 배치 성공"),
+      @ApiResponse(responseCode = "500", description = "일부 또는 전체 배치 실패")
+  })
   @PostMapping("/popular-books")
-  public ResponseEntity<String> runPopularBookJob() throws Exception {
-
-    JobParameters params = new JobParametersBuilder()
-        .addLocalDate("targetDate", LocalDate.now(KST))
-        .addLong("timestamp", System.currentTimeMillis())
-        .toJobParameters();
-
+  public ResponseEntity<String> runPopularBookJob() {
+    JobParameters params = createStandardParameters();
     List<String> failed = new ArrayList<>();
-    for (Job job : List.of(popularBookDailyJob, popularBookWeeklyJob,
-        popularBookMonthlyJob, popularBookAllTimeJob)) {
-      try {
-        JobExecution execution = jobLauncher.run(job, params);
-        if (execution.getStatus().isUnsuccessful()) {
-          failed.add(job.getName());
-          log.error("[배치] 인기 도서 Job 실패 - {}: {}", job.getName(), execution.getStatus());
-        }
-      } catch (Exception e) {
-        failed.add(job.getName());
-        log.error("[배치] 인기 도서 Job 실패 - {}: {}", job.getName(), e.getMessage());
-      }
+
+    for (Job job : List.of(popularBookDailyJob, popularBookWeeklyJob, popularBookMonthlyJob, popularBookAllTimeJob)) {
+      executeJob(job, params, failed);
     }
 
-    return failed.isEmpty()
-        ? ResponseEntity.ok("인기 도서 배치 실행 완료")
-        : ResponseEntity.ok("인기 도서 배치 부분 실패: " + failed);
+    return handleBatchResult("인기 도서 배치 실행 완료", "인기 도서 배치 일부/전체 실패: ", failed);
   }
 
-  @Operation(summary = "인기 리뷰 배치 수동 실행", description = "인기 리뷰 배치 수동 실행")
-  @ApiResponse(responseCode = "200", description = "배치 성공")
+  @Operation(summary = "인기 리뷰 배치 수동 실행", description = "인기 리뷰 배치들을 수동으로 순차 실행합니다.")
+  @ApiResponses({
+      @ApiResponse(responseCode = "200", description = "모든 인기 리뷰 배치 성공"),
+      @ApiResponse(responseCode = "500", description = "일부 또는 전체 배치 실패")
+  })
   @PostMapping("/popular-reviews")
-  public ResponseEntity<String> runPopularReviewJob() throws Exception {
-    JobParameters params = new JobParametersBuilder()
-        .addLocalDate("targetDate", LocalDate.now(KST))
-        .addLong("timestamp", System.currentTimeMillis())
-        .toJobParameters();
-
+  public ResponseEntity<String> runPopularReviewJob() {
+    JobParameters params = createStandardParameters();
     List<String> failed = new ArrayList<>();
-    for (Job job : List.of(popularReviewDailyJob, popularReviewWeeklyJob,
-        popularReviewMonthlyJob, popularReviewAllTimeJob)) {
-      try {
-        JobExecution execution = jobLauncher.run(job, params);
-        if (execution.getStatus().isUnsuccessful()) {
-          failed.add(job.getName());
-          log.error("[배치] 인기 리뷰 Job 실패 - {}: {}", job.getName(), execution.getStatus());
-        }
-      } catch (Exception e) {
-        failed.add(job.getName());
-        log.error("[배치] 인기 리뷰 Job 실패 - {}: {}", job.getName(), e.getMessage());
-      }
+
+    for (Job job : List.of(popularReviewDailyJob, popularReviewWeeklyJob, popularReviewMonthlyJob, popularReviewAllTimeJob)) {
+      executeJob(job, params, failed);
     }
 
-    return failed.isEmpty()
-        ? ResponseEntity.ok("인기 리뷰 배치 실행 완료")
-        : ResponseEntity.ok("인기 리뷰 배치 부분 실패: " + failed);
+    return handleBatchResult("인기 리뷰 배치 실행 완료", "인기 리뷰 배치 일부/전체 실패: ", failed);
   }
 
-  @Operation(summary = "인기 유저 배치 수동 실행", description = "인기 유저 배치 수동 실행")
-  @ApiResponse(responseCode = "200", description = "배치 성공")
+  @Operation(summary = "인기 유저 배치 수동 실행", description = "인기 유저 배치들을 수동으로 순차 실행합니다.")
+  @ApiResponses({
+      @ApiResponse(responseCode = "200", description = "모든 파워 유저 배치 성공"),
+      @ApiResponse(responseCode = "500", description = "일부 또는 전체 배치 실패")
+  })
   @PostMapping("/power-users")
-  public ResponseEntity<String> runPowerUserJob() throws Exception {
-    JobParameters params = new JobParametersBuilder()
-        .addLocalDate("targetDate", LocalDate.now(KST))
-        .addLong("timestamp", System.currentTimeMillis())
-        .toJobParameters();
-
+  public ResponseEntity<String> runPowerUserJob() {
+    JobParameters params = createStandardParameters();
     List<String> failed = new ArrayList<>();
-    for (Job job : List.of(powerUserDailyJob, powerUserWeeklyJob,
-        powerUserMonthlyJob, powerUserAllTimeJob)) {
-      try {
-        JobExecution execution = jobLauncher.run(job, params);
-        if (execution.getStatus().isUnsuccessful()) {
-          failed.add(job.getName());
-          log.error("[배치] 파워 유저 Job 실패 - {}: {}", job.getName(), execution.getStatus());
-        }
-      } catch (Exception e) {
-        failed.add(job.getName());
-        log.error("[배치] 파워 유저 Job 실패 - {}: {}", job.getName(), e.getMessage());
-      }
+
+    for (Job job : List.of(powerUserDailyJob, powerUserWeeklyJob, powerUserMonthlyJob, powerUserAllTimeJob)) {
+      executeJob(job, params, failed);
     }
 
-    return failed.isEmpty()
-        ? ResponseEntity.ok("파워 유저 배치 실행 완료")
-        : ResponseEntity.ok("파워 유저 배치 부분 실패: " + failed);
+    return handleBatchResult("파워 유저 배치 실행 완료", "파워 유저 배치 일부/전체 실패: ", failed);
   }
 
-  @Operation(summary = "전체 배치 실행", description = "대시보드 배치 전체 수동 실행")
+  @Operation(summary = "전체 배치 실행", description = "대시보드와 관련된 모든 배치를 순차 실행합니다.")
+  @ApiResponses({
+      @ApiResponse(responseCode = "200", description = "전체 대시보드 배치 성공"),
+      @ApiResponse(responseCode = "500", description = "일부 또는 전체 배치 실패")
+  })
   @PostMapping("/dashboard")
   public ResponseEntity<String> runDashboardBatch() {
-    dashboardBatchScheduler.runDashboardBatch();
-    return ResponseEntity.ok("배치 실행 완료");
+    try {
+      // 스케줄러가 실패한 Job 이름 리스트를 반환하도록 계약을 변경합니다.
+      List<String> failed = dashboardBatchScheduler.runDashboardBatch();
+
+      return handleBatchResult("전체 대시보드 배치 실행 완료", "전체 대시보드 배치 중 일부 실패: ", failed);
+    } catch (Exception e) {
+      log.error("[배치] 전체 대시보드 스케줄러 실행 중 시스템 예외 발생", e);
+      return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+          .body("전체 배치 실행 중 예외 발생: " + e.getMessage());
+    }
+  }
+
+  private JobParameters createStandardParameters() {
+    return new JobParametersBuilder()
+        .addLocalDate("targetDate", LocalDate.now(KST))
+        .addLong("timestamp", System.currentTimeMillis())
+        .toJobParameters();
+  }
+
+  private void executeJob(Job job, JobParameters params, List<String> failedList) {
+    try {
+      JobExecution execution = jobLauncher.run(job, params);
+      if (execution.getStatus().isUnsuccessful()) {
+        failedList.add(job.getName());
+        log.error("[배치] {} 실패 - Status: {}", job.getName(), execution.getStatus());
+      }
+    } catch (Exception e) {
+      failedList.add(job.getName());
+      log.error("[배치] {} 실행 중 예외 발생", job.getName(), e);
+    }
+  }
+
+  private ResponseEntity<String> handleBatchResult(String successMessage, String failMessagePrefix, List<String> failedList) {
+    if (failedList.isEmpty()) {
+      return ResponseEntity.ok(successMessage);
+    }
+    return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+        .body(failMessagePrefix + failedList);
   }
 }

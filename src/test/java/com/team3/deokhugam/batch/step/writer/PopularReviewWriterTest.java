@@ -16,6 +16,7 @@ import com.team3.deokhugam.batch.persistenceService.PopularReviewRankingPersiste
 import com.team3.deokhugam.domain.dashboard.PopularReview;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
@@ -36,12 +37,37 @@ class PopularReviewWriterTest {
 
   private PopularReviewWriter popularReviewWriter;
 
+  private final LocalDateTime fixedStart = LocalDateTime.of(2026, 6, 10, 0 ,0 ,0);
+
   @BeforeEach
   void setUp() {
     popularReviewWriter = new PopularReviewWriter(Period.DAILY, persistenceService);
     StepExecution stepExecution = mock(StepExecution.class);
-    when(stepExecution.getStartTime()).thenReturn(LocalDateTime.now());
+    when(stepExecution.getStartTime()).thenReturn(fixedStart);
     popularReviewWriter.beforeStep(stepExecution);
+  }
+
+  @Test
+  @DisplayName("성공: write 수행 시 고정된 startTime 기반으로 정확한 Instant 값이 계산되어 저장되는지 검증")
+  void write_validItems_savesWithExactCalculatedAt() throws Exception {
+    // given
+    List<PopularReviewRawData> items = List.of(
+        new PopularReviewRawData(UUID.randomUUID(), 3, 5, BigDecimal.valueOf(3.0 * 0.3 + 5.0 * 0.7))
+    );
+
+    // when - Chunk를 생성하여 배치의 write 로직 실행
+    popularReviewWriter.create().write(new Chunk<>(items));
+
+    // then
+    ArgumentCaptor<List<PopularReview>> captor = ArgumentCaptor.forClass(List.class);
+    verify(persistenceService).deleteAndSave(eq(Period.DAILY), captor.capture());
+
+    List<PopularReview> savedReviews = captor.getValue();
+    assertThat(savedReviews).isNotEmpty();
+
+    // 단순 null 체크 대신, 설정한 LocalDateTime이 시스템 시간대에 맞춰 정확한 Instant로 변환되었는지 검증
+    assertThat(savedReviews.get(0).getCalculatedAt())
+        .isEqualTo(fixedStart.atZone(ZoneId.of("Asia/Seoul")).toInstant());
   }
 
   @Test

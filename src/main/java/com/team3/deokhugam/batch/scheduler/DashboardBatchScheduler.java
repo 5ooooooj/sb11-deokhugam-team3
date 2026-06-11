@@ -8,6 +8,7 @@ import com.team3.deokhugam.service.notification.NotificationService;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.util.ArrayList;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.batch.core.Job;
@@ -78,7 +79,9 @@ public class DashboardBatchScheduler {
   }
 
   @Scheduled(cron = "0 0 0 * * *", zone = "Asia/Seoul")
-  public void runDashboardBatch() {
+  public List<String> runDashboardBatch() {
+    List<String> failedJobs = new ArrayList<>();
+
     JobParameters params = new JobParametersBuilder()
         .addLocalDate("targetDate", LocalDate.now(KST))
         .addLocalDateTime("runAt", LocalDateTime.now())
@@ -91,34 +94,39 @@ public class DashboardBatchScheduler {
         runJob(job, params);
       } catch (BatchJobExecutionException e) {
         log.error("[배치] 인기 도서 Job 실패 - {}: {}", job.getName(), e.getMessage());
+        failedJobs.add(job.getName());
       }
     }
 
     // 인기 리뷰
-    boolean popularReviewJobSucceeded = false;
-    try {
-      for (Job job : List.of(popularReviewDailyJob, popularReviewWeeklyJob,
-          popularReviewMonthlyJob, popularReviewAllTimeJob)) {
+    boolean popularReviewJobsSucceeded = true;
+    for (Job job : List.of(popularReviewDailyJob, popularReviewWeeklyJob, popularReviewMonthlyJob, popularReviewAllTimeJob)) {
+      try {
         runJob(job, params);
+      } catch (BatchJobExecutionException e) {
+        log.error("[배치] 인기 리뷰 Job 실패 - {}: {}", job.getName(), e.getMessage());
+        failedJobs.add(job.getName());
+        popularReviewJobsSucceeded = false; // 하나라도 실패하면 알림 발송 차단용
       }
-      popularReviewJobSucceeded = true;
-    } catch (BatchJobExecutionException e) {
-      log.error("[배치] 인기 리뷰 Job 실패: {}", e.getMessage());
     }
 
     // 파워 유저 (인기 리뷰 전체 성공 시에만 실행)
-    if (popularReviewJobSucceeded) {
+    for (Job job : List.of(powerUserDailyJob, powerUserWeeklyJob, powerUserMonthlyJob, powerUserAllTimeJob)) {
       try {
-        for (Job job : List.of(powerUserDailyJob, powerUserWeeklyJob,
-            powerUserMonthlyJob, powerUserAllTimeJob)) {
-          runJob(job, params);
-        }
+        runJob(job, params);
       } catch (BatchJobExecutionException e) {
-        log.error("[배치] 파워 유저 Job 실패: {}", e.getMessage());
-      } finally {
-        sendRankingNotifications();
+        log.error("[배치] 파워 유저 Job 실패 - {}: {}", job.getName(), e.getMessage());
+        failedJobs.add(job.getName());
       }
     }
+
+    if (popularReviewJobsSucceeded) {
+      sendRankingNotifications();
+    } else {
+      log.warn("[배치] 인기 리뷰 배치 중 실패 항목이 존재하여 랭킹 알림 발송(sendRankingNotifications)을 건너뜁니다.");
+    }
+
+    return failedJobs;
   }
 
   private void runJob(Job job, JobParameters params) {

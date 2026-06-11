@@ -119,9 +119,10 @@ public class PopularReviewJobTest {
     syncLauncher.afterPropertiesSet();
 
     return syncLauncher.run(job, new JobParametersBuilder()
-        .addLocalDateTime("runAt", LocalDateTime.now())
-        .addLong("nonce", System.nanoTime())
-        .toJobParameters());
+            .addLocalDate("targetDate", LocalDate.of(2026,6,11))
+            .addLocalDateTime("runAt", LocalDateTime.now())
+            .addLong("nonce", System.nanoTime())
+            .toJobParameters());
   }
 
   private User saveUser() {
