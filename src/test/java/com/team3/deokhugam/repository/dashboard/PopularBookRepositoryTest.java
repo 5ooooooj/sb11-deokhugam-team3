@@ -155,4 +155,43 @@ class PopularBookRepositoryTest extends BaseRepositoryTest {
 
     assertThat(count).isEqualTo(0);
   }
+
+  @Test
+  @DisplayName("성공: 동순위 인기 도서는 도서 등록일 최신 순(createdAt Desc)으로 정렬")
+  void findPopularBooksByPeriod_sameRank_orderedByBookCreatedAtDesc() {
+    // given: bookId2가 book1보다 나중에 생성되어 createdAt이 더 최신임
+    // 동순위 데이터를 추가하여 createdAt DESC 정렬 확인
+    em.persist(PopularBook.builder()
+        .bookId(bookId2)
+        .period(Period.MONTHLY)
+        .score(BigDecimal.valueOf(100))
+        .ranking(1)
+        .reviewCount(10)
+        .rating(BigDecimal.valueOf(4.5))
+        .calculatedAt(Instant.now())
+        .build());
+
+    em.persist(PopularBook.builder()
+        .bookId(bookId1)
+        .period(Period.MONTHLY)
+        .score(BigDecimal.valueOf(100))
+        .ranking(1)
+        .reviewCount(10)
+        .rating(BigDecimal.valueOf(4.5))
+        .calculatedAt(Instant.now())
+        .build());
+
+    em.flush();
+    em.clear();
+
+    // when
+    List<PopularBookDto> result = popularBookRepository
+        .findPopularBooksByPeriod(Period.MONTHLY, PageRequest.of(0, 10));
+
+    // then: book2이 더 나중에 등록됐으므로 앞에 와야 함
+    assertThat(result).hasSize(2);
+    assertThat(result.get(0).bookId()).isEqualTo(bookId2);
+    assertThat(result.get(1).bookId()).isEqualTo(bookId1);
+  }
+
 }

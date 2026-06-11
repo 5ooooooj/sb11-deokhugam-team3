@@ -7,6 +7,7 @@ public record PowerUserRawData (
     UUID userId,
     BigDecimal reviewScoreSum,
     int likeCount,
-    int commentCount
+    int commentCount,
+    BigDecimal score
 ){
 }

@@ -24,7 +24,7 @@ public interface PowerUserRepository extends JpaRepository<PowerUser, UUID> {
         FROM PowerUser pu
         JOIN User u ON pu.userId = u.id
         WHERE pu.period = :period
-        ORDER BY pu.ranking ASC
+        ORDER BY pu.ranking ASC, u.createdAt ASC, u.id ASC
         """)
   List<PowerUserDto> findPowerUsersByPeriod(
       @Param("period") Period period,

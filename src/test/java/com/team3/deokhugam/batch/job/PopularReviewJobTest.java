@@ -16,8 +16,10 @@ import com.team3.deokhugam.repository.review.ReviewLikeRepository;
 import com.team3.deokhugam.repository.review.ReviewRepository;
 import com.team3.deokhugam.repository.user.UserRepository;
 import jakarta.persistence.EntityManager;
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.UUID;
@@ -28,41 +30,76 @@ import org.junit.jupiter.api.Test;
 import org.springframework.batch.core.BatchStatus;
 import org.springframework.batch.core.Job;
 import org.springframework.batch.core.JobExecution;
-import org.springframework.batch.core.JobParameters;
 import org.springframework.batch.core.JobParametersBuilder;
-import org.springframework.batch.test.JobLauncherTestUtils;
+import org.springframework.batch.core.launch.support.TaskExecutorJobLauncher;
+import org.springframework.batch.core.repository.JobRepository;
 import org.springframework.batch.test.JobRepositoryTestUtils;
-import org.springframework.batch.test.context.SpringBatchTest;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.core.task.SyncTaskExecutor;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 
-@SpringBatchTest
 @SpringBootTest
 @ActiveProfiles("test")
 public class PopularReviewJobTest {
 
-  @Autowired private JobLauncherTestUtils jobLauncherTestUtils;
-  @Autowired private JobRepositoryTestUtils jobRepositoryTestUtils;
-  @Autowired private Job popularReviewJob;
-  @Autowired private PopularReviewRepository popularReviewRepository;
-  @Autowired private ReviewRepository reviewRepository;
-  @Autowired private ReviewLikeRepository reviewLikeRepository;
-  @Autowired private CommentRepository commentRepository;
-  @Autowired private BookRepository bookRepository;
-  @Autowired private UserRepository userRepository;
-  @Autowired private EntityManager entityManager;
-  @Autowired private PlatformTransactionManager transactionManager;
+  @Autowired private JobRepository jobRepository;
+
+  @Autowired
+  @Qualifier("popularReviewDailyJob")
+  private Job popularReviewDailyJob;
+
+  @Autowired
+  @Qualifier("popularReviewWeeklyJob")
+  private Job popularReviewWeeklyJob;
+
+  @Autowired
+  @Qualifier("popularReviewMonthlyJob")
+  private Job popularReviewMonthlyJob;
+
+  @Autowired
+  @Qualifier("popularReviewAllTimeJob")
+  private Job popularReviewAllTimeJob;
+
+  @Autowired
+  private PopularReviewRepository popularReviewRepository;
+
+  @Autowired
+  private ReviewRepository reviewRepository;
+
+  @Autowired
+  private ReviewLikeRepository reviewLikeRepository;
+
+  @Autowired
+  private CommentRepository commentRepository;
+
+  @Autowired
+  private BookRepository bookRepository;
+
+  @Autowired
+  private UserRepository userRepository;
+
+  @Autowired
+  private EntityManager entityManager;
+
+  @Autowired
+  private PlatformTransactionManager transactionManager;
 
   private TransactionTemplate transactionTemplate;
 
   @BeforeEach
   void setUp() {
-    jobLauncherTestUtils.setJob(popularReviewJob);
     transactionTemplate = new TransactionTemplate(transactionManager);
-    jobRepositoryTestUtils.removeJobExecutions();
+    new JobRepositoryTestUtils(jobRepository).removeJobExecutions();
+    popularReviewRepository.deleteAll();
+    commentRepository.deleteAll();
+    reviewLikeRepository.deleteAll();
+    reviewRepository.deleteAll();
+    bookRepository.deleteAll();
+    userRepository.deleteAll();
   }
 
   @AfterEach
@@ -73,6 +110,19 @@ public class PopularReviewJobTest {
     reviewRepository.deleteAll();
     bookRepository.deleteAll();
     userRepository.deleteAll();
+  }
+
+  private JobExecution launchJob(Job job) throws Exception {
+    TaskExecutorJobLauncher syncLauncher = new TaskExecutorJobLauncher();
+    syncLauncher.setJobRepository(jobRepository);
+    syncLauncher.setTaskExecutor(new SyncTaskExecutor());
+    syncLauncher.afterPropertiesSet();
+
+    return syncLauncher.run(job, new JobParametersBuilder()
+            .addLocalDate("targetDate", LocalDate.of(2026,6,11))
+            .addLocalDateTime("runAt", LocalDateTime.now())
+            .addLong("nonce", System.nanoTime())
+            .toJobParameters());
   }
 
   private User saveUser() {
@@ -91,18 +141,6 @@ public class PopularReviewJobTest {
   private Review saveReview(User user, Book book) {
     return transactionTemplate.execute(status ->
         reviewRepository.save(Review.create(user, book, 5, "테스트 리뷰")));
-  }
-
-  // 리뷰 createdAt을 과거로 밀어서 기간 범위 조정
-  private void shiftReviewCreatedAt(UUID reviewId, long daysAgo) {
-    transactionTemplate.execute(status -> {
-      entityManager.createQuery(
-              "UPDATE Review r SET r.createdAt = :createdAt WHERE r.id = :id")
-          .setParameter("createdAt", Instant.now().minus(daysAgo, ChronoUnit.DAYS))
-          .setParameter("id", reviewId)
-          .executeUpdate();
-      return null;
-    });
   }
 
   private void addLikes(Review review, int count) {
@@ -160,37 +198,29 @@ public class PopularReviewJobTest {
   }
 
   @Test
-  @DisplayName("성공: Job 실행 후 POPULAR_REVIEWS에 기간별 결과가 저장")
+  @DisplayName("성공: 각 Period Job 실행 후 기간별 결과가 저장")
   void job_success() throws Exception {
-    // given
     User user = saveUser();
 
-    // DAILY - 오늘 좋아요/댓글 발생 -> DAILY에만 잡힘
     Review dailyReview = saveReview(user, saveBook());
-    addLikes(dailyReview, 2);      // 오늘 생성
-    addComments(dailyReview, 1);   // 오늘 생성
+    addLikes(dailyReview, 2);
+    addComments(dailyReview, 1);
 
-    // WEEKLY - 3일 전 좋아요 발생 -> WEEKLY/MONTHLY/ALL_TIME에 잡힘
     Review weeklyReview = saveReview(user, saveBook());
-    addLikesWithDate(weeklyReview, 1, 3);   // 3일 전
+    addLikesWithDate(weeklyReview, 1, 3);
 
-    // MONTHLY - 15일 전 댓글 발생 -> MONTHLY/ALL_TIME에 잡힘
     Review monthlyReview = saveReview(user, saveBook());
-    addCommentsWithDate(monthlyReview, 2, 15);  // 15일 전
+    addCommentsWithDate(monthlyReview, 2, 15);
 
-    // ALL_TIME - 200일 전 좋아요 발생 -> ALL_TIME에만 잡힘
     Review allTimeReview = saveReview(user, saveBook());
-    addLikesWithDate(allTimeReview, 3, 200);  // 200일 전
+    addLikesWithDate(allTimeReview, 3, 200);
 
-    // when
-    JobExecution execution = jobLauncherTestUtils.launchJob(
-        new JobParametersBuilder()
-            .addLocalDate("targetDate", LocalDate.now())
-            .toJobParameters()
-    );
+    launchJob(popularReviewDailyJob);
+    launchJob(popularReviewWeeklyJob);
+    launchJob(popularReviewMonthlyJob);
+    JobExecution allTimeExecution = launchJob(popularReviewAllTimeJob);
 
-    // then
-    assertThat(execution.getStatus()).isEqualTo(BatchStatus.COMPLETED);
+    assertThat(allTimeExecution.getStatus()).isEqualTo(BatchStatus.COMPLETED);
     assertThat(popularReviewRepository.findByPeriod(Period.DAILY)).hasSize(1);
     assertThat(popularReviewRepository.findByPeriod(Period.WEEKLY)).hasSize(2);
     assertThat(popularReviewRepository.findByPeriod(Period.MONTHLY)).hasSize(3);
@@ -200,62 +230,39 @@ public class PopularReviewJobTest {
   @Test
   @DisplayName("성공: Job 재실행 시 기존 데이터를 삭제하고 새로 저장")
   void job_rerun_success() throws Exception {
-    // given
     User user = saveUser();
     Review review = saveReview(user, saveBook());
     addLikes(review, 1);
 
-    JobParameters params1 = new JobParametersBuilder()
-        .addLocalDate("targetDate", LocalDate.now().minusDays(1))
-        .toJobParameters();
-    jobLauncherTestUtils.launchJob(params1);
+    launchJob(popularReviewDailyJob);
+    long countAfterFirst = popularReviewRepository.findByPeriod(Period.DAILY).size();
 
-    long countAfterFirst = popularReviewRepository.count();
+    JobExecution execution = launchJob(popularReviewDailyJob);
 
-    // when
-    JobParameters params2 = new JobParametersBuilder()
-        .addLocalDate("targetDate", LocalDate.now())
-        .toJobParameters();
-    JobExecution execution = jobLauncherTestUtils.launchJob(params2);
-
-    // then
     assertThat(execution.getStatus()).isEqualTo(BatchStatus.COMPLETED);
-    assertThat(popularReviewRepository.count()).isEqualTo(countAfterFirst);
+    assertThat(popularReviewRepository.findByPeriod(Period.DAILY)).hasSize((int) countAfterFirst);
   }
 
   @Test
   @DisplayName("성공: 리뷰가 없으면 빈 결과로 Job이 완료")
   void job_noReview_success() throws Exception {
-    // when
-    JobExecution execution = jobLauncherTestUtils.launchJob(
-        new JobParametersBuilder()
-            .addLocalDate("targetDate", LocalDate.now())
-            .toJobParameters()
-    );
+    JobExecution execution = launchJob(popularReviewDailyJob);
 
-    // then
     assertThat(execution.getStatus()).isEqualTo(BatchStatus.COMPLETED);
-    assertThat(popularReviewRepository.count()).isZero();
+    assertThat(popularReviewRepository.findByPeriod(Period.DAILY)).isEmpty();
   }
 
   @Test
   @DisplayName("성공: 1위 리뷰의 rank가 1로 저장")
   void job_rankIsOne_forTopReview() throws Exception {
-    // given
     User user = saveUser();
     Review review = saveReview(user, saveBook());
     addLikes(review, 3);
     addComments(review, 2);
 
-    // when
-    JobExecution execution = jobLauncherTestUtils.launchJob(
-        new JobParametersBuilder()
-            .addLocalDate("targetDate", LocalDate.now())
-            .toJobParameters()
-    );
-    assertThat(execution.getStatus()).isEqualTo(BatchStatus.COMPLETED);
+    JobExecution execution = launchJob(popularReviewDailyJob);
 
-    // then
+    assertThat(execution.getStatus()).isEqualTo(BatchStatus.COMPLETED);
     List<PopularReview> dailyResults = popularReviewRepository.findByPeriod(Period.DAILY);
     assertThat(dailyResults).hasSize(1);
     assertThat(dailyResults.get(0).getRanking()).isEqualTo(1);
@@ -264,7 +271,6 @@ public class PopularReviewJobTest {
   @Test
   @DisplayName("성공: 다수 리뷰 있을 때 점수 기반 순위가 올바르게 저장됨")
   void job_globalRankIsCorrect_forMultipleReviews() throws Exception {
-    // given
     User user = saveUser();
 
     Review review1 = saveReview(user, saveBook());
@@ -278,15 +284,9 @@ public class PopularReviewJobTest {
     Review review3 = saveReview(user, saveBook());
     addLikes(review3, 1);
 
-    // when
-    JobExecution execution = jobLauncherTestUtils.launchJob(
-        new JobParametersBuilder()
-            .addLocalDate("targetDate", LocalDate.now())
-            .toJobParameters()
-    );
-    assertThat(execution.getStatus()).isEqualTo(BatchStatus.COMPLETED);
+    JobExecution execution = launchJob(popularReviewDailyJob);
 
-    // then
+    assertThat(execution.getStatus()).isEqualTo(BatchStatus.COMPLETED);
     List<PopularReview> results = popularReviewRepository.findByPeriodOrderByScoreDesc(Period.DAILY);
     assertThat(results).hasSize(3);
     assertThat(results.get(0).getReviewId()).isEqualTo(review1.getId());
@@ -298,9 +298,33 @@ public class PopularReviewJobTest {
   }
 
   @Test
+  @DisplayName("성공: 동점 리뷰는 같은 rank 부여 (1, 1, 3)")
+  void job_sameScore_sameRank() throws Exception {
+    User user = saveUser();
+
+    Review review1 = saveReview(user, saveBook());
+    addLikes(review1, 2);
+    addComments(review1, 1);
+
+    Review review2 = saveReview(user, saveBook());
+    addLikes(review2, 2);
+    addComments(review2, 1);
+
+    Review review3 = saveReview(user, saveBook());
+    addLikes(review3, 1);
+
+    JobExecution execution = launchJob(popularReviewDailyJob);
+
+    assertThat(execution.getStatus()).isEqualTo(BatchStatus.COMPLETED);
+    List<PopularReview> results = popularReviewRepository.findByPeriodOrderByScoreDesc(Period.DAILY);
+    assertThat(results).hasSize(3);
+    assertThat(results.stream().filter(r -> r.getRanking() == 1).count()).isEqualTo(2);
+    assertThat(results.stream().filter(r -> r.getRanking() == 3).count()).isEqualTo(1);
+  }
+
+  @Test
   @DisplayName("성공: 논리 삭제된 리뷰도 인기 점수 계산에 포함")
   void job_includesDeletedReview() throws Exception {
-    // given
     User user = saveUser();
     Review review = saveReview(user, saveBook());
     addLikes(review, 2);
@@ -315,16 +339,32 @@ public class PopularReviewJobTest {
       return null;
     });
 
-    // when
-    JobExecution execution = jobLauncherTestUtils.launchJob(
-        new JobParametersBuilder()
-            .addLocalDate("targetDate", LocalDate.now())
-            .toJobParameters()
-    );
+    JobExecution execution = launchJob(popularReviewDailyJob);
 
-    // then
     assertThat(execution.getStatus()).isEqualTo(BatchStatus.COMPLETED);
-    // 인기 점수 계산 시 논리 삭제 데이터 포함
     assertThat(popularReviewRepository.findByPeriod(Period.DAILY)).hasSize(1);
+  }
+
+  @Test
+  @DisplayName("성공: 기존 데이터 있을 때 활동 0건이면 stale 데이터 삭제")
+  void job_staleDataCleared_whenNoActivity() throws Exception {
+    Review review = saveReview(saveUser(), saveBook());
+    transactionTemplate.execute(status -> {
+      PopularReview stale = PopularReview.builder()
+          .reviewId(review.getId())
+          .period(Period.DAILY)
+          .score(BigDecimal.valueOf(1.0))
+          .likeCount(1)
+          .commentCount(0)
+          .calculatedAt(Instant.now())
+          .build();
+      popularReviewRepository.save(stale);
+      return null;
+    });
+
+    JobExecution execution = launchJob(popularReviewDailyJob);
+
+    assertThat(execution.getStatus()).isEqualTo(BatchStatus.COMPLETED);
+    assertThat(popularReviewRepository.findByPeriod(Period.DAILY)).isEmpty();
   }
 }

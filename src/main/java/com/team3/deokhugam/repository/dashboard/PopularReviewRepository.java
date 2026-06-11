@@ -26,7 +26,7 @@ public interface PopularReviewRepository extends JpaRepository<PopularReview, UU
     FROM PopularReview pr
     JOIN Review r ON pr.reviewId = r.id
     WHERE pr.period = :period
-    ORDER BY pr.ranking ASC
+    ORDER BY pr.ranking ASC, r.createdAt DESC, r.id DESC
     """)
   List<PopularReviewDto> findPopularReviewsByPeriod(
       @Param("period") Period period,

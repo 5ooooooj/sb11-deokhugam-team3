@@ -93,7 +93,7 @@ public class UserController {
   })
   @GetMapping("/power")
   public CursorPageResponse<PowerUserDto> getPowerUsers(
-      @RequestParam(defaultValue = "DAILY") String period,
+      @RequestParam(defaultValue = "ALL_TIME") String period,
       @RequestParam(required = false) String direction,
       @RequestParam(required = false) String cursor,
       @RequestParam(required = false) Instant after,
