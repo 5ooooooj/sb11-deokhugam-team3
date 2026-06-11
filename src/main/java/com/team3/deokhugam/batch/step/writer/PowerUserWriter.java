@@ -7,7 +7,6 @@ import com.team3.deokhugam.batch.persistenceService.PowerUserRankingPersistenceS
 import com.team3.deokhugam.domain.dashboard.PowerUser;
 import java.time.Instant;
 import java.time.ZoneId;
-import java.time.ZoneOffset;
 import java.util.List;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;

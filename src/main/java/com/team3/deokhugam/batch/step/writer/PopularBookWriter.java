@@ -7,7 +7,6 @@ import com.team3.deokhugam.batch.persistenceService.PopularBookRankingPersistenc
 import com.team3.deokhugam.domain.dashboard.PopularBook;
 import java.time.Instant;
 import java.time.ZoneId;
-import java.time.ZoneOffset;
 import java.util.List;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
