@@ -37,8 +37,8 @@ class NotificationCleanupServiceTest {
 
     Instant captured = captor.getValue();
     assertThat(captured).isBetween(
-        beforeCall.minus(30, ChronoUnit.DAYS),
-        afterCall.minus(30, ChronoUnit.DAYS)
+        beforeCall.minus(7, ChronoUnit.DAYS),
+        afterCall.minus(7, ChronoUnit.DAYS)
     );
   }
 }

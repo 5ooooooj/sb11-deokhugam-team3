@@ -66,16 +66,6 @@ public class CommentController {
     return ResponseEntity.noContent().build();
   }
 
-  @CommentHardDeleteApi
-  @DeleteMapping("/{commentId}/hard")
-  public ResponseEntity<Void> hardDelete(
-      @PathVariable UUID commentId,
-      @RequestHeader("Deokhugam-Request-User-ID") UUID requestUserId
-  ) {
-    commentService.hardDelete(commentId, requestUserId);
-    return ResponseEntity.noContent().build();
-  }
-
   @CommentFindAllApi
   @GetMapping
   public ResponseEntity<CursorPageResponse<CommentDto>> findAll(
