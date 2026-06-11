@@ -5,6 +5,9 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.batch.core.Job;
 import org.springframework.batch.core.JobParameters;
 import org.springframework.batch.core.JobParametersBuilder;
@@ -15,6 +18,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+@Slf4j
 @RestController
 @RequestMapping("/api/admin/batch")
 @Tag(name = "배치 수동 실행 API")
@@ -57,11 +61,20 @@ public class DashboardBatchController {
         .addLong("timestamp", System.currentTimeMillis())
         .toJobParameters();
 
-    jobLauncher.run(popularBookDailyJob, params);
-    jobLauncher.run(popularBookWeeklyJob, params);
-    jobLauncher.run(popularBookMonthlyJob, params);
-    jobLauncher.run(popularBookAllTimeJob, params);
-    return ResponseEntity.ok("인기 도서 배치 실행 완료");
+    List<String> failed = new ArrayList<>();
+    for (Job job : List.of(popularBookDailyJob, popularBookWeeklyJob,
+        popularBookMonthlyJob, popularBookAllTimeJob)) {
+      try {
+        jobLauncher.run(job, params);
+      } catch (Exception e) {
+        failed.add(job.getName());
+        log.error("[배치] 인기 도서 Job 실패 - {}: {}", job.getName(), e.getMessage());
+      }
+    }
+
+    return failed.isEmpty()
+        ? ResponseEntity.ok("인기 도서 배치 실행 완료")
+        : ResponseEntity.ok("인기 도서 배치 부분 실패: " + failed);
   }
 
   @Operation(summary = "인기 리뷰 배치 수동 실행", description = "인기 리뷰 배치 수동 실행")
@@ -90,6 +103,7 @@ public class DashboardBatchController {
     return ResponseEntity.ok("인기 유저 배치 실행 완료");
   }
 
+  @Operation(summary = "전체 배치 실행", description = "대시보드 배치 전체 수동 실행")
   @PostMapping("/dashboard")
   public ResponseEntity<String> runDashboardBatch() {
     dashboardBatchScheduler.runDashboardBatch();

@@ -159,7 +159,8 @@ class PopularBookRepositoryTest extends BaseRepositoryTest {
   @Test
   @DisplayName("성공: 동순위 인기 도서는 도서 등록일 최신 순(createdAt Desc)으로 정렬")
   void findPopularBooksByPeriod_sameRank_orderedByBookCreatedAtDesc() {
-    // given: bookId2를 먼저, bookId1을 나중에 persist해서 순서 역전 확인
+    // given: bookId2가 book1보다 나중에 생성되어 createdAt이 더 최신임
+    // 동순위 데이터를 추가하여 createdAt DESC 정렬 확인
     em.persist(PopularBook.builder()
         .bookId(bookId2)
         .period(Period.MONTHLY)

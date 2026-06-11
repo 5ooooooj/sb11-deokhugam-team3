@@ -12,6 +12,7 @@ import com.team3.deokhugam.repository.dashboard.PopularBookRepository;
 import com.team3.deokhugam.repository.review.ReviewRepository;
 import com.team3.deokhugam.repository.user.UserRepository;
 import jakarta.persistence.EntityManager;
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -26,7 +27,6 @@ import org.junit.jupiter.api.Test;
 import org.springframework.batch.core.BatchStatus;
 import org.springframework.batch.core.Job;
 import org.springframework.batch.core.JobExecution;
-import org.springframework.batch.core.JobParameters;
 import org.springframework.batch.core.JobParametersBuilder;
 import org.springframework.batch.core.launch.support.TaskExecutorJobLauncher;
 import org.springframework.batch.core.repository.JobRepository;
@@ -76,12 +76,23 @@ public class PopularBookJobTest {
     syncLauncher.setTaskExecutor(new SyncTaskExecutor());
     syncLauncher.afterPropertiesSet();
 
-    JobParameters params = new JobParametersBuilder()
+    JobExecution execution = syncLauncher.run(job, new JobParametersBuilder()
         .addLocalDateTime("runAt", LocalDateTime.now())
         .addLong("nonce", System.nanoTime())
-        .toJobParameters();
+        .toJobParameters());
 
-    JobExecution execution = syncLauncher.run(job, params);
+    System.out.println("Job status: " + execution.getStatus());
+    System.out.println("Job name: " + execution.getJobInstance().getJobName());
+    execution.getStepExecutions().forEach(se -> {
+      System.out.println("Step: " + se.getStepName() + " status: " + se.getStatus());
+      if (se.getFailureExceptions() != null) {
+        se.getFailureExceptions().forEach(e -> System.out.println("Step exception: " + e.getMessage()));
+        se.getFailureExceptions().forEach(Throwable::printStackTrace);
+      }
+    });
+    execution.getFailureExceptions().forEach(e -> System.out.println("Job exception: " + e.getMessage()));
+    execution.getFailureExceptions().forEach(Throwable::printStackTrace);
+
     return execution;
   }
 
@@ -93,8 +104,13 @@ public class PopularBookJobTest {
     userRepository.deleteAll();
   }
 
+  // 자졍 경계 조건 회피
   private Instant kstToday() {
     return LocalDate.now(KST).atStartOfDay(KST).plusHours(1).toInstant();
+  }
+
+  private Instant kstDaysAgo(long days) {
+    return LocalDate.now(KST).atStartOfDay(KST).minusDays(days).plusHours(1).toInstant();
   }
 
   private User saveUser() {
@@ -143,8 +159,8 @@ public class PopularBookJobTest {
     User user2 = saveUser();
     Book book1 = saveBook();
     Book book2 = saveBook();
-    saveReviewWithCreatedAt(user1, book1, 5, "3일 전 리뷰", Instant.now().minus(3, ChronoUnit.DAYS));
-    saveReviewWithCreatedAt(user2, book2, 4, "8일 전 리뷰", Instant.now().minus(8, ChronoUnit.DAYS));
+    saveReviewWithCreatedAt(user1, book1, 5, "3일 전 리뷰", kstToday().minus(3, ChronoUnit.DAYS));
+    saveReviewWithCreatedAt(user2, book2, 4, "8일 전 리뷰", kstToday().minus(8, ChronoUnit.DAYS));
 
     JobExecution execution = launchJob(popularBookWeeklyJob);
 
@@ -161,8 +177,8 @@ public class PopularBookJobTest {
     User user2 = saveUser();
     Book book1 = saveBook();
     Book book2 = saveBook();
-    saveReviewWithCreatedAt(user1, book1, 5, "15일 전 리뷰", Instant.now().minus(15, ChronoUnit.DAYS));
-    saveReviewWithCreatedAt(user2, book2, 4, "31일 전 리뷰", Instant.now().minus(31, ChronoUnit.DAYS));
+    saveReviewWithCreatedAt(user1, book1, 5, "15일 전 리뷰", kstDaysAgo(15));
+    saveReviewWithCreatedAt(user2, book2, 4, "31일 전 리뷰", kstDaysAgo(31));
 
     JobExecution execution = launchJob(popularBookMonthlyJob);
 
@@ -180,7 +196,7 @@ public class PopularBookJobTest {
     Book book1 = saveBook();
     Book book2 = saveBook();
     saveReviewWithCreatedAt(user1, book1, 5, "최근 리뷰", kstToday());
-    saveReviewWithCreatedAt(user2, book2, 3, "오래된 리뷰", Instant.now().minus(200, ChronoUnit.DAYS));
+    saveReviewWithCreatedAt(user2, book2, 3, "오래된 리뷰", kstDaysAgo(200));
 
     JobExecution execution = launchJob(popularBookAllTimeJob);
 
@@ -278,5 +294,33 @@ public class PopularBookJobTest {
     assertThat(results).hasSize(3);
     assertThat(results.stream().filter(r -> r.getRanking() == 1).count()).isEqualTo(2);
     assertThat(results.stream().filter(r -> r.getRanking() == 3).count()).isEqualTo(1);
+  }
+
+  @Test
+  @DisplayName("성공: 기존 데이터 있을 때 리뷰 0건이면 stale 데이터 삭제")
+  void job_staleDataCleared_whenNoReviews() throws Exception {
+    // given: popular_books에 stale 데이터 미리 저장
+    Book book = saveBook();
+    transactionTemplate.execute(status -> {
+      PopularBook stale = PopularBook.builder()
+          .bookId(book.getId())
+          .period(Period.DAILY)
+          .score(BigDecimal.valueOf(3.0))
+          .reviewCount(1)
+          .rating(BigDecimal.valueOf(3.0))
+          .calculatedAt(Instant.now())
+          .build();
+      popularBookRepository.save(stale);
+      return null;
+    });
+
+    // 리뷰 없음
+
+    // when
+    JobExecution execution = launchJob(popularBookDailyJob);
+
+    // then
+    assertThat(execution.getStatus()).isEqualTo(BatchStatus.COMPLETED);
+    assertThat(popularBookRepository.findByPeriod(Period.DAILY)).isEmpty();
   }
 }

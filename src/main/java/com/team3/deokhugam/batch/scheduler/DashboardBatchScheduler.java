@@ -64,12 +64,19 @@ public class DashboardBatchScheduler {
         .addLocalDate("targetDate", LocalDate.now(KST))
         .toJobParameters();
 
+    // 인기 도서: 각 기간별 독립 실행
+    for (Job job : List.of(popularBookDailyJob, popularBookWeeklyJob,
+        popularBookMonthlyJob, popularBookAllTimeJob)) {
+      try {
+        runJob(job, params);
+      } catch (BatchJobExecutionException e) {
+        log.error("[배치] 인기 도서 Job 실패 - {}: {}", job.getName(), e.getMessage());
+      }
+    }
+
+    // 인기 리뷰, 파워 유저 수정 전, 기존 로직 유지
     boolean popularReviewJobSucceeded = false;
     try {
-      runJob(popularBookDailyJob, params);
-      runJob(popularBookWeeklyJob, params);
-      runJob(popularBookMonthlyJob, params);
-      runJob(popularBookAllTimeJob, params);
       runJob(popularReviewJob, params);
       popularReviewJobSucceeded = true;
       runJob(powerUserJob, params);

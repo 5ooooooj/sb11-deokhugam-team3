@@ -143,7 +143,7 @@ class PowerUserRepositoryTest extends BaseRepositoryTest {
   @Test
   @DisplayName("동순위 파워유저는 가입일 오래된 순(createdAt ASC)으로 정렬된다")
   void findPowerUsersByPeriod_sameRank_orderedByCreatedAtAsc() {
-    // given: user1이 user2보다 먼저 저장됐으므로 createdAt이 더 이름
+    // given: user1이 user2보다 먼저 저장됐으므로 createdAt이 더 오래됨
     // 동순위(ranking=1) 데이터 추가
     em.persist(PowerUser.builder()
         .userId(userId1)

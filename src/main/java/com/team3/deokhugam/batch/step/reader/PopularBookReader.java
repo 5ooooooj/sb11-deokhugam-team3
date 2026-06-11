@@ -52,8 +52,8 @@ public class PopularBookReader {
               CAST((COUNT(r) * 0.4 + AVG(r.rating) * 0.6) AS bigdecimal)
             )
             FROM Review r
-            GROUP BY r.book.id
-            ORDER BY (COUNT(r) * 0.4 + AVG(r.rating) * 0.6) DESC
+            GROUP BY r.book.id, r.book.createdAt
+            ORDER BY (COUNT(r) * 0.4 + AVG(r.rating) * 0.6) DESC, r.book.createdAt DESC, r.book.id DESC
             """, PopularBookRawData.class)
             .setMaxResults(MAX_ITEM_COUNT)
             .getResultList();
@@ -67,8 +67,8 @@ public class PopularBookReader {
             )
             FROM Review r
             WHERE r.createdAt >= :startDate
-            GROUP BY r.book.id
-            ORDER BY (COUNT(r) * 0.4 + AVG(r.rating) * 0.6) DESC
+            GROUP BY r.book.id, r.book.createdAt
+            ORDER BY (COUNT(r) * 0.4 + AVG(r.rating) * 0.6) DESC, r.book.createdAt DESC, r.book.id DESC
             """, PopularBookRawData.class)
             .setParameter("startDate", startDate)
             .setMaxResults(MAX_ITEM_COUNT)
