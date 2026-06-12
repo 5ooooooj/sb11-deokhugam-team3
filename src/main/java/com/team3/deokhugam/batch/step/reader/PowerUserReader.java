@@ -8,10 +8,12 @@ import jakarta.persistence.EntityManagerFactory;
 import java.time.Instant;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.batch.item.ExecutionContext;
 import org.springframework.batch.item.support.AbstractItemStreamItemReader;
 import org.springframework.stereotype.Component;
 
+@Slf4j
 @Component
 @RequiredArgsConstructor
 public class PowerUserReader {
@@ -41,6 +43,10 @@ public class PowerUserReader {
 
   private List<PowerUserRawData> fetchData(Period period) {
     Instant startDate = DateCalculateUtil.getStartDate(period);
+    Instant endDate = DateCalculateUtil.getEndDate(period);
+
+    log.debug("🚀 [배치 범위 확인] 시작: " + startDate + " ~ 끝: " + endDate);
+
     EntityManager em = entityManagerFactory.createEntityManager();
     try {
       if (startDate == null) {
@@ -89,9 +95,9 @@ public class PowerUserReader {
             LEFT JOIN PopularReview pr ON pr.reviewId = r.id
                                        AND pr.period = :period
             LEFT JOIN ReviewLike rl ON rl.user.id = u.id
-                                    AND rl.createdAt >= :startDate
+                                    AND rl.createdAt >= :startDate AND rl.createdAt < :endDate
             LEFT JOIN Comment c ON c.user.id = u.id
-                                AND c.createdAt >= :startDate
+                                AND c.createdAt >= :startDate AND c.createdAt < :endDate
             WHERE u.deletedAt IS NULL
             GROUP BY u.id, u.createdAt
             HAVING COALESCE(SUM(pr.score), 0) > 0
@@ -104,6 +110,7 @@ public class PowerUserReader {
             """, PowerUserRawData.class)
             .setParameter("period", period)
             .setParameter("startDate", startDate)
+            .setParameter("endDate", endDate)
             .setMaxResults(MAX_ITEM_COUNT)
             .getResultList();
       }

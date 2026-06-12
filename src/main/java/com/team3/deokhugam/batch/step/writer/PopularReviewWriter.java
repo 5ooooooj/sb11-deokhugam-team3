@@ -6,7 +6,6 @@ import com.team3.deokhugam.batch.global.RankCalculateUtil;
 import com.team3.deokhugam.batch.persistenceService.PopularReviewRankingPersistenceService;
 import com.team3.deokhugam.domain.dashboard.PopularReview;
 import java.time.Instant;
-import java.time.ZoneId;
 import java.util.List;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
@@ -27,13 +26,7 @@ public class PopularReviewWriter implements StepExecutionListener {
 
   @Override
   public void beforeStep(@Nullable StepExecution stepExecution) {
-    if (stepExecution != null && stepExecution.getStartTime() != null) {
-      calculatedAt = stepExecution.getStartTime()
-          .atZone(ZoneId.of("Asia/Seoul"))
-          .toInstant();
-    } else {
-      calculatedAt = Instant.now();
-    }
+    this.calculatedAt = Instant.now();
   }
 
   @Override

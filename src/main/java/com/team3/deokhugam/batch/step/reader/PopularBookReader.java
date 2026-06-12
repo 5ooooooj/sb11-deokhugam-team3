@@ -9,10 +9,12 @@ import java.time.Instant;
 import java.util.List;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.batch.item.ExecutionContext;
 import org.springframework.batch.item.support.AbstractItemStreamItemReader;
 import org.springframework.stereotype.Component;
 
+@Slf4j
 @Component
 @RequiredArgsConstructor
 public class PopularBookReader {
@@ -42,6 +44,9 @@ public class PopularBookReader {
 
   private List<PopularBookRawData> fetchData(Period period) {
     Instant startDate = DateCalculateUtil.getStartDate(period);
+    Instant endDate = DateCalculateUtil.getEndDate(period);
+
+    log.debug("🚀 [배치 범위 확인] 시작: " + startDate + " ~ 끝: " + endDate);
 
     try (EntityManager em = entityManagerFactory.createEntityManager()) {
       if (startDate == null) {
@@ -67,11 +72,12 @@ public class PopularBookReader {
           CAST((COUNT(r) * 0.4 + AVG(r.rating) * 0.6) AS bigdecimal)
         )
         FROM Review r
-        WHERE r.createdAt >= :startDate
+        WHERE r.createdAt >= :startDate AND r.createdAt < :endDate
         GROUP BY r.book.id, r.book.createdAt
         ORDER BY (COUNT(r) * 0.4 + AVG(r.rating) * 0.6) DESC, r.book.createdAt DESC, r.book.id DESC
         """, PopularBookRawData.class)
             .setParameter("startDate", startDate)
+            .setParameter("endDate", endDate)
             .setMaxResults(MAX_ITEM_COUNT)
             .getResultList();
       }

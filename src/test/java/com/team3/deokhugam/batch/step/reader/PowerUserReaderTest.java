@@ -21,6 +21,8 @@ import jakarta.persistence.EntityManagerFactory;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
@@ -73,6 +75,12 @@ class PowerUserReaderTest {
   private PowerUserReader powerUserReader;
   private TransactionTemplate transactionTemplate;
 
+  // 한국 시간(KST) 기준의 '어제' 시간대 정의
+  private final Instant kstYesterday = LocalDateTime.now(ZoneId.of("Asia/Seoul"))
+      .minusDays(1)
+      .atZone(ZoneId.of("Asia/Seoul"))
+      .toInstant();
+
   @BeforeEach
   void setUp() {
     powerUserReader = new PowerUserReader(entityManagerFactory);
@@ -110,14 +118,16 @@ class PowerUserReaderTest {
         reviewRepository.save(Review.create(user, book, 5, "테스트 리뷰")));
   }
 
-  private void savePopularReview(Review review, Period period, double score) {
+  // calculated_at 시간을 외부에서 주입할 수 있도록 변경 (기존: now() 하드코딩)
+  private void savePopularReview(Review review, Period period, double score, Instant calculatedAt) {
     transactionTemplate.execute(status -> {
       entityManager.createNativeQuery(
               "INSERT INTO popular_reviews (id, review_id, period, score, ranking, like_count, comment_count, calculated_at) "
-                  + "VALUES (gen_random_uuid(), :reviewId, :period, :score, 1, 0, 0, now())")
+                  + "VALUES (gen_random_uuid(), :reviewId, :period, :score, 1, 0, 0, :calculatedAt)")
           .setParameter("reviewId", review.getId())
           .setParameter("period", period.name())
           .setParameter("score", score)
+          .setParameter("calculatedAt", calculatedAt)
           .executeUpdate();
       return null;
     });
@@ -142,16 +152,24 @@ class PowerUserReaderTest {
   void read_daily_success() throws Exception {
     User user = saveUser();
     Review review = saveReview(user, saveBook());
-    savePopularReview(review, Period.DAILY, 3.0);
+    // 인기 리뷰의 시간대를 '어제' 시간대로 고정
+    savePopularReview(review, Period.DAILY, 3.0, kstYesterday.plus(1, ChronoUnit.HOURS));
 
     transactionTemplate.execute(status -> {
-      User liker = userRepository.save(
-          new User("liker-" + UUID.randomUUID() + "@test.com", "좋아요", "Password1!"));
-      User commenter = userRepository.save(
-          new User("commenter-" + UUID.randomUUID() + "@test.com", "댓글러", "Password1!"));
+      ReviewLike like = reviewLikeRepository.save(ReviewLike.create(review, user));
+      Comment comment = commentRepository.save(Comment.create(review, user, "댓글"));
 
-      reviewLikeRepository.save(ReviewLike.create(review, user));
-      commentRepository.save(Comment.create(review, user, "댓글"));
+      // 새로 생성된 라이크와 코멘트도 '어제' 시간대 내부로 강제 패치
+      entityManager.createQuery("UPDATE ReviewLike rl SET rl.createdAt = :createdAt WHERE rl.id = :id")
+          .setParameter("createdAt", kstYesterday.plus(1, ChronoUnit.HOURS))
+          .setParameter("id", like.getId())
+          .executeUpdate();
+
+      entityManager.createQuery("UPDATE Comment c SET c.createdAt = :createdAt WHERE c.id = :id")
+          .setParameter("createdAt", kstYesterday.plus(2, ChronoUnit.HOURS))
+          .setParameter("id", comment.getId())
+          .executeUpdate();
+
       return null;
     });
 
@@ -163,7 +181,6 @@ class PowerUserReaderTest {
         .findFirst().orElseThrow();
     assertThat(userResult.reviewScoreSum())
         .isCloseTo(BigDecimal.valueOf(3.0), within(BigDecimal.valueOf(0.001)));
-    // score = 3.0 * 0.5 + 1 * 0.2 + 1 * 0.3 = 2.0
     assertThat(userResult.score())
         .isCloseTo(BigDecimal.valueOf(2.0), within(BigDecimal.valueOf(0.001)));
   }
@@ -173,7 +190,7 @@ class PowerUserReaderTest {
   void read_excludesDeletedUser() throws Exception {
     User user = saveUser();
     Review review = saveReview(user, saveBook());
-    savePopularReview(review, Period.DAILY, 3.0);
+    savePopularReview(review, Period.DAILY, 3.0, kstYesterday.plus(1, ChronoUnit.HOURS));
 
     transactionTemplate.execute(status -> {
       entityManager.createQuery(
@@ -194,13 +211,13 @@ class PowerUserReaderTest {
   void read_allTime_success() throws Exception {
     User user = saveUser();
     Review review = saveReview(user, saveBook());
-    savePopularReview(review, Period.ALL_TIME, 5.0);
+    // ALL_TIME 집계는 기간 조건이 없으므로 임의의 현재 시간대를 주입해도 무방
+    savePopularReview(review, Period.ALL_TIME, 5.0, Instant.now());
 
     transactionTemplate.execute(status -> {
-      User liker = userRepository.save(
-          new User("liker-" + UUID.randomUUID() + "@test.com", "좋아요", "Password1!"));
       ReviewLike like = reviewLikeRepository.save(ReviewLike.create(review, user));
 
+      // 오래된 과거 데이터 세팅
       entityManager.createQuery(
               "UPDATE ReviewLike rl SET rl.createdAt = :createdAt WHERE rl.id = :id")
           .setParameter("createdAt", Instant.now().minus(200, ChronoUnit.DAYS))
@@ -217,7 +234,6 @@ class PowerUserReaderTest {
         .findFirst().orElseThrow();
     assertThat(userResult.reviewScoreSum())
         .isCloseTo(BigDecimal.valueOf(5.0), within(BigDecimal.valueOf(0.001)));
-    // score = 5.0 * 0.5 + 1 * 0.2 + 0 * 0.3 = 2.7
     assertThat(userResult.score())
         .isCloseTo(BigDecimal.valueOf(2.7), within(BigDecimal.valueOf(0.001)));
   }
@@ -240,8 +256,9 @@ class PowerUserReaderTest {
     Review review1 = saveReview(user1, saveBook());
     Review review2 = saveReview(user2, saveBook());
 
-    savePopularReview(review1, Period.DAILY, 4.0);
-    savePopularReview(review2, Period.DAILY, 2.0);
+    // 다중 유저 인기리뷰들의 집계 시점을 '어제' 범위로 일괄 패치
+    savePopularReview(review1, Period.DAILY, 4.0, kstYesterday.plus(1, ChronoUnit.HOURS));
+    savePopularReview(review2, Period.DAILY, 2.0, kstYesterday.plus(2, ChronoUnit.HOURS));
 
     List<PowerUserRawData> results = readAll(Period.DAILY);
 
@@ -252,7 +269,6 @@ class PowerUserReaderTest {
         .findFirst().orElseThrow();
     assertThat(user1Result.reviewScoreSum())
         .isCloseTo(BigDecimal.valueOf(4.0), within(BigDecimal.valueOf(0.001)));
-    // score = 4.0 * 0.5 + 0 * 0.2 + 0 * 0.3 = 2.0
     assertThat(user1Result.score())
         .isCloseTo(BigDecimal.valueOf(2.0), within(BigDecimal.valueOf(0.001)));
 
@@ -261,7 +277,6 @@ class PowerUserReaderTest {
         .findFirst().orElseThrow();
     assertThat(user2Result.reviewScoreSum())
         .isCloseTo(BigDecimal.valueOf(2.0), within(BigDecimal.valueOf(0.001)));
-    // score = 2.0 * 0.5 + 0 * 0.2 + 0 * 0.3 = 1.0
     assertThat(user2Result.score())
         .isCloseTo(BigDecimal.valueOf(1.0), within(BigDecimal.valueOf(0.001)));
   }
@@ -274,10 +289,9 @@ class PowerUserReaderTest {
     Review review1 = saveReview(user1, saveBook());
     Review review2 = saveReview(user2, saveBook());
 
-    // user1: reviewScoreSum=2.0 → score = 2.0 * 0.5 = 1.0
-    savePopularReview(review1, Period.DAILY, 2.0);
-    // user2: reviewScoreSum=4.0 → score = 4.0 * 0.5 = 2.0
-    savePopularReview(review2, Period.DAILY, 4.0);
+    // 정렬 검증 대상들의 집계 시점도 '어제' 내부 시간으로 명시
+    savePopularReview(review1, Period.DAILY, 2.0, kstYesterday.plus(1, ChronoUnit.HOURS));
+    savePopularReview(review2, Period.DAILY, 4.0, kstYesterday.plus(2, ChronoUnit.HOURS));
 
     List<PowerUserRawData> results = readAll(Period.DAILY);
 
@@ -297,12 +311,15 @@ class PowerUserReaderTest {
             UUID.randomUUID(), "도서" + i, "저자", "설명",
             "출판사", LocalDate.of(2026, 1, 1), null, null));
         Review review = reviewRepository.save(Review.create(user, book, 5, "리뷰" + i));
+
+        // 루프 내 벌크성 데이터 삽입 시에도 명확하게 '어제' 타임스탬프를 부여
         entityManager.createNativeQuery(
                 "INSERT INTO popular_reviews (id, review_id, period, score, ranking, like_count, comment_count, calculated_at) "
-                    + "VALUES (gen_random_uuid(), :reviewId, :period, :score, 1, 0, 0, now())")
+                    + "VALUES (gen_random_uuid(), :reviewId, :period, :score, 1, 0, 0, :calculatedAt)")
             .setParameter("reviewId", review.getId())
             .setParameter("period", Period.DAILY.name())
             .setParameter("score", i + 1.0)
+            .setParameter("calculatedAt", kstYesterday.plus(2, ChronoUnit.HOURS))
             .executeUpdate();
       }
       return null;

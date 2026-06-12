@@ -8,7 +8,6 @@ import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 
 import com.team3.deokhugam.batch.dto.PopularReviewRawData;
 import com.team3.deokhugam.batch.global.Period;
@@ -29,6 +28,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.batch.core.StepExecution;
 import org.springframework.batch.item.Chunk;
+import org.springframework.test.util.ReflectionTestUtils;
 
 @ExtendWith(MockitoExtension.class)
 class PopularReviewWriterTest {
@@ -47,7 +47,6 @@ class PopularReviewWriterTest {
   void setUp() {
     popularReviewWriter = new PopularReviewWriter(Period.DAILY, persistenceService);
     StepExecution stepExecution = mock(StepExecution.class);
-    when(stepExecution.getStartTime()).thenReturn(fixedStart);
     popularReviewWriter.beforeStep(stepExecution);
   }
 
@@ -58,6 +57,9 @@ class PopularReviewWriterTest {
     List<PopularReviewRawData> items = List.of(
         new PopularReviewRawData(UUID.randomUUID(), 3, 5, calculateScore(3, 5))
     );
+
+    Instant fixedInstant = fixedStart.atZone(ZoneId.of("Asia/Seoul")).toInstant();
+    ReflectionTestUtils.setField(popularReviewWriter, "calculatedAt", fixedInstant);
 
     // when - Chunk를 생성하여 배치의 write 로직 실행
     popularReviewWriter.create().write(new Chunk<>(items));
@@ -70,8 +72,7 @@ class PopularReviewWriterTest {
     assertThat(savedReviews).isNotEmpty();
 
     // 단순 null 체크 대신, 설정한 LocalDateTime이 시스템 시간대에 맞춰 정확한 Instant로 변환되었는지 검증
-    assertThat(savedReviews.get(0).getCalculatedAt())
-        .isEqualTo(fixedStart.atZone(ZoneId.of("Asia/Seoul")).toInstant());
+    assertThat(savedReviews.get(0).getCalculatedAt()).isEqualTo(fixedInstant);
   }
 
   @Test
@@ -108,6 +109,10 @@ class PopularReviewWriterTest {
     PopularReviewWriter writer = new PopularReviewWriter(Period.DAILY, persistenceService);
     writer.beforeStep(null);
 
+    // 실행 직전의 시간을 오차 범위를 위해 캡처해 둠
+    Instant beforeExecution = Instant.now();
+    writer.beforeStep(null);
+
     List<PopularReviewRawData> items = List.of(
         new PopularReviewRawData(UUID.randomUUID(), 3, 5, calculateScore(3, 5))
     );
@@ -116,8 +121,10 @@ class PopularReviewWriterTest {
     ArgumentCaptor<List<PopularReview>> captor = ArgumentCaptor.forClass(List.class);
     verify(persistenceService).deleteAndSave(eq(Period.DAILY), captor.capture());
     Instant actual = captor.getValue().get(0).getCalculatedAt();
+    Instant afterExecution = Instant.now();
+
     assertThat(actual).isNotNull();
-    assertThat(actual).isBetween(Instant.now().minusSeconds(1), Instant.now().plusSeconds(1));
+    assertThat(actual).isBetween(beforeExecution.minusSeconds(1), afterExecution.plusSeconds(1));
   }
 
   @Test

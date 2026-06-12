@@ -45,7 +45,6 @@ class PowerUserWriterTest {
   void setUp() {
     powerUserWriter = new PowerUserWriter(Period.DAILY, persistenceService);
     StepExecution stepExecution = mock(StepExecution.class);
-    when(stepExecution.getStartTime()).thenReturn(LocalDateTime.now());
     powerUserWriter.beforeStep(stepExecution);
   }
 

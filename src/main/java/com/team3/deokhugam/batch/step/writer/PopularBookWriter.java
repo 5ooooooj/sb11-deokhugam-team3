@@ -27,13 +27,7 @@ public class PopularBookWriter implements StepExecutionListener {
 
   @Override
   public void beforeStep(@Nullable StepExecution stepExecution) {
-    if (stepExecution != null && stepExecution.getStartTime() != null) {
-      calculatedAt = stepExecution.getStartTime()
-          .atZone(ZoneId.of("Asia/Seoul"))
-          .toInstant();
-    } else {
-      calculatedAt = Instant.now();
-    }
+      this.calculatedAt = Instant.now();
   }
 
   @Override

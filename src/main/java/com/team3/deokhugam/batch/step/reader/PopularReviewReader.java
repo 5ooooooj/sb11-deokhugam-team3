@@ -8,10 +8,12 @@ import jakarta.persistence.EntityManagerFactory;
 import java.time.Instant;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.batch.item.ExecutionContext;
 import org.springframework.batch.item.support.AbstractItemStreamItemReader;
 import org.springframework.stereotype.Component;
 
+@Slf4j
 @Component
 @RequiredArgsConstructor
 public class PopularReviewReader {
@@ -41,6 +43,10 @@ public class PopularReviewReader {
 
   private List<PopularReviewRawData> fetchData(Period period) {
     Instant startDate = DateCalculateUtil.getStartDate(period);
+    Instant endDate = DateCalculateUtil.getEndDate(period);
+
+    log.debug("🚀 [배치 범위 확인] 시작: " + startDate + " ~ 끝: " + endDate);
+
     EntityManager em = entityManagerFactory.createEntityManager();
     try {
       if (startDate == null) {
@@ -71,15 +77,16 @@ public class PopularReviewReader {
             )
             FROM Review r
             LEFT JOIN ReviewLike rl ON rl.review.id = r.id
-              AND rl.createdAt >= :startDate
+              AND rl.createdAt >= :startDate AND rl.createdAt < :endDate
             LEFT JOIN Comment c ON c.review.id = r.id
-              AND c.createdAt >= :startDate
+              AND c.createdAt >= :startDate AND c.createdAt < :endDate
             GROUP BY r.id, r.createdAt
             HAVING COUNT(DISTINCT rl.id) > 0 OR COUNT(DISTINCT c.id) > 0
             ORDER BY (COUNT(DISTINCT rl.id) * 0.3 + COUNT(DISTINCT c.id) * 0.7) DESC,
                      r.createdAt DESC, r.id DESC
             """, PopularReviewRawData.class)
             .setParameter("startDate", startDate)
+            .setParameter("endDate", endDate)
             .setMaxResults(MAX_ITEM_COUNT)
             .getResultList();
       }
