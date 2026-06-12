@@ -21,6 +21,8 @@ import jakarta.persistence.EntityManagerFactory;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
@@ -73,6 +75,12 @@ class PowerUserReaderTest {
   private PowerUserReader powerUserReader;
   private TransactionTemplate transactionTemplate;
 
+  // 한국 시간(KST) 기준의 '어제' 시간대 정의
+  private final Instant kstYesterday = LocalDateTime.now(ZoneId.of("Asia/Seoul"))
+      .minusDays(1)
+      .atZone(ZoneId.of("Asia/Seoul"))
+      .toInstant();
+
   @BeforeEach
   void setUp() {
     powerUserReader = new PowerUserReader(entityManagerFactory);
@@ -110,14 +118,16 @@ class PowerUserReaderTest {
         reviewRepository.save(Review.create(user, book, 5, "테스트 리뷰")));
   }
 
-  private void savePopularReview(Review review, Period period, double score) {
+  // calculated_at 시간을 외부에서 주입할 수 있도록 변경 (기존: now() 하드코딩)
+  private void savePopularReview(Review review, Period period, BigDecimal score, Instant calculatedAt) {
     transactionTemplate.execute(status -> {
       entityManager.createNativeQuery(
               "INSERT INTO popular_reviews (id, review_id, period, score, ranking, like_count, comment_count, calculated_at) "
-                  + "VALUES (gen_random_uuid(), :reviewId, :period, :score, 1, 0, 0, now())")
+                  + "VALUES (gen_random_uuid(), :reviewId, :period, :score, 1, 0, 0, :calculatedAt)")
           .setParameter("reviewId", review.getId())
           .setParameter("period", period.name())
           .setParameter("score", score)
+          .setParameter("calculatedAt", calculatedAt)
           .executeUpdate();
       return null;
     });
@@ -137,21 +147,53 @@ class PowerUserReaderTest {
     return results;
   }
 
+  private void saveLike(Review review, User user, Instant createdAt) {
+    transactionTemplate.execute(status -> {
+      ReviewLike like = reviewLikeRepository.save(ReviewLike.create(review, user));
+      entityManager.createQuery(
+              "UPDATE ReviewLike rl SET rl.createdAt = :createdAt WHERE rl.id = :id")
+          .setParameter("createdAt", createdAt)
+          .setParameter("id", like.getId())
+          .executeUpdate();
+      return null;
+    });
+  }
+
+  private void saveComment(Review review, User user, Instant createdAt) {
+    transactionTemplate.execute(status -> {
+      Comment comment = commentRepository.save(Comment.create(review, user, "댓글"));
+      entityManager.createQuery(
+              "UPDATE Comment c SET c.createdAt = :createdAt WHERE c.id = :id")
+          .setParameter("createdAt", createdAt)
+          .setParameter("id", comment.getId())
+          .executeUpdate();
+      return null;
+    });
+  }
+
   @Test
   @DisplayName("성공: 기간 내 활동을 유저별로 집계")
   void read_daily_success() throws Exception {
     User user = saveUser();
     Review review = saveReview(user, saveBook());
-    savePopularReview(review, Period.DAILY, 3.0);
+    // 인기 리뷰의 시간대를 '어제' 시간대로 고정
+    savePopularReview(review, Period.DAILY, BigDecimal.valueOf(3.0), kstYesterday.plus(1, ChronoUnit.HOURS));
 
     transactionTemplate.execute(status -> {
-      User liker = userRepository.save(
-          new User("liker-" + UUID.randomUUID() + "@test.com", "좋아요", "Password1!"));
-      User commenter = userRepository.save(
-          new User("commenter-" + UUID.randomUUID() + "@test.com", "댓글러", "Password1!"));
+      ReviewLike like = reviewLikeRepository.save(ReviewLike.create(review, user));
+      Comment comment = commentRepository.save(Comment.create(review, user, "댓글"));
 
-      reviewLikeRepository.save(ReviewLike.create(review, user));
-      commentRepository.save(Comment.create(review, user, "댓글"));
+      // 새로 생성된 라이크와 코멘트도 '어제' 시간대 내부로 강제 패치
+      entityManager.createQuery("UPDATE ReviewLike rl SET rl.createdAt = :createdAt WHERE rl.id = :id")
+          .setParameter("createdAt", kstYesterday.plus(1, ChronoUnit.HOURS))
+          .setParameter("id", like.getId())
+          .executeUpdate();
+
+      entityManager.createQuery("UPDATE Comment c SET c.createdAt = :createdAt WHERE c.id = :id")
+          .setParameter("createdAt", kstYesterday.plus(2, ChronoUnit.HOURS))
+          .setParameter("id", comment.getId())
+          .executeUpdate();
+
       return null;
     });
 
@@ -163,7 +205,6 @@ class PowerUserReaderTest {
         .findFirst().orElseThrow();
     assertThat(userResult.reviewScoreSum())
         .isCloseTo(BigDecimal.valueOf(3.0), within(BigDecimal.valueOf(0.001)));
-    // score = 3.0 * 0.5 + 1 * 0.2 + 1 * 0.3 = 2.0
     assertThat(userResult.score())
         .isCloseTo(BigDecimal.valueOf(2.0), within(BigDecimal.valueOf(0.001)));
   }
@@ -173,7 +214,7 @@ class PowerUserReaderTest {
   void read_excludesDeletedUser() throws Exception {
     User user = saveUser();
     Review review = saveReview(user, saveBook());
-    savePopularReview(review, Period.DAILY, 3.0);
+    savePopularReview(review, Period.DAILY, BigDecimal.valueOf(3.0), kstYesterday.plus(1, ChronoUnit.HOURS));
 
     transactionTemplate.execute(status -> {
       entityManager.createQuery(
@@ -194,13 +235,13 @@ class PowerUserReaderTest {
   void read_allTime_success() throws Exception {
     User user = saveUser();
     Review review = saveReview(user, saveBook());
-    savePopularReview(review, Period.ALL_TIME, 5.0);
+    // ALL_TIME 집계는 기간 조건이 없으므로 임의의 현재 시간대를 주입해도 무방
+    savePopularReview(review, Period.ALL_TIME, BigDecimal.valueOf(5.0), Instant.now());
 
     transactionTemplate.execute(status -> {
-      User liker = userRepository.save(
-          new User("liker-" + UUID.randomUUID() + "@test.com", "좋아요", "Password1!"));
       ReviewLike like = reviewLikeRepository.save(ReviewLike.create(review, user));
 
+      // 오래된 과거 데이터 세팅
       entityManager.createQuery(
               "UPDATE ReviewLike rl SET rl.createdAt = :createdAt WHERE rl.id = :id")
           .setParameter("createdAt", Instant.now().minus(200, ChronoUnit.DAYS))
@@ -217,7 +258,6 @@ class PowerUserReaderTest {
         .findFirst().orElseThrow();
     assertThat(userResult.reviewScoreSum())
         .isCloseTo(BigDecimal.valueOf(5.0), within(BigDecimal.valueOf(0.001)));
-    // score = 5.0 * 0.5 + 1 * 0.2 + 0 * 0.3 = 2.7
     assertThat(userResult.score())
         .isCloseTo(BigDecimal.valueOf(2.7), within(BigDecimal.valueOf(0.001)));
   }
@@ -240,8 +280,9 @@ class PowerUserReaderTest {
     Review review1 = saveReview(user1, saveBook());
     Review review2 = saveReview(user2, saveBook());
 
-    savePopularReview(review1, Period.DAILY, 4.0);
-    savePopularReview(review2, Period.DAILY, 2.0);
+    // 다중 유저 인기리뷰들의 집계 시점을 '어제' 범위로 일괄 패치
+    savePopularReview(review1, Period.DAILY, BigDecimal.valueOf(4.0), kstYesterday.plus(1, ChronoUnit.HOURS));
+    savePopularReview(review2, Period.DAILY, BigDecimal.valueOf(2.0), kstYesterday.plus(2, ChronoUnit.HOURS));
 
     List<PowerUserRawData> results = readAll(Period.DAILY);
 
@@ -252,7 +293,6 @@ class PowerUserReaderTest {
         .findFirst().orElseThrow();
     assertThat(user1Result.reviewScoreSum())
         .isCloseTo(BigDecimal.valueOf(4.0), within(BigDecimal.valueOf(0.001)));
-    // score = 4.0 * 0.5 + 0 * 0.2 + 0 * 0.3 = 2.0
     assertThat(user1Result.score())
         .isCloseTo(BigDecimal.valueOf(2.0), within(BigDecimal.valueOf(0.001)));
 
@@ -261,7 +301,6 @@ class PowerUserReaderTest {
         .findFirst().orElseThrow();
     assertThat(user2Result.reviewScoreSum())
         .isCloseTo(BigDecimal.valueOf(2.0), within(BigDecimal.valueOf(0.001)));
-    // score = 2.0 * 0.5 + 0 * 0.2 + 0 * 0.3 = 1.0
     assertThat(user2Result.score())
         .isCloseTo(BigDecimal.valueOf(1.0), within(BigDecimal.valueOf(0.001)));
   }
@@ -274,10 +313,9 @@ class PowerUserReaderTest {
     Review review1 = saveReview(user1, saveBook());
     Review review2 = saveReview(user2, saveBook());
 
-    // user1: reviewScoreSum=2.0 → score = 2.0 * 0.5 = 1.0
-    savePopularReview(review1, Period.DAILY, 2.0);
-    // user2: reviewScoreSum=4.0 → score = 4.0 * 0.5 = 2.0
-    savePopularReview(review2, Period.DAILY, 4.0);
+    // 정렬 검증 대상들의 집계 시점도 '어제' 내부 시간으로 명시
+    savePopularReview(review1, Period.DAILY, BigDecimal.valueOf(2.0), kstYesterday.plus(1, ChronoUnit.HOURS));
+    savePopularReview(review2, Period.DAILY, BigDecimal.valueOf(4.0), kstYesterday.plus(2, ChronoUnit.HOURS));
 
     List<PowerUserRawData> results = readAll(Period.DAILY);
 
@@ -297,12 +335,15 @@ class PowerUserReaderTest {
             UUID.randomUUID(), "도서" + i, "저자", "설명",
             "출판사", LocalDate.of(2026, 1, 1), null, null));
         Review review = reviewRepository.save(Review.create(user, book, 5, "리뷰" + i));
+
+        // 루프 내 벌크성 데이터 삽입 시에도 명확하게 '어제' 타임스탬프를 부여
         entityManager.createNativeQuery(
                 "INSERT INTO popular_reviews (id, review_id, period, score, ranking, like_count, comment_count, calculated_at) "
-                    + "VALUES (gen_random_uuid(), :reviewId, :period, :score, 1, 0, 0, now())")
+                    + "VALUES (gen_random_uuid(), :reviewId, :period, :score, 1, 0, 0, :calculatedAt)")
             .setParameter("reviewId", review.getId())
             .setParameter("period", Period.DAILY.name())
             .setParameter("score", i + 1.0)
+            .setParameter("calculatedAt", kstYesterday.plus(2, ChronoUnit.HOURS))
             .executeUpdate();
       }
       return null;
@@ -311,5 +352,148 @@ class PowerUserReaderTest {
     List<PowerUserRawData> results = readAll(Period.DAILY);
 
     assertThat(results).hasSize(100);
+  }
+
+  @Test
+  @DisplayName("성공: 동점 유저는 오래된 유저가 우선 정렬")
+  void read_sameScore_orderedByCreatedAtAsc() throws Exception {
+    // given
+    User newUser = saveUser();   // 가장 최신 유저
+    User midUser = saveUser();   // 중간
+    User oldUser = saveUser();   // 가장 오래된 유저
+
+    // createdAt 강제 세팅
+    transactionTemplate.execute(status -> {
+      entityManager.createQuery("UPDATE User u SET u.createdAt = :createdAt WHERE u.id = :id")
+          .setParameter("createdAt", Instant.now().minus(1, ChronoUnit.DAYS))
+          .setParameter("id", newUser.getId())
+          .executeUpdate();
+      entityManager.createQuery("UPDATE User u SET u.createdAt = :createdAt WHERE u.id = :id")
+          .setParameter("createdAt", Instant.now().minus(5, ChronoUnit.DAYS))
+          .setParameter("id", midUser.getId())
+          .executeUpdate();
+      entityManager.createQuery("UPDATE User u SET u.createdAt = :createdAt WHERE u.id = :id")
+          .setParameter("createdAt", Instant.now().minus(10, ChronoUnit.DAYS))
+          .setParameter("id", oldUser.getId())
+          .executeUpdate();
+      return null;
+    });
+
+    // 세 유저 모두 동일한 좋아요 2개 → score = 2*0.2 = 0.4 동점
+    Review review1 = saveReview(saveUser(), saveBook());
+    Review review2 = saveReview(saveUser(), saveBook());
+
+    saveLike(review1, newUser, kstYesterday.plus(1, ChronoUnit.HOURS));
+    saveLike(review2, newUser, kstYesterday.plus(2, ChronoUnit.HOURS));
+
+    saveLike(review1, midUser, kstYesterday.plus(3, ChronoUnit.HOURS));
+    saveLike(review2, midUser, kstYesterday.plus(4, ChronoUnit.HOURS));
+
+    saveLike(review1, oldUser, kstYesterday.plus(5, ChronoUnit.HOURS));
+    saveLike(review2, oldUser, kstYesterday.plus(6, ChronoUnit.HOURS));
+
+    // when
+    List<PowerUserRawData> results = readAll(Period.ALL_TIME);
+
+    // then
+    assertThat(results).hasSize(3);
+    // 동점이면 오래된 유저 우선 → oldUser > midUser > newUser
+    assertThat(results.get(0).userId()).isEqualTo(oldUser.getId());
+    assertThat(results.get(1).userId()).isEqualTo(midUser.getId());
+    assertThat(results.get(2).userId()).isEqualTo(newUser.getId());
+  }
+
+  @Test
+  @DisplayName("성공: 인기리뷰 점수와 좋아요를 동시에 가진 유저의 score가 곱셈으로 부풀려지지 않는다")
+  void read_noCartesianProduct() throws Exception {
+    User user = saveUser();
+    Book book = saveBook();
+
+    Review review = transactionTemplate.execute(status ->
+        reviewRepository.save(Review.create(user, book, 5, "리뷰"))
+    );
+
+    // user의 리뷰 인기점수 10점
+    savePopularReview(review, Period.ALL_TIME, BigDecimal.valueOf(10.0),
+        Instant.now().minus(1, ChronoUnit.HOURS));
+
+    // user가 다른 리뷰에 좋아요 3개 누름
+    saveLike(transactionTemplate.execute(s ->
+            reviewRepository.save(Review.create(saveUser(), saveBook(), 4, "다른리뷰1"))),
+        user, Instant.now().minus(3, ChronoUnit.HOURS));
+    saveLike(transactionTemplate.execute(s ->
+            reviewRepository.save(Review.create(saveUser(), saveBook(), 4, "다른리뷰2"))),
+        user, Instant.now().minus(2, ChronoUnit.HOURS));
+    saveLike(transactionTemplate.execute(s ->
+            reviewRepository.save(Review.create(saveUser(), saveBook(), 4, "다른리뷰3"))),
+        user, Instant.now().minus(1, ChronoUnit.HOURS));
+
+    List<PowerUserRawData> results = readAll(Period.ALL_TIME);
+
+    PowerUserRawData target = results.stream()
+        .filter(r -> r.userId().equals(user.getId()))
+        .findFirst()
+        .orElseThrow();
+
+    // 곱셈 버그 시: score = 30*0.5 + 3*0.2 = 15.6
+    // 정상: score = 10*0.5 + 3*0.2 = 5.6
+    assertThat(target.reviewScoreSum())
+        .isCloseTo(BigDecimal.valueOf(10.0), within(BigDecimal.valueOf(0.001)));
+    assertThat(target.likeCount()).isEqualTo(3);
+    assertThat(target.score())
+        .isCloseTo(BigDecimal.valueOf(5.6), within(BigDecimal.valueOf(0.001)));
+  }
+
+  @Test
+  @DisplayName("성공: 인기리뷰 점수 + 좋아요 + 댓글을 모두 가진 유저의 score 계산")
+  void read_allActivities_scoreCalculatedCorrectly() throws Exception {
+    // given
+    User user = saveUser();
+    Book book = saveBook();
+
+    Review review = transactionTemplate.execute(status ->
+        reviewRepository.save(Review.create(user, book, 5, "리뷰"))
+    );
+
+    // user의 리뷰가 인기리뷰 10점
+    savePopularReview(review, Period.ALL_TIME, BigDecimal.valueOf(10.0),
+        Instant.now().minus(1, ChronoUnit.HOURS));
+
+    // 다른 유저들의 리뷰를 만들고 user가 좋아요 3개 누름
+    Review otherReview1 = transactionTemplate.execute(status ->
+        reviewRepository.save(Review.create(saveUser(), saveBook(), 4, "다른리뷰1"))
+    );
+    Review otherReview2 = transactionTemplate.execute(status ->
+        reviewRepository.save(Review.create(saveUser(), saveBook(), 4, "다른리뷰2"))
+    );
+    Review otherReview3 = transactionTemplate.execute(status ->
+        reviewRepository.save(Review.create(saveUser(), saveBook(), 4, "다른리뷰3"))
+    );
+
+    // user가 좋아요 3개 누름
+    saveLike(otherReview1, user, Instant.now().minus(3, ChronoUnit.HOURS));
+    saveLike(otherReview2, user, Instant.now().minus(2, ChronoUnit.HOURS));
+    saveLike(otherReview3, user, Instant.now().minus(1, ChronoUnit.HOURS));
+
+    // user가 댓글 2개 작성
+    saveComment(otherReview1, user, Instant.now().minus(3, ChronoUnit.HOURS));
+    saveComment(otherReview2, user, Instant.now().minus(2, ChronoUnit.HOURS));
+
+    // when
+    List<PowerUserRawData> results = readAll(Period.ALL_TIME);
+
+    // then
+    PowerUserRawData target = results.stream()
+        .filter(r -> r.userId().equals(user.getId()))
+        .findFirst()
+        .orElseThrow();
+
+    // score = 10*0.5 + 3*0.2 + 2*0.3 = 5.0 + 0.6 + 0.6 = 6.2
+    assertThat(target.reviewScoreSum())
+        .isCloseTo(BigDecimal.valueOf(10.0), within(BigDecimal.valueOf(0.001)));
+    assertThat(target.likeCount()).isEqualTo(3);
+    assertThat(target.commentCount()).isEqualTo(2);
+    assertThat(target.score())
+        .isCloseTo(BigDecimal.valueOf(6.2), within(BigDecimal.valueOf(0.001)));
   }
 }

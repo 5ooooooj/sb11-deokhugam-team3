@@ -17,7 +17,6 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
-import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
@@ -104,18 +103,6 @@ public class PopularBookJobTest {
         .addLong("nonce", System.nanoTime())
         .toJobParameters());
 
-    System.out.println("Job status: " + execution.getStatus());
-    System.out.println("Job name: " + execution.getJobInstance().getJobName());
-    execution.getStepExecutions().forEach(se -> {
-      System.out.println("Step: " + se.getStepName() + " status: " + se.getStatus());
-      if (se.getFailureExceptions() != null) {
-        se.getFailureExceptions().forEach(e -> System.out.println("Step exception: " + e.getMessage()));
-        se.getFailureExceptions().forEach(Throwable::printStackTrace);
-      }
-    });
-    execution.getFailureExceptions().forEach(e -> System.out.println("Job exception: " + e.getMessage()));
-    execution.getFailureExceptions().forEach(Throwable::printStackTrace);
-
     return execution;
   }
 
@@ -127,11 +114,12 @@ public class PopularBookJobTest {
     userRepository.deleteAll();
   }
 
-  // 자졍 경계 조건 회피
-  private Instant kstToday() {
-    return LocalDate.now(KST).atStartOfDay(KST).plusHours(1).toInstant();
+  // '어제 하루' 범위 내의 시간을 생성하도록 조정
+  private Instant kstYesterday() {
+    return LocalDate.now(KST).minusDays(1).atStartOfDay(KST).plusHours(1).toInstant();
   }
 
+  // 어제(1일 전)를 기준으로 삼아 며칠 전인지를 명확하게 계산
   private Instant kstDaysAgo(long days) {
     return LocalDate.now(KST).atStartOfDay(KST).minusDays(days).plusHours(1).toInstant();
   }
@@ -162,12 +150,12 @@ public class PopularBookJobTest {
   }
 
   @Test
-  @DisplayName("성공: DAILY Job 실행 후 오늘 리뷰만 집계")
+  @DisplayName("성공: DAILY Job 실행 후 어제 리뷰만 정확히 집계")
   void daily_job_success() throws Exception {
-
     User user = saveUser();
     Book book = saveBook();
-    saveReviewWithCreatedAt(user, book, 5, "오늘 리뷰", kstToday());
+
+    saveReviewWithCreatedAt(user, book, 5, "어제 리뷰", kstYesterday());
 
     JobExecution execution = launchJob(popularBookDailyJob);
 
@@ -182,8 +170,9 @@ public class PopularBookJobTest {
     User user2 = saveUser();
     Book book1 = saveBook();
     Book book2 = saveBook();
-    saveReviewWithCreatedAt(user1, book1, 5, "3일 전 리뷰", kstToday().minus(3, ChronoUnit.DAYS));
-    saveReviewWithCreatedAt(user2, book2, 4, "8일 전 리뷰", kstToday().minus(8, ChronoUnit.DAYS));
+    // 어제 범위 기점 안쪽(3일 전)과 바깥쪽(8일 전) 매칭
+    saveReviewWithCreatedAt(user1, book1, 5, "3일 전 리뷰", kstDaysAgo(3));
+    saveReviewWithCreatedAt(user2, book2, 4, "8일 전 리뷰", kstDaysAgo(8));
 
     JobExecution execution = launchJob(popularBookWeeklyJob);
 
@@ -218,7 +207,8 @@ public class PopularBookJobTest {
     User user2 = saveUser();
     Book book1 = saveBook();
     Book book2 = saveBook();
-    saveReviewWithCreatedAt(user1, book1, 5, "최근 리뷰", kstToday());
+
+    saveReviewWithCreatedAt(user1, book1, 5, "최근 리뷰", kstYesterday());
     saveReviewWithCreatedAt(user2, book2, 3, "오래된 리뷰", kstDaysAgo(200));
 
     JobExecution execution = launchJob(popularBookAllTimeJob);
@@ -241,7 +231,8 @@ public class PopularBookJobTest {
   void job_rerun_success() throws Exception {
     User user = saveUser();
     Book book = saveBook();
-    saveReviewWithCreatedAt(user, book, 5, "리뷰", kstToday());
+
+    saveReviewWithCreatedAt(user, book, 5, "리뷰", kstYesterday());
 
     launchJob(popularBookDailyJob);
     long countAfterFirst = popularBookRepository.findByPeriod(Period.DAILY).size();
@@ -257,7 +248,8 @@ public class PopularBookJobTest {
   void job_rankIsOne_forTopBook() throws Exception {
     User user = saveUser();
     Book book = saveBook();
-    saveReviewWithCreatedAt(user, book, 5, "리뷰", kstToday());
+
+    saveReviewWithCreatedAt(user, book, 5, "리뷰", kstYesterday());
 
     JobExecution execution = launchJob(popularBookDailyJob);
 
@@ -276,11 +268,12 @@ public class PopularBookJobTest {
     Book book1 = saveBook();
     Book book2 = saveBook();
     Book book3 = saveBook();
-    Instant now = kstToday();
+    // 기점 변수를 어제로 통일
+    Instant yesterday = kstYesterday();
 
-    saveReviewWithCreatedAt(user1, book1, 5, "리뷰1", now);
-    saveReviewWithCreatedAt(user2, book2, 3, "리뷰2", now);
-    saveReviewWithCreatedAt(user3, book3, 1, "리뷰3", now);
+    saveReviewWithCreatedAt(user1, book1, 5, "리뷰1", yesterday);
+    saveReviewWithCreatedAt(user2, book2, 3, "리뷰2", yesterday);
+    saveReviewWithCreatedAt(user3, book3, 1, "리뷰3", yesterday);
 
     JobExecution execution = launchJob(popularBookDailyJob);
 
@@ -304,11 +297,12 @@ public class PopularBookJobTest {
     Book book1 = saveBook();
     Book book2 = saveBook();
     Book book3 = saveBook();
-    Instant now = kstToday();
+    // 기점 변수를 어제로 통일
+    Instant yesterday = kstYesterday();
 
-    saveReviewWithCreatedAt(user1, book1, 5, "리뷰1", now);
-    saveReviewWithCreatedAt(user2, book2, 5, "리뷰2", now);
-    saveReviewWithCreatedAt(user3, book3, 3, "리뷰3", now);
+    saveReviewWithCreatedAt(user1, book1, 5, "리뷰1", yesterday);
+    saveReviewWithCreatedAt(user2, book2, 5, "리뷰2", yesterday);
+    saveReviewWithCreatedAt(user3, book3, 3, "리뷰3", yesterday);
 
     JobExecution execution = launchJob(popularBookDailyJob);
 
@@ -322,7 +316,6 @@ public class PopularBookJobTest {
   @Test
   @DisplayName("성공: 기존 데이터 있을 때 리뷰 0건이면 stale 데이터 삭제")
   void job_staleDataCleared_whenNoReviews() throws Exception {
-    // given: popular_books에 stale 데이터 미리 저장
     Book book = saveBook();
     transactionTemplate.execute(status -> {
       PopularBook stale = PopularBook.builder()
@@ -337,12 +330,8 @@ public class PopularBookJobTest {
       return null;
     });
 
-    // 리뷰 없음
-
-    // when
     JobExecution execution = launchJob(popularBookDailyJob);
 
-    // then
     assertThat(execution.getStatus()).isEqualTo(BatchStatus.COMPLETED);
     assertThat(popularBookRepository.findByPeriod(Period.DAILY)).isEmpty();
   }
