@@ -12,7 +12,6 @@ import com.team3.deokhugam.repository.book.BookRepository;
 import com.team3.deokhugam.repository.review.ReviewRepository;
 import com.team3.deokhugam.repository.user.UserRepository;
 import jakarta.persistence.EntityManager;
-import jakarta.persistence.EntityManagerFactory;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;

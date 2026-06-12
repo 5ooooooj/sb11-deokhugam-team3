@@ -1,7 +1,6 @@
 package com.team3.deokhugam.batch.job;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.within;
 
 import com.team3.deokhugam.batch.global.Period;
 import com.team3.deokhugam.domain.book.Book;

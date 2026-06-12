@@ -5,7 +5,6 @@ import com.team3.deokhugam.batch.global.Period;
 import com.team3.deokhugam.batch.global.RankCalculateUtil;
 import com.team3.deokhugam.batch.persistenceService.PowerUserRankingPersistenceService;
 import com.team3.deokhugam.domain.dashboard.PowerUser;
-import java.time.Clock;
 import java.time.Instant;
 import java.util.List;
 import java.util.stream.Collectors;
