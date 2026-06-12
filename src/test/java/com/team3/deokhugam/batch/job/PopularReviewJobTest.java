@@ -20,6 +20,7 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.UUID;
@@ -46,7 +47,8 @@ import org.springframework.transaction.support.TransactionTemplate;
 @ActiveProfiles("test")
 public class PopularReviewJobTest {
 
-  @Autowired private JobRepository jobRepository;
+  @Autowired
+  private JobRepository jobRepository;
 
   @Autowired
   @Qualifier("popularReviewDailyJob")
@@ -89,6 +91,13 @@ public class PopularReviewJobTest {
   private PlatformTransactionManager transactionManager;
 
   private TransactionTemplate transactionTemplate;
+  private static final ZoneId KST = ZoneId.of("Asia/Seoul");
+
+  // 한국 시간(KST) 기준의 '어제' 시간대 정의
+  private final Instant kstYesterday = LocalDate.now(KST)
+      .minusDays(1)
+      .atStartOfDay(KST)
+      .toInstant();
 
   @BeforeEach
   void setUp() {
@@ -119,10 +128,10 @@ public class PopularReviewJobTest {
     syncLauncher.afterPropertiesSet();
 
     return syncLauncher.run(job, new JobParametersBuilder()
-            .addLocalDate("targetDate", LocalDate.of(2026,6,11))
-            .addLocalDateTime("runAt", LocalDateTime.now())
-            .addLong("nonce", System.nanoTime())
-            .toJobParameters());
+        .addLocalDate("targetDate", LocalDate.now(KST)) // 💡 현행화 유지
+        .addLocalDateTime("runAt", LocalDateTime.now())
+        .addLong("nonce", System.nanoTime())
+        .toJobParameters());
   }
 
   private User saveUser() {
@@ -143,29 +152,8 @@ public class PopularReviewJobTest {
         reviewRepository.save(Review.create(user, book, 5, "테스트 리뷰")));
   }
 
-  private void addLikes(Review review, int count) {
-    transactionTemplate.execute(status -> {
-      for (int i = 0; i < count; i++) {
-        User liker = userRepository.save(
-            new User("liker-" + UUID.randomUUID() + "@test.com", "좋아요유저", "Password1!"));
-        reviewLikeRepository.save(ReviewLike.create(review, liker));
-      }
-      return null;
-    });
-  }
-
-  private void addComments(Review review, int count) {
-    transactionTemplate.execute(status -> {
-      for (int i = 0; i < count; i++) {
-        User commenter = userRepository.save(
-            new User("commenter-" + UUID.randomUUID() + "@test.com", "댓글유저", "Password1!"));
-        commentRepository.save(Comment.create(review, commenter, "댓글" + i));
-      }
-      return null;
-    });
-  }
-
-  private void addLikesWithDate(Review review, int count, long daysAgo) {
+  // 하드코딩된 시간 대신 명시적인 날짜를 주입받아 등록하도록 변경
+  private void addLikesWithDate(Review review, int count, Instant createdAt) {
     transactionTemplate.execute(status -> {
       for (int i = 0; i < count; i++) {
         User liker = userRepository.save(
@@ -173,7 +161,7 @@ public class PopularReviewJobTest {
         ReviewLike like = reviewLikeRepository.save(ReviewLike.create(review, liker));
         entityManager.createQuery(
                 "UPDATE ReviewLike rl SET rl.createdAt = :createdAt WHERE rl.id = :id")
-            .setParameter("createdAt", Instant.now().minus(daysAgo, ChronoUnit.DAYS))
+            .setParameter("createdAt", createdAt)
             .setParameter("id", like.getId())
             .executeUpdate();
       }
@@ -181,7 +169,7 @@ public class PopularReviewJobTest {
     });
   }
 
-  private void addCommentsWithDate(Review review, int count, long daysAgo) {
+  private void addCommentsWithDate(Review review, int count, Instant createdAt) {
     transactionTemplate.execute(status -> {
       for (int i = 0; i < count; i++) {
         User commenter = userRepository.save(
@@ -189,7 +177,7 @@ public class PopularReviewJobTest {
         Comment comment = commentRepository.save(Comment.create(review, commenter, "댓글" + i));
         entityManager.createQuery(
                 "UPDATE Comment c SET c.createdAt = :createdAt WHERE c.id = :id")
-            .setParameter("createdAt", Instant.now().minus(daysAgo, ChronoUnit.DAYS))
+            .setParameter("createdAt", createdAt)
             .setParameter("id", comment.getId())
             .executeUpdate();
       }
@@ -202,18 +190,22 @@ public class PopularReviewJobTest {
   void job_success() throws Exception {
     User user = saveUser();
 
+    // Daily 집계 대상 (어제 범위 생성)
     Review dailyReview = saveReview(user, saveBook());
-    addLikes(dailyReview, 2);
-    addComments(dailyReview, 1);
+    addLikesWithDate(dailyReview, 2, kstYesterday.plus(1, ChronoUnit.HOURS));
+    addCommentsWithDate(dailyReview, 1, kstYesterday.plus(2, ChronoUnit.HOURS));
 
+    // Weekly 집계 대상 (3일 전 생성 -> Daily 누락, Weekly 포착)
     Review weeklyReview = saveReview(user, saveBook());
-    addLikesWithDate(weeklyReview, 1, 3);
+    addLikesWithDate(weeklyReview, 1, kstYesterday.minus(3, ChronoUnit.DAYS));
 
+    // Monthly 집계 대상 (15일 전 생성 -> Daily, Weekly 누락, Monthly 포착)
     Review monthlyReview = saveReview(user, saveBook());
-    addCommentsWithDate(monthlyReview, 2, 15);
+    addCommentsWithDate(monthlyReview, 2, kstYesterday.minus(15, ChronoUnit.DAYS));
 
+    // All Time 집계 대상 (200일 전 생성 -> All Time에만 잡힘)
     Review allTimeReview = saveReview(user, saveBook());
-    addLikesWithDate(allTimeReview, 3, 200);
+    addLikesWithDate(allTimeReview, 3, kstYesterday.minus(200, ChronoUnit.DAYS));
 
     launchJob(popularReviewDailyJob);
     launchJob(popularReviewWeeklyJob);
@@ -221,6 +213,8 @@ public class PopularReviewJobTest {
     JobExecution allTimeExecution = launchJob(popularReviewAllTimeJob);
 
     assertThat(allTimeExecution.getStatus()).isEqualTo(BatchStatus.COMPLETED);
+
+    // 누적 데이터 산출 범위 구조 검증
     assertThat(popularReviewRepository.findByPeriod(Period.DAILY)).hasSize(1);
     assertThat(popularReviewRepository.findByPeriod(Period.WEEKLY)).hasSize(2);
     assertThat(popularReviewRepository.findByPeriod(Period.MONTHLY)).hasSize(3);
@@ -232,7 +226,7 @@ public class PopularReviewJobTest {
   void job_rerun_success() throws Exception {
     User user = saveUser();
     Review review = saveReview(user, saveBook());
-    addLikes(review, 1);
+    addLikesWithDate(review, 1, kstYesterday.plus(1, ChronoUnit.HOURS));
 
     launchJob(popularReviewDailyJob);
     long countAfterFirst = popularReviewRepository.findByPeriod(Period.DAILY).size();
@@ -257,8 +251,8 @@ public class PopularReviewJobTest {
   void job_rankIsOne_forTopReview() throws Exception {
     User user = saveUser();
     Review review = saveReview(user, saveBook());
-    addLikes(review, 3);
-    addComments(review, 2);
+    addLikesWithDate(review, 3, kstYesterday.plus(1, ChronoUnit.HOURS));
+    addCommentsWithDate(review, 2, kstYesterday.plus(2, ChronoUnit.HOURS));
 
     JobExecution execution = launchJob(popularReviewDailyJob);
 
@@ -272,17 +266,18 @@ public class PopularReviewJobTest {
   @DisplayName("성공: 다수 리뷰 있을 때 점수 기반 순위가 올바르게 저장됨")
   void job_globalRankIsCorrect_forMultipleReviews() throws Exception {
     User user = saveUser();
+    Instant yesterday = kstYesterday;
 
     Review review1 = saveReview(user, saveBook());
-    addLikes(review1, 3);
-    addComments(review1, 5);
+    addLikesWithDate(review1, 3, yesterday.plus(1, ChronoUnit.HOURS));
+    addCommentsWithDate(review1, 5, yesterday.plus(2, ChronoUnit.HOURS));
 
     Review review2 = saveReview(user, saveBook());
-    addLikes(review2, 5);
-    addComments(review2, 2);
+    addLikesWithDate(review2, 5, yesterday.plus(1, ChronoUnit.HOURS));
+    addCommentsWithDate(review2, 2, yesterday.plus(2, ChronoUnit.HOURS));
 
     Review review3 = saveReview(user, saveBook());
-    addLikes(review3, 1);
+    addLikesWithDate(review3, 1, yesterday.plus(1, ChronoUnit.HOURS));
 
     JobExecution execution = launchJob(popularReviewDailyJob);
 
@@ -301,17 +296,18 @@ public class PopularReviewJobTest {
   @DisplayName("성공: 동점 리뷰는 같은 rank 부여 (1, 1, 3)")
   void job_sameScore_sameRank() throws Exception {
     User user = saveUser();
+    Instant yesterday = kstYesterday;
 
     Review review1 = saveReview(user, saveBook());
-    addLikes(review1, 2);
-    addComments(review1, 1);
+    addLikesWithDate(review1, 2, yesterday.plus(1, ChronoUnit.HOURS));
+    addCommentsWithDate(review1, 1, yesterday.plus(2, ChronoUnit.HOURS));
 
     Review review2 = saveReview(user, saveBook());
-    addLikes(review2, 2);
-    addComments(review2, 1);
+    addLikesWithDate(review2, 2, yesterday.plus(1, ChronoUnit.HOURS));
+    addCommentsWithDate(review2, 1, yesterday.plus(2, ChronoUnit.HOURS));
 
     Review review3 = saveReview(user, saveBook());
-    addLikes(review3, 1);
+    addLikesWithDate(review3, 1, yesterday.plus(1, ChronoUnit.HOURS));
 
     JobExecution execution = launchJob(popularReviewDailyJob);
 
@@ -327,8 +323,8 @@ public class PopularReviewJobTest {
   void job_includesDeletedReview() throws Exception {
     User user = saveUser();
     Review review = saveReview(user, saveBook());
-    addLikes(review, 2);
-    addComments(review, 3);
+    addLikesWithDate(review, 2, kstYesterday.plus(1, ChronoUnit.HOURS));
+    addCommentsWithDate(review, 3, kstYesterday.plus(2, ChronoUnit.HOURS));
 
     transactionTemplate.execute(status -> {
       entityManager.createQuery(

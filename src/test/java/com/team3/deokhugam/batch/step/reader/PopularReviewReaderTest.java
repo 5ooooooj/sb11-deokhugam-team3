@@ -20,6 +20,8 @@ import jakarta.persistence.EntityManagerFactory;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
@@ -68,6 +70,12 @@ class PopularReviewReaderTest {
 
   private PopularReviewReader popularReviewReader;
   private TransactionTemplate transactionTemplate;
+
+  // 한국 시간(KST) 기준의 '어제' 시간대 정의
+  private final Instant kstYesterday = LocalDateTime.now(ZoneId.of("Asia/Seoul"))
+      .minusDays(1)
+      .atZone(ZoneId.of("Asia/Seoul"))
+      .toInstant();
 
   @BeforeEach
   void setUp() {
@@ -133,9 +141,22 @@ class PopularReviewReaderTest {
       User commenter = userRepository.save(
           new User("commenter-" + UUID.randomUUID() + "@test.com", "댓글러", "Password1!"));
 
-      reviewLikeRepository.save(ReviewLike.create(review, liker1));
-      reviewLikeRepository.save(ReviewLike.create(review, liker2));
-      commentRepository.save(Comment.create(review, commenter, "댓글"));
+      ReviewLike like1 = reviewLikeRepository.save(ReviewLike.create(review, liker1));
+      ReviewLike like2 = reviewLikeRepository.save(ReviewLike.create(review, liker2));
+      Comment comment = commentRepository.save(Comment.create(review, commenter, "댓글"));
+
+      // 좋아요와 댓글의 시간대를 '어제' 범위로 일괄 조정
+      entityManager.createQuery("UPDATE ReviewLike rl SET rl.createdAt = :createdAt WHERE rl.id IN (:id1, :id2)")
+          .setParameter("createdAt", kstYesterday.plus(1, ChronoUnit.HOURS))
+          .setParameter("id1", like1.getId())
+          .setParameter("id2", like2.getId())
+          .executeUpdate();
+
+      entityManager.createQuery("UPDATE Comment c SET c.createdAt = :createdAt WHERE c.id = :id")
+          .setParameter("createdAt", kstYesterday.plus(2, ChronoUnit.HOURS))
+          .setParameter("id", comment.getId())
+          .executeUpdate();
+
       return null;
     });
 
@@ -145,7 +166,6 @@ class PopularReviewReaderTest {
     assertThat(results.get(0).reviewId()).isEqualTo(review.getId());
     assertThat(results.get(0).likeCount()).isEqualTo(2);
     assertThat(results.get(0).commentCount()).isEqualTo(1);
-    // score = 2 * 0.3 + 1 * 0.7 = 1.3
     assertThat(results.get(0).score()).isCloseTo(BigDecimal.valueOf(1.3), within(BigDecimal.valueOf(0.001)));
   }
 
@@ -160,9 +180,10 @@ class PopularReviewReaderTest {
           new User("liker-" + UUID.randomUUID() + "@test.com", "좋아요", "Password1!"));
       ReviewLike like = reviewLikeRepository.save(ReviewLike.create(review, liker));
 
+      // 그저께 시간으로 밀어내어 DAILY 집계(어제 하루)에서 완전히 누락되는지 검증
       entityManager.createQuery(
               "UPDATE ReviewLike rl SET rl.createdAt = :createdAt WHERE rl.id = :id")
-          .setParameter("createdAt", Instant.now().minus(2, ChronoUnit.DAYS))
+          .setParameter("createdAt", kstYesterday.minus(1, ChronoUnit.DAYS))
           .setParameter("id", like.getId())
           .executeUpdate();
       return null;
@@ -182,7 +203,13 @@ class PopularReviewReaderTest {
     transactionTemplate.execute(status -> {
       User liker = userRepository.save(
           new User("liker-" + UUID.randomUUID() + "@test.com", "좋아요", "Password1!"));
-      reviewLikeRepository.save(ReviewLike.create(review, liker));
+      ReviewLike like = reviewLikeRepository.save(ReviewLike.create(review, liker));
+
+      // 좋아요 시간대를 어제 범위로 고정
+      entityManager.createQuery("UPDATE ReviewLike rl SET rl.createdAt = :createdAt WHERE rl.id = :id")
+          .setParameter("createdAt", kstYesterday.plus(1, ChronoUnit.HOURS))
+          .setParameter("id", like.getId())
+          .executeUpdate();
 
       entityManager.createQuery(
               "UPDATE Review r SET r.deletedAt = :deletedAt WHERE r.id = :id")
@@ -213,6 +240,7 @@ class PopularReviewReaderTest {
       ReviewLike like = reviewLikeRepository.save(ReviewLike.create(review, liker));
       Comment comment = commentRepository.save(Comment.create(review, commenter, "댓글"));
 
+      // ALL_TIME 검증이므로 200일 전 과거 데이터로 배치
       entityManager.createQuery(
               "UPDATE ReviewLike rl SET rl.createdAt = :createdAt WHERE rl.id = :id")
           .setParameter("createdAt", Instant.now().minus(200, ChronoUnit.DAYS))
@@ -231,7 +259,6 @@ class PopularReviewReaderTest {
     assertThat(results).hasSize(1);
     assertThat(results.get(0).likeCount()).isEqualTo(1);
     assertThat(results.get(0).commentCount()).isEqualTo(1);
-    // score = 1 * 0.3 + 1 * 0.7 = 1.0
     assertThat(results.get(0).score()).isCloseTo(BigDecimal.valueOf(1.0), within(BigDecimal.valueOf(0.001)));
   }
 
@@ -261,9 +288,21 @@ class PopularReviewReaderTest {
       User commenter = userRepository.save(
           new User("commenter-" + UUID.randomUUID() + "@test.com", "댓글러", "Password1!"));
 
-      reviewLikeRepository.save(ReviewLike.create(review1, liker1));
-      reviewLikeRepository.save(ReviewLike.create(review1, liker2));
-      commentRepository.save(Comment.create(review2, commenter, "댓글"));
+      ReviewLike like1 = reviewLikeRepository.save(ReviewLike.create(review1, liker1));
+      ReviewLike like2 = reviewLikeRepository.save(ReviewLike.create(review1, liker2));
+      Comment comment = commentRepository.save(Comment.create(review2, commenter, "댓글"));
+
+      // 복수 리뷰 활동 내역 모두 어제 시간대로 일괄 바인딩
+      entityManager.createQuery("UPDATE ReviewLike rl SET rl.createdAt = :createdAt WHERE rl.id IN (:id1, :id2)")
+          .setParameter("createdAt", kstYesterday.plus(1, ChronoUnit.HOURS))
+          .setParameter("id1", like1.getId())
+          .setParameter("id2", like2.getId())
+          .executeUpdate();
+
+      entityManager.createQuery("UPDATE Comment c SET c.createdAt = :createdAt WHERE c.id = :id")
+          .setParameter("createdAt", kstYesterday.plus(1, ChronoUnit.HOURS))
+          .setParameter("id", comment.getId())
+          .executeUpdate();
       return null;
     });
 
@@ -276,7 +315,6 @@ class PopularReviewReaderTest {
         .findFirst().orElseThrow();
     assertThat(review1Result.likeCount()).isEqualTo(2);
     assertThat(review1Result.commentCount()).isEqualTo(0);
-    // score = 2 * 0.3 + 0 * 0.7 = 0.6
     assertThat(review1Result.score()).isCloseTo(BigDecimal.valueOf(0.6), within(BigDecimal.valueOf(0.001)));
 
     PopularReviewRawData review2Result = results.stream()
@@ -284,7 +322,6 @@ class PopularReviewReaderTest {
         .findFirst().orElseThrow();
     assertThat(review2Result.likeCount()).isEqualTo(0);
     assertThat(review2Result.commentCount()).isEqualTo(1);
-    // score = 0 * 0.3 + 1 * 0.7 = 0.7
     assertThat(review2Result.score()).isCloseTo(BigDecimal.valueOf(0.7), within(BigDecimal.valueOf(0.001)));
   }
 
@@ -303,12 +340,21 @@ class PopularReviewReaderTest {
       User commenter = userRepository.save(
           new User("commenter-" + UUID.randomUUID() + "@test.com", "댓글러", "Password1!"));
 
-      // review1: 좋아요 0, 댓글 1 → score = 0.7
-      commentRepository.save(Comment.create(review1, commenter, "댓글"));
+      Comment comment = commentRepository.save(Comment.create(review1, commenter, "댓글"));
+      ReviewLike like1 = reviewLikeRepository.save(ReviewLike.create(review2, liker1));
+      ReviewLike like2 = reviewLikeRepository.save(ReviewLike.create(review2, liker2));
 
-      // review2: 좋아요 2, 댓글 0 → score = 0.6
-      reviewLikeRepository.save(ReviewLike.create(review2, liker1));
-      reviewLikeRepository.save(ReviewLike.create(review2, liker2));
+      // 정렬 검증용 대상들의 시간대를 어제로 강제 패치
+      entityManager.createQuery("UPDATE Comment c SET c.createdAt = :createdAt WHERE c.id = :id")
+          .setParameter("createdAt", kstYesterday.plus(1, ChronoUnit.HOURS))
+          .setParameter("id", comment.getId())
+          .executeUpdate();
+
+      entityManager.createQuery("UPDATE ReviewLike rl SET rl.createdAt = :createdAt WHERE rl.id IN (:id1, :id2)")
+          .setParameter("createdAt", kstYesterday.plus(1, ChronoUnit.HOURS))
+          .setParameter("id1", like1.getId())
+          .setParameter("id2", like2.getId())
+          .executeUpdate();
       return null;
     });
 
@@ -325,6 +371,7 @@ class PopularReviewReaderTest {
     User user = saveUser();
 
     transactionTemplate.execute(status -> {
+      List<UUID> likeIds = new ArrayList<>();
       for (int i = 0; i < 105; i++) {
         Book book = bookRepository.save(new Book(
             UUID.randomUUID(), "도서" + i, "저자", "설명",
@@ -332,8 +379,16 @@ class PopularReviewReaderTest {
         Review review = reviewRepository.save(Review.create(user, book, 5, "리뷰" + i));
         User liker = userRepository.save(
             new User("liker" + i + "-" + UUID.randomUUID() + "@test.com", "좋아요" + i, "Password1!"));
-        reviewLikeRepository.save(ReviewLike.create(review, liker));
+        ReviewLike like = reviewLikeRepository.save(ReviewLike.create(review, liker));
+        likeIds.add(like.getId());
       }
+
+      // 루프 직후 대량 데이터들의 시간 범위를 어제 기점으로 벌크 업데이트
+      entityManager.createQuery("UPDATE ReviewLike rl SET rl.createdAt = :createdAt WHERE rl.id IN :ids")
+          .setParameter("createdAt", kstYesterday.plus(2, ChronoUnit.HOURS))
+          .setParameter("ids", likeIds)
+          .executeUpdate();
+
       return null;
     });
 

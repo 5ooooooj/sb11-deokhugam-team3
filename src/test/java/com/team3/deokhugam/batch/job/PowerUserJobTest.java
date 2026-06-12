@@ -21,6 +21,8 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
@@ -46,9 +48,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 @ActiveProfiles("test")
 public class PowerUserJobTest {
 
-  @Autowired
-  private
-  JobRepository jobRepository;
+  @Autowired private JobRepository jobRepository;
 
   @Autowired
   @Qualifier("powerUserDailyJob")
@@ -66,34 +66,24 @@ public class PowerUserJobTest {
   @Qualifier("powerUserAllTimeJob")
   private Job powerUserAllTimeJob;
 
-  @Autowired
-  private PowerUserRepository powerUserRepository;
-
-  @Autowired
-  private PopularReviewRepository popularReviewRepository;
-
-  @Autowired
-  private ReviewRepository reviewRepository;
-
-  @Autowired
-  private ReviewLikeRepository reviewLikeRepository;
-
-  @Autowired
-  private CommentRepository commentRepository;
-
-  @Autowired
-  private BookRepository bookRepository;
-
-  @Autowired
-  private UserRepository userRepository;
-
-  @Autowired
-  private EntityManager entityManager;
-
-  @Autowired
-  private PlatformTransactionManager transactionManager;
+  @Autowired private PowerUserRepository powerUserRepository;
+  @Autowired private PopularReviewRepository popularReviewRepository;
+  @Autowired private ReviewRepository reviewRepository;
+  @Autowired private ReviewLikeRepository reviewLikeRepository;
+  @Autowired private CommentRepository commentRepository;
+  @Autowired private BookRepository bookRepository;
+  @Autowired private UserRepository userRepository;
+  @Autowired private EntityManager entityManager;
+  @Autowired private PlatformTransactionManager transactionManager;
 
   private TransactionTemplate transactionTemplate;
+  private static final ZoneId KST = ZoneId.of("Asia/Seoul");
+
+  // 한국 시간(KST) 기준의 '어제' 시간대 정의
+  private final Instant kstYesterday = LocalDate.now(KST)
+      .minusDays(1)
+      .atStartOfDay(KST)
+      .toInstant();
 
   @BeforeEach
   void setUp() {
@@ -126,6 +116,7 @@ public class PowerUserJobTest {
     syncLauncher.afterPropertiesSet();
 
     return syncLauncher.run(job, new JobParametersBuilder()
+        .addLocalDate("targetDate", LocalDate.now(KST))
         .addLocalDateTime("runAt", LocalDateTime.now())
         .addLong("nonce", System.nanoTime())
         .toJobParameters());
@@ -149,29 +140,43 @@ public class PowerUserJobTest {
         reviewRepository.save(Review.create(user, book, 5, "테스트 리뷰")));
   }
 
-  private void savePopularReview(Review review, Period period, BigDecimal score) {
+  // 외부에서 명시적인 계산 기점(calculatedAt)을 설정하도록 수정
+  private void savePopularReview(Review review, Period period, BigDecimal score, Instant calculatedAt) {
     transactionTemplate.execute(status -> {
       entityManager.createNativeQuery(
               "INSERT INTO popular_reviews (id, review_id, period, score, ranking, like_count, comment_count, calculated_at) "
-                  + "VALUES (gen_random_uuid(), :reviewId, :period, :score, 1, 0, 0, now())")
+                  + "VALUES (gen_random_uuid(), :reviewId, :period, :score, 1, 0, 0, :calculatedAt)")
           .setParameter("reviewId", review.getId())
           .setParameter("period", period.name())
           .setParameter("score", score)
+          .setParameter("calculatedAt", calculatedAt)
           .executeUpdate();
       return null;
     });
   }
 
-  private void addLikes(Review review, User liker) {
+  // 좋아요 저장 시 타임존 보정을 위한 명시적 일자(createdAt) 매핑 지원
+  private void addLikesWithDate(Review review, User liker, Instant createdAt) {
     transactionTemplate.execute(status -> {
-      reviewLikeRepository.save(ReviewLike.create(review, liker));
+      ReviewLike like = reviewLikeRepository.save(ReviewLike.create(review, liker));
+      entityManager.createQuery(
+              "UPDATE ReviewLike rl SET rl.createdAt = :createdAt WHERE rl.id = :id")
+          .setParameter("createdAt", createdAt)
+          .setParameter("id", like.getId())
+          .executeUpdate();
       return null;
     });
   }
 
-  private void addComment(Review review, User commenter) {
+  // 댓글 저장 시 타임존 보정을 위한 명시적 일자(createdAt) 매핑 지원
+  private void addCommentWithDate(Review review, User commenter, Instant createdAt) {
     transactionTemplate.execute(status -> {
-      commentRepository.save(Comment.create(review, commenter, "댓글"));
+      Comment comment = commentRepository.save(Comment.create(review, commenter, "댓글"));
+      entityManager.createQuery(
+              "UPDATE Comment c SET c.createdAt = :createdAt WHERE c.id = :id")
+          .setParameter("createdAt", createdAt)
+          .setParameter("id", comment.getId())
+          .executeUpdate();
       return null;
     });
   }
@@ -180,16 +185,29 @@ public class PowerUserJobTest {
   @DisplayName("성공: 각 Period Job 실행 후 기간별 결과가 저장")
   void job_success() throws Exception {
     User user = saveUser();
-    Review review = saveReview(user, saveBook());
+    Book book = saveBook();
 
-    savePopularReview(review, Period.DAILY, BigDecimal.valueOf(3.5));
-    savePopularReview(review, Period.WEEKLY, BigDecimal.valueOf(3.5));
-    savePopularReview(review, Period.MONTHLY, BigDecimal.valueOf(3.5));
-    savePopularReview(review, Period.ALL_TIME, BigDecimal.valueOf(3.5));
+    // Daily 검증용 대상군 설정 (어제)
+    Review dailyReview = saveReview(user, book);
+    savePopularReview(dailyReview, Period.DAILY, BigDecimal.valueOf(3.5), kstYesterday.plus(1, ChronoUnit.HOURS));
 
-    User liker = saveUser();
-    addLikes(review, liker);
-    addComment(review, liker);
+    User dailyLiker = saveUser();
+    addLikesWithDate(dailyReview, dailyLiker, kstYesterday.plus(1, ChronoUnit.HOURS));
+    addCommentWithDate(dailyReview, dailyLiker, kstYesterday.plus(2, ChronoUnit.HOURS));
+
+    // Weekly 검증용 대상군 설정 (3일 전)
+    Review weeklyReview = saveReview(user, book);
+    savePopularReview(weeklyReview, Period.WEEKLY, BigDecimal.valueOf(3.5), kstYesterday.minus(3, ChronoUnit.DAYS));
+    addLikesWithDate(weeklyReview, dailyLiker, kstYesterday.minus(3, ChronoUnit.DAYS));
+
+    // Monthly 검증용 대상군 설정 (15일 전)
+    Review monthlyReview = saveReview(user, book);
+    savePopularReview(monthlyReview, Period.MONTHLY, BigDecimal.valueOf(3.5), kstYesterday.minus(15, ChronoUnit.DAYS));
+    addCommentWithDate(monthlyReview, dailyLiker, kstYesterday.minus(15, ChronoUnit.DAYS));
+
+    // All Time 검증용 대상군 설정 (200일 전 과거)
+    Review allTimeReview = saveReview(user, book);
+    savePopularReview(allTimeReview, Period.ALL_TIME, BigDecimal.valueOf(3.5), kstYesterday.minus(200, ChronoUnit.DAYS));
 
     launchJob(powerUserDailyJob);
     launchJob(powerUserWeeklyJob);
@@ -208,7 +226,8 @@ public class PowerUserJobTest {
   void job_rerun_success() throws Exception {
     User user = saveUser();
     Review review = saveReview(user, saveBook());
-    savePopularReview(review, Period.DAILY, BigDecimal.valueOf(2.0));
+    // 어제 기점으로 생성 처리
+    savePopularReview(review, Period.DAILY, BigDecimal.valueOf(2.0), kstYesterday.plus(1, ChronoUnit.HOURS));
 
     launchJob(powerUserDailyJob);
     long countAfterFirst = powerUserRepository.findByPeriod(Period.DAILY).size();
@@ -233,7 +252,8 @@ public class PowerUserJobTest {
   void job_rankIsOne_forTopUser() throws Exception {
     User user = saveUser();
     Review review = saveReview(user, saveBook());
-    savePopularReview(review, Period.DAILY, BigDecimal.valueOf(4.0));
+    // 어제 기점으로 생성 처리
+    savePopularReview(review, Period.DAILY, BigDecimal.valueOf(4.0), kstYesterday.plus(1, ChronoUnit.HOURS));
 
     JobExecution execution = launchJob(powerUserDailyJob);
 
@@ -253,13 +273,16 @@ public class PowerUserJobTest {
     Review review1 = saveReview(user1, saveBook());
     Review review2 = saveReview(user2, saveBook());
 
-    savePopularReview(review1, Period.DAILY, BigDecimal.valueOf(4.0));
-    savePopularReview(review2, Period.DAILY, BigDecimal.valueOf(2.0));
+    Instant yesterday = kstYesterday;
+    // 멀티 유저 인기 리뷰 계산 시간대 어제로 바인딩
+    savePopularReview(review1, Period.DAILY, BigDecimal.valueOf(4.0), yesterday.plus(1, ChronoUnit.HOURS));
+    savePopularReview(review2, Period.DAILY, BigDecimal.valueOf(2.0), yesterday.plus(2, ChronoUnit.HOURS));
 
-    addLikes(review2, user1);
-    addComment(review2, user1);
-    addLikes(review1, user2);
-    addComment(review1, user3);
+    // 좋아요, 댓글 생성 시간대도 어제로 보정
+    addLikesWithDate(review2, user1, yesterday.plus(1, ChronoUnit.HOURS));
+    addCommentWithDate(review2, user1, yesterday.plus(2, ChronoUnit.HOURS));
+    addLikesWithDate(review1, user2, yesterday.plus(1, ChronoUnit.HOURS));
+    addCommentWithDate(review1, user3, yesterday.plus(2, ChronoUnit.HOURS));
 
     JobExecution execution = launchJob(powerUserDailyJob);
 
@@ -273,7 +296,7 @@ public class PowerUserJobTest {
   }
 
   @Test
-  @DisplayName("성공: 동점 유저는 같은 rank 부여 (1, 1, 3)")
+  @DisplayName("성공: 동점 유저는 row num으로 rank 부여 (1, 2, 3)")
   void job_sameScore_sameRank() throws Exception {
     User user1 = saveUser();
     User user2 = saveUser();
@@ -283,17 +306,28 @@ public class PowerUserJobTest {
     Review review2 = saveReview(user2, saveBook());
     Review review3 = saveReview(user3, saveBook());
 
-    savePopularReview(review1, Period.DAILY, BigDecimal.valueOf(2.0));
-    savePopularReview(review2, Period.DAILY, BigDecimal.valueOf(2.0));
-    savePopularReview(review3, Period.DAILY, BigDecimal.valueOf(1.0));
+    Instant yesterday = kstYesterday;
+    // 동점 조건 유저들의 계산 타임스탬프 어제로 통일
+    savePopularReview(review1, Period.DAILY, BigDecimal.valueOf(2.0), yesterday.plus(1, ChronoUnit.HOURS));
+    savePopularReview(review2, Period.DAILY, BigDecimal.valueOf(2.0), yesterday.plus(2, ChronoUnit.HOURS));
+    savePopularReview(review3, Period.DAILY, BigDecimal.valueOf(1.0), yesterday.plus(3, ChronoUnit.HOURS));
 
     JobExecution execution = launchJob(powerUserDailyJob);
 
     assertThat(execution.getStatus()).isEqualTo(BatchStatus.COMPLETED);
     List<PowerUser> results = powerUserRepository.findByPeriodOrderByScoreDesc(Period.DAILY);
     assertThat(results).hasSize(3);
-    assertThat(results.stream().filter(r -> r.getRanking() == 1).count()).isEqualTo(2);
+
+    // row_number 방식: 동점이어도 순번 부여 → 1, 2, 3 각 1개씩
+    assertThat(results.stream().filter(r -> r.getRanking() == 1).count()).isEqualTo(1);
+    assertThat(results.stream().filter(r -> r.getRanking() == 2).count()).isEqualTo(1);
     assertThat(results.stream().filter(r -> r.getRanking() == 3).count()).isEqualTo(1);
+
+    // 점수 높은 순으로 정렬되어 있는지 확인
+    assertThat(results.get(0).getScore())
+        .isGreaterThanOrEqualTo(results.get(1).getScore());
+    assertThat(results.get(1).getScore())
+        .isGreaterThanOrEqualTo(results.get(2).getScore());
   }
 
   @Test
@@ -301,7 +335,8 @@ public class PowerUserJobTest {
   void job_includesDeletedReviewAuthor() throws Exception {
     User user = saveUser();
     Review review = saveReview(user, saveBook());
-    savePopularReview(review, Period.DAILY, BigDecimal.valueOf(3.0));
+    // 어제 기점으로 생성 처리
+    savePopularReview(review, Period.DAILY, BigDecimal.valueOf(3.0), kstYesterday.plus(1, ChronoUnit.HOURS));
 
     transactionTemplate.execute(status -> {
       entityManager.createQuery(

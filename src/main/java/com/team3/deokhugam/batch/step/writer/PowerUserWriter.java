@@ -6,7 +6,6 @@ import com.team3.deokhugam.batch.global.RankCalculateUtil;
 import com.team3.deokhugam.batch.persistenceService.PowerUserRankingPersistenceService;
 import com.team3.deokhugam.domain.dashboard.PowerUser;
 import java.time.Instant;
-import java.time.ZoneId;
 import java.util.List;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
@@ -27,13 +26,7 @@ public class PowerUserWriter implements StepExecutionListener {
 
   @Override
   public void beforeStep(@Nullable StepExecution stepExecution) {
-    if (stepExecution != null && stepExecution.getStartTime() != null) {
-      calculatedAt = stepExecution.getStartTime()
-          .atZone(ZoneId.of("Asia/Seoul"))
-          .toInstant();
-    } else {
-      calculatedAt = Instant.now();
-    }
+    this.calculatedAt = Instant.now();
   }
 
   @Override
@@ -59,7 +52,7 @@ public class PowerUserWriter implements StepExecutionListener {
                 .build())
             .collect(Collectors.toList());
 
-        RankCalculateUtil.assignRanks(items, PowerUser::getScore, PowerUser::assignRank);
+        RankCalculateUtil.assignRanks(items, PowerUser::getScore, PowerUser::assignRank, false);
         persistenceService.deleteAndSave(period, items);
         log.info("PowerUserWriter 저장 완료 period={}, size={}", period, items.size());
       } catch (Exception e) {
