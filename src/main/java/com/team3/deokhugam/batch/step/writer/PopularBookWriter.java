@@ -52,7 +52,7 @@ public class PopularBookWriter implements StepExecutionListener {
                 .build())
             .collect(Collectors.toList());
 
-        RankCalculateUtil.assignRanks(items, PopularBook::getScore, PopularBook::assignRank);
+        RankCalculateUtil.assignRanks(items, PopularBook::getScore, PopularBook::assignRank, true);
         persistenceService.deleteAndSave(period, items);
         log.info("PopularBookWriter 저장 완료 period={}, size={}", period, items.size());
       } catch (Exception e) {

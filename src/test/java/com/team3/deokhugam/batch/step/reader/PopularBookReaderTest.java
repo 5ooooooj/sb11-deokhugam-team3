@@ -292,4 +292,49 @@ class PopularBookReaderTest {
     // then
     assertThat(results).hasSize(100);
   }
+
+  @Test
+  @DisplayName("성공: 동점 도서는 최신 등록 도서가 우선 정렬")
+  void read_sameScore_orderedByCreatedAtDesc() throws Exception {
+    // given
+    User user1 = saveUser();
+    User user2 = saveUser();
+    User user3 = saveUser();
+
+    // 세 도서 모두 리뷰 1개, 평점 5 → score = 1*0.4 + 5*0.6 = 3.4 동점
+    Book oldBook = saveBook();    // 가장 오래된 도서
+    Book midBook = saveBook();    // 중간
+    Book newBook = saveBook();    // 가장 최신 도서
+
+    // createdAt을 강제로 다르게 세팅
+    transactionTemplate.execute(status -> {
+      entityManager.createQuery("UPDATE Book b SET b.createdAt = :createdAt WHERE b.id = :id")
+          .setParameter("createdAt", Instant.now().minus(10, ChronoUnit.DAYS))
+          .setParameter("id", oldBook.getId())
+          .executeUpdate();
+      entityManager.createQuery("UPDATE Book b SET b.createdAt = :createdAt WHERE b.id = :id")
+          .setParameter("createdAt", Instant.now().minus(5, ChronoUnit.DAYS))
+          .setParameter("id", midBook.getId())
+          .executeUpdate();
+      entityManager.createQuery("UPDATE Book b SET b.createdAt = :createdAt WHERE b.id = :id")
+          .setParameter("createdAt", Instant.now().minus(1, ChronoUnit.DAYS))
+          .setParameter("id", newBook.getId())
+          .executeUpdate();
+      return null;
+    });
+
+    saveReviewWithCreatedAt(user1, oldBook, 5, "오래된 도서 리뷰", kstYesterday.plus(1, ChronoUnit.HOURS));
+    saveReviewWithCreatedAt(user2, midBook, 5, "중간 도서 리뷰", kstYesterday.plus(2, ChronoUnit.HOURS));
+    saveReviewWithCreatedAt(user3, newBook, 5, "최신 도서 리뷰", kstYesterday.plus(3, ChronoUnit.HOURS));
+
+    // when
+    List<PopularBookRawData> results = readAll(Period.ALL_TIME);
+
+    // then
+    assertThat(results).hasSize(3);
+    // 동점이면 최신 등록 도서 우선 → newBook > midBook > oldBook
+    assertThat(results.get(0).bookId()).isEqualTo(newBook.getId());
+    assertThat(results.get(1).bookId()).isEqualTo(midBook.getId());
+    assertThat(results.get(2).bookId()).isEqualTo(oldBook.getId());
+  }
 }

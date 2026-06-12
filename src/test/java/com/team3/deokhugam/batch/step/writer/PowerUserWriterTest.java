@@ -8,14 +8,12 @@ import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 
 import com.team3.deokhugam.batch.dto.PowerUserRawData;
 import com.team3.deokhugam.batch.global.Period;
 import com.team3.deokhugam.batch.persistenceService.PowerUserRankingPersistenceService;
 import com.team3.deokhugam.domain.dashboard.PowerUser;
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;

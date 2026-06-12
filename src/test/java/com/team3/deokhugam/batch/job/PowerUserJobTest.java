@@ -296,7 +296,7 @@ public class PowerUserJobTest {
   }
 
   @Test
-  @DisplayName("성공: 동점 유자는 같은 rank 부여 (1, 1, 3)")
+  @DisplayName("성공: 동점 유저는 row num으로 rank 부여 (1, 2, 3)")
   void job_sameScore_sameRank() throws Exception {
     User user1 = saveUser();
     User user2 = saveUser();
@@ -317,8 +317,17 @@ public class PowerUserJobTest {
     assertThat(execution.getStatus()).isEqualTo(BatchStatus.COMPLETED);
     List<PowerUser> results = powerUserRepository.findByPeriodOrderByScoreDesc(Period.DAILY);
     assertThat(results).hasSize(3);
-    assertThat(results.stream().filter(r -> r.getRanking() == 1).count()).isEqualTo(2);
+
+    // row_number 방식: 동점이어도 순번 부여 → 1, 2, 3 각 1개씩
+    assertThat(results.stream().filter(r -> r.getRanking() == 1).count()).isEqualTo(1);
+    assertThat(results.stream().filter(r -> r.getRanking() == 2).count()).isEqualTo(1);
     assertThat(results.stream().filter(r -> r.getRanking() == 3).count()).isEqualTo(1);
+
+    // 점수 높은 순으로 정렬되어 있는지 확인
+    assertThat(results.get(0).getScore())
+        .isGreaterThanOrEqualTo(results.get(1).getScore());
+    assertThat(results.get(1).getScore())
+        .isGreaterThanOrEqualTo(results.get(2).getScore());
   }
 
   @Test

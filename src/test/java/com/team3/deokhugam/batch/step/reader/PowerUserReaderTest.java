@@ -147,6 +147,18 @@ class PowerUserReaderTest {
     return results;
   }
 
+  private void saveLike(Review review, User user, Instant createdAt) {
+    transactionTemplate.execute(status -> {
+      ReviewLike like = reviewLikeRepository.save(ReviewLike.create(review, user));
+      entityManager.createQuery(
+              "UPDATE ReviewLike rl SET rl.createdAt = :createdAt WHERE rl.id = :id")
+          .setParameter("createdAt", createdAt)
+          .setParameter("id", like.getId())
+          .executeUpdate();
+      return null;
+    });
+  }
+
   @Test
   @DisplayName("성공: 기간 내 활동을 유저별로 집계")
   void read_daily_success() throws Exception {
@@ -328,5 +340,54 @@ class PowerUserReaderTest {
     List<PowerUserRawData> results = readAll(Period.DAILY);
 
     assertThat(results).hasSize(100);
+  }
+
+  @Test
+  @DisplayName("성공: 동점 유저는 오래된 유저가 우선 정렬")
+  void read_sameScore_orderedByCreatedAtAsc() throws Exception {
+    // given
+    User newUser = saveUser();   // 가장 최신 유저
+    User midUser = saveUser();   // 중간
+    User oldUser = saveUser();   // 가장 오래된 유저
+
+    // createdAt 강제 세팅
+    transactionTemplate.execute(status -> {
+      entityManager.createQuery("UPDATE User u SET u.createdAt = :createdAt WHERE u.id = :id")
+          .setParameter("createdAt", Instant.now().minus(1, ChronoUnit.DAYS))
+          .setParameter("id", newUser.getId())
+          .executeUpdate();
+      entityManager.createQuery("UPDATE User u SET u.createdAt = :createdAt WHERE u.id = :id")
+          .setParameter("createdAt", Instant.now().minus(5, ChronoUnit.DAYS))
+          .setParameter("id", midUser.getId())
+          .executeUpdate();
+      entityManager.createQuery("UPDATE User u SET u.createdAt = :createdAt WHERE u.id = :id")
+          .setParameter("createdAt", Instant.now().minus(10, ChronoUnit.DAYS))
+          .setParameter("id", oldUser.getId())
+          .executeUpdate();
+      return null;
+    });
+
+    // 세 유저 모두 동일한 좋아요 2개 → score = 2*0.2 = 0.4 동점
+    Review review1 = saveReview(saveUser(), saveBook());
+    Review review2 = saveReview(saveUser(), saveBook());
+
+    saveLike(review1, newUser, kstYesterday.plus(1, ChronoUnit.HOURS));
+    saveLike(review2, newUser, kstYesterday.plus(2, ChronoUnit.HOURS));
+
+    saveLike(review1, midUser, kstYesterday.plus(3, ChronoUnit.HOURS));
+    saveLike(review2, midUser, kstYesterday.plus(4, ChronoUnit.HOURS));
+
+    saveLike(review1, oldUser, kstYesterday.plus(5, ChronoUnit.HOURS));
+    saveLike(review2, oldUser, kstYesterday.plus(6, ChronoUnit.HOURS));
+
+    // when
+    List<PowerUserRawData> results = readAll(Period.DAILY);
+
+    // then
+    assertThat(results).hasSize(3);
+    // 동점이면 오래된 유저 우선 → oldUser > midUser > newUser
+    assertThat(results.get(0).userId()).isEqualTo(oldUser.getId());
+    assertThat(results.get(1).userId()).isEqualTo(midUser.getId());
+    assertThat(results.get(2).userId()).isEqualTo(newUser.getId());
   }
 }

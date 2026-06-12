@@ -8,12 +8,10 @@ import jakarta.persistence.EntityManagerFactory;
 import java.time.Instant;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.batch.item.ExecutionContext;
 import org.springframework.batch.item.support.AbstractItemStreamItemReader;
 import org.springframework.stereotype.Component;
 
-@Slf4j
 @Component
 @RequiredArgsConstructor
 public class PowerUserReader {
@@ -45,7 +43,6 @@ public class PowerUserReader {
     Instant startDate = DateCalculateUtil.getStartDate(period);
     Instant endDate = DateCalculateUtil.getEndDate(period);
 
-    log.debug("🚀 [배치 범위 확인] 시작: " + startDate + " ~ 끝: " + endDate);
 
     EntityManager em = entityManagerFactory.createEntityManager();
     try {
@@ -68,13 +65,13 @@ public class PowerUserReader {
             LEFT JOIN Comment c ON c.user.id = u.id
             WHERE u.deletedAt IS NULL
             GROUP BY u.id, u.createdAt
-            HAVING COALESCE(SUM(pr.score), 0) > 0
-                OR COUNT(DISTINCT rl.id) > 0
-                OR COUNT(DISTINCT c.id) > 0
+            HAVING (COALESCE(SUM(pr.score), 0) * 0.5
+                + COUNT(DISTINCT rl.id) * 0.2
+                + COUNT(DISTINCT c.id) * 0.3) > 0
             ORDER BY (COALESCE(SUM(pr.score), 0) * 0.5
                 + COUNT(DISTINCT rl.id) * 0.2
                 + COUNT(DISTINCT c.id) * 0.3) DESC,
-                u.createdAt DESC, u.id DESC
+                u.createdAt ASC, u.id ASC
             """, PowerUserRawData.class)
             .setParameter("period", period)
             .setMaxResults(MAX_ITEM_COUNT)
@@ -100,13 +97,13 @@ public class PowerUserReader {
                                 AND c.createdAt >= :startDate AND c.createdAt < :endDate
             WHERE u.deletedAt IS NULL
             GROUP BY u.id, u.createdAt
-            HAVING COALESCE(SUM(pr.score), 0) > 0
-                OR COUNT(DISTINCT rl.id) > 0
-                OR COUNT(DISTINCT c.id) > 0
+            HAVING (COALESCE(SUM(pr.score), 0) * 0.5
+                + COUNT(DISTINCT rl.id) * 0.2
+                + COUNT(DISTINCT c.id) * 0.3) > 0
             ORDER BY (COALESCE(SUM(pr.score), 0) * 0.5
                 + COUNT(DISTINCT rl.id) * 0.2
                 + COUNT(DISTINCT c.id) * 0.3) DESC,
-                u.createdAt DESC, u.id DESC
+                u.createdAt ASC, u.id ASC
             """, PowerUserRawData.class)
             .setParameter("period", period)
             .setParameter("startDate", startDate)

@@ -51,7 +51,7 @@ public class PopularReviewWriter implements StepExecutionListener {
                 .build())
             .collect(Collectors.toList());
 
-        RankCalculateUtil.assignRanks(items, PopularReview::getScore, PopularReview::assignRank);
+        RankCalculateUtil.assignRanks(items, PopularReview::getScore, PopularReview::assignRank, true);
         persistenceService.deleteAndSave(period, items);
         log.info("PopularReviewWriter 저장 완료 period={}, size={}", period, items.size());
       } catch (Exception e) {

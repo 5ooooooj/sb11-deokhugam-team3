@@ -8,12 +8,10 @@ import jakarta.persistence.EntityManagerFactory;
 import java.time.Instant;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.batch.item.ExecutionContext;
 import org.springframework.batch.item.support.AbstractItemStreamItemReader;
 import org.springframework.stereotype.Component;
 
-@Slf4j
 @Component
 @RequiredArgsConstructor
 public class PopularReviewReader {
@@ -44,8 +42,6 @@ public class PopularReviewReader {
   private List<PopularReviewRawData> fetchData(Period period) {
     Instant startDate = DateCalculateUtil.getStartDate(period);
     Instant endDate = DateCalculateUtil.getEndDate(period);
-
-    log.debug("🚀 [배치 범위 확인] 시작: " + startDate + " ~ 끝: " + endDate);
 
     EntityManager em = entityManagerFactory.createEntityManager();
     try {

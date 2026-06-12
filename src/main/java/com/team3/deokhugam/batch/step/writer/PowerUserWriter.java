@@ -53,7 +53,7 @@ public class PowerUserWriter implements StepExecutionListener {
                 .build())
             .collect(Collectors.toList());
 
-        RankCalculateUtil.assignRanks(items, PowerUser::getScore, PowerUser::assignRank);
+        RankCalculateUtil.assignRanks(items, PowerUser::getScore, PowerUser::assignRank, false);
         persistenceService.deleteAndSave(period, items);
         log.info("PowerUserWriter 저장 완료 period={}, size={}", period, items.size());
       } catch (Exception e) {
