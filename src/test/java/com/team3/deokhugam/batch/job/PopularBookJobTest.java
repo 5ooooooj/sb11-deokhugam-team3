@@ -103,15 +103,6 @@ public class PopularBookJobTest {
         .addLong("nonce", System.nanoTime())
         .toJobParameters());
 
-    execution.getStepExecutions().forEach(se -> {
-      if (se.getFailureExceptions() != null) {
-        se.getFailureExceptions().forEach(e -> System.out.println("Step exception: " + e.getMessage()));
-        se.getFailureExceptions().forEach(Throwable::printStackTrace);
-      }
-    });
-    execution.getFailureExceptions().forEach(e -> System.out.println("Job exception: " + e.getMessage()));
-    execution.getFailureExceptions().forEach(Throwable::printStackTrace);
-
     return execution;
   }
 

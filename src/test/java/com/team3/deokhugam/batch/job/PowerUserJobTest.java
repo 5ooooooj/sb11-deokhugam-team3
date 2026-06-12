@@ -80,9 +80,9 @@ public class PowerUserJobTest {
   private static final ZoneId KST = ZoneId.of("Asia/Seoul");
 
   // 한국 시간(KST) 기준의 '어제' 시간대 정의
-  private final Instant kstYesterday = LocalDateTime.now(KST)
+  private final Instant kstYesterday = LocalDate.now(KST)
       .minusDays(1)
-      .atZone(KST)
+      .atStartOfDay(KST)
       .toInstant();
 
   @BeforeEach
