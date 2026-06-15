@@ -1,3 +1,5 @@
+-- Flyway 도입 후 실제 스키마 변경은 db/migration 하위 파일로 관리.
+
 -- extensions --
 CREATE EXTENSION IF NOT EXISTS pg_trgm;
 CREATE EXTENSION IF NOT EXISTS pgcrypto;

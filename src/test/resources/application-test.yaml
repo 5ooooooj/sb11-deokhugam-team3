@@ -18,6 +18,9 @@ spring:
       connection-timeout: 30000
       idle-timeout: 600000
 
+  flyway:
+    enabled: false
+
   jpa:
     defer-datasource-initialization: true
     database-platform: org.hibernate.dialect.PostgreSQLDialect
