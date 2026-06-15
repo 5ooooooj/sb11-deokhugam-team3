@@ -25,5 +25,5 @@ RUN mkdir -p /app/logs && chown -R app:app /app
 COPY --from=builder /app/build/libs/*.jar app.jar
 USER app
 # 최대 힙 512m, 초기 힙 256m 제한
-ENTRYPOINT ["java", "-Xmx512m", "-Xms256m", \
+ENTRYPOINT ["java", "-XX:MaxRAMPercentage=70.0", "-XX:InitialRAMPercentage=25.0", \
   "-jar", "app.jar"]
