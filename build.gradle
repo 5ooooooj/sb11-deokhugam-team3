@@ -29,6 +29,8 @@ dependencies {
     implementation 'software.amazon.awssdk:s3:2.20.70'
     implementation 'software.amazon.awssdk:auth:2.20.70'
     implementation 'org.springframework.security:spring-security-crypto'
+    implementation 'org.flywaydb:flyway-core'
+    implementation 'org.flywaydb:flyway-database-postgresql'
     compileOnly 'org.projectlombok:lombok'
     runtimeOnly 'org.postgresql:postgresql'
     annotationProcessor 'org.projectlombok:lombok'
