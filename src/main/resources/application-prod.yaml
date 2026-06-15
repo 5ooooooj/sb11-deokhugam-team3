@@ -23,7 +23,7 @@ spring:
   jpa:
     hibernate:
       ddl-auto: validate
-    defer-datasource-initialization: true
+    defer-datasource-initialization: false
     show-sql: false
   sql:
     init:
